@@ -1,0 +1,206 @@
+#!/bin/bash
+
+ARRAY=()
+while IFS= read -r ENTRY
+do
+	ARRAY+=("$(awk -F '|' '{ print $1 }' <<< "${ENTRY}")")
+	ARRAY+=("")
+	if [[ ${#ARRAY[@]} -gt 3 ]]
+		then
+			ARRAY+=("OFF")
+		else
+			ARRAY+=("ON")
+	fi
+done <<< $(sudo parted --list --machine 2> /dev/null | awk -F : '$0 ~ "/dev/" && $0 !~ "/dev/mapper/" { printf "%s|%s\n", $1, $7 }' | sort)
+if [[ ${#ARRAY[@]} -gt 0 ]]
+	then
+			LENGTH=$((${#ARRAY[@]} / 3))
+			HEIGHT=$((${LENGTH} + 7))
+			SELECTION=$(whiptail --title "Arch Linux" --radiolist "Installation disk" ${HEIGHT} 78 ${LENGTH} "${ARRAY[@]}" 3>&1 1>&2 2>&3)
+			[[ -z "${SELECTION}" ]] && exit 1
+			DISK="${SELECTION}"
+	else
+			exit 0
+fi
+
+ARRAY=()
+while IFS= read -r ENTRY
+do
+	ARRAY+=("$(awk -F '|' '{ print $1 }' <<< "${ENTRY}")")
+	ARRAY+=("")
+	if [[ ${#ARRAY[@]} -gt 3 ]]
+		then
+			ARRAY+=("OFF")
+		else
+			ARRAY+=("ON")
+	fi
+done <<< $(ip -o link show | awk '$(NF - 3) == "link/ether" { printf "%s|%s\n", substr($2, 1, length($2) - 1), $(NF - 2) }' | sort)
+if [[ ${#ARRAY[@]} -gt 0 ]]
+	then
+			LENGTH=$((${#ARRAY[@]} / 3))
+			HEIGHT=$((${LENGTH} + 7))
+			SELECTION=$(whiptail --title "Arch Linux" --radiolist "Network interface" ${HEIGHT} 78 ${LENGTH} "${ARRAY[@]}" 3>&1 1>&2 2>&3)
+			[[ -z "${SELECTION}" ]] && exit 1
+			NIC="${SELECTION}"
+	else
+			exit 0
+fi
+
+HOSTNAME=$(whiptail --title "Arch Linux" --inputbox "Hostname" 8 78 3>&1 1>&2 2>&3)
+[[ -z "${HOSTNAME}" ]] && exit 1
+
+USER=$(whiptail --title "Arch Linux" --inputbox "User" 8 78 3>&1 1>&2 2>&3)
+[[ -z "${USER}" ]] && exit 1
+
+PASSWORD=$(whiptail --title "Arch Linux" --passwordbox "Password" 8 78 3>&1 1>&2 2>&3)
+[[ -z "${PASSWORD}" ]] && exit 1
+
+set -x
+
+# pacman -Syy
+# pacman -S --noconfirm reflector
+# reflector --country DE --protocol https --age 12 --sort rate --save /etc/pacman.d/mirrorlist
+cat > /etc/pacman.d/mirrorlist <<-EOF
+	Server = https://mirrors.kernel.org/archlinux/\$repo/os/\$arch
+	Server = https://mirrors.mit.edu/archlinux/\$repo/os/\$arch
+EOF
+pacman -Syy
+
+loadkeys de-latin1-nodeadkeys
+parted "${DISK}" mklabel msdos
+parted "${DISK}" mkpart primary 1MiB 512MiB
+parted "${DISK}" mkpart primary 512MiB 100%
+parted "${DISK}" set 1 boot on
+mkfs.ext4 "${DISK}1"
+cryptsetup --batch-mode luksFormat "${DISK}2" <<-EOF
+	${PASSWORD}
+	${PASSWORD}
+EOF
+CRYPT_PART_ID="$(uuidgen)"
+cryptsetup open "${DISK}2" "${CRYPT_PART_ID}" <<-EOF
+	${PASSWORD}
+EOF
+mkfs.ext4 "/dev/mapper/${CRYPT_PART_ID}"
+mount "/dev/mapper/${CRYPT_PART_ID}" /mnt
+mkdir /mnt/boot
+mount "${DISK}1" /mnt/boot
+
+PACKAGES=(
+	base
+	base-devel
+	grub
+	linux
+	linux-firmware
+	sudo
+	vim
+)
+pacstrap /mnt ${PACKAGES[*]}
+genfstab -U /mnt > /mnt/etc/fstab
+
+sed -i -r s/"#(de_DE.UTF-8 UTF-8)"/"\1"/g /mnt/etc/locale.gen
+sed -i -r s/"#(en_US.UTF-8 UTF-8)"/"\1"/g /mnt/etc/locale.gen
+arch-chroot /mnt locale-gen
+cat > /mnt/etc/locale.conf <<-EOF
+	LANG=en_US.UTF-8
+EOF
+ln -sf /usr/share/zoneinfo/Europe/Berlin /mnt/etc/localtime
+cat > /mnt/etc/timezone <<-EOF
+	Europe/Berlin
+EOF
+cat > /mnt/etc/vconsole.conf <<-EOF
+	KEYMAP=de-latin1-nodeadkeys
+EOF
+
+cat > /mnt/etc/hostname <<-EOF
+	${HOSTNAME}
+EOF
+cat > /mnt/etc/hosts <<-EOF
+	127.0.0.1 localhost
+	::1 localhost
+	127.0.1.1 ${HOSTNAME}
+EOF
+cat > /mnt/etc/systemd/network/10-default.network <<-EOF
+	[Match]
+	Name=${NIC}
+
+	[Network]
+	DHCP=ipv4
+EOF
+cat > /mnt/etc/systemd/logind.conf <<-EOF
+	[Login]
+	HandlePowerKey=ignore
+	HandleSuspendKey=ignore
+	HandleHibernateKey=ignore
+EOF
+cat > /mnt/etc/systemd/timesyncd.conf <<-EOF
+	[Time]
+	NTP=de.pool.ntp.org
+EOF
+ln -sf /var/run/systemd/resolve/stub-resolv.conf /mnt/etc/resolv.conf
+
+arch-chroot /mnt systemctl enable systemd-networkd.service
+arch-chroot /mnt systemctl enable systemd-timesyncd.service
+arch-chroot /mnt systemctl enable systemd-resolved.service
+arch-chroot /mnt systemctl enable fstrim.timer
+
+arch-chroot /mnt useradd -m -s /bin/bash "${USER}"
+arch-chroot /mnt passwd "${USER}" <<-EOF
+	${PASSWORD}
+	${PASSWORD}
+EOF
+cat > "/mnt/etc/sudoers.d/${USER}" <<-EOF
+	${USER} ALL=(ALL) ALL
+	${USER} ALL=(ALL) NOPASSWD: /usr/bin/ip
+EOF
+chmod u=r,g=r,o= "/mnt/etc/sudoers.d/${USER}"
+cat > /mnt/etc/sudoers.d/umask <<-EOF
+	Defaults umask_override
+EOF
+chmod u=r,g=r,o= /mnt/etc/sudoers.d/umask
+arch-chroot /mnt passwd -l root
+
+if [[ "${NIC}" == w* ]]
+	then
+		arch-chroot /mnt pacman -S wpa_supplicant
+		cat > "/mnt/etc/wpa_supplicant/wpa_supplicant-${NIC}.conf" <<-EOF
+			ctrl_interface=/run/wpa_supplicant
+		EOF
+		cat > /mnt/usr/local/bin/wpa_cli <<-EOF
+			#!/bin/sh
+
+			sudo /usr/bin/wpa_cli -i ${NIC}
+		EOF
+		chmod +x /mnt/usr/local/bin/wpa_cli
+		cat >> "/mnt/etc/sudoers.d/${USER}" <<-EOF
+			${USER} ALL=(ALL) NOPASSWD: /usr/bin/wpa_cli
+		EOF
+		arch-chroot /mnt systemctl enable "wpa_supplicant@${NIC}.service"
+fi
+
+if [[ "$(hostnamectl | awk 'BEGIN { IGNORECASE = 1 } $1 ~ "chassis" { print $2 }')" != "vm" ]]
+	then
+		arch-chroot /mnt pacman -S intel-ucode
+fi
+
+cat > /mnt/etc/default/grub <<-EOF
+	GRUB_DISTRIBUTOR="Arch"
+	GRUB_DEFAULT=0
+	GRUB_TIMEOUT=0
+	GRUB_TIMEOUT_STYLE=hidden
+	GRUB_DISABLE_RECOVERY=true
+	GRUB_CMDLINE_LINUX="cryptdevice=${DISK}2:${CRYPT_PART_ID}:allow-discards"
+	GRUB_CMDLINE_LINUX_DEFAULT="quiet loglevel=3"
+EOF
+cat > /mnt/etc/mkinitcpio.conf <<-EOF
+	MODULES=()
+	BINARIES=()
+	FILES=()
+	HOOKS=(base udev autodetect modconf block keyboard keymap encrypt filesystems fsck)
+EOF
+arch-chroot /mnt mkinitcpio -p linux
+arch-chroot /mnt grub-install "${DISK}"
+arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
+
+wget -P "/mnt/home/${USER}" https://kontextwechsel.de/arch-desktop-installation
+chmod +x "/mnt/home/${USER}/arch-desktop-installation"
+arch-chroot /mnt chown "${USER}":"${USER}" "/home/${USER}/arch-desktop-installation"

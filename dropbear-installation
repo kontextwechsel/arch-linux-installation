@@ -1,0 +1,18 @@
+#!/bin/bash
+
+NIC="$(grep -oP "(?<=Name=).*" $(find /etc/systemd/network -type f | sort | head -1))"
+KERNEL_NIC="$(dmesg | grep -oP "(?<=${NIC}: renamed from ).*")"
+
+sudo rm /etc/ssh/ssh_host_*
+sudo ssh-keygen -A -m PEM
+sudo pacman -S --noconfirm mkinitcpio-dropbear mkinitcpio-netconf mkinitcpio-utils
+sudo cp ~/.ssh/authorized_keys /etc/dropbear/root_key
+sudo tee /etc/mkinitcpio.conf <<-EOF
+	MODULES=()
+	BINARIES=(/usr/lib/libgcc_s.so.1)
+	FILES=()
+	HOOKS=(base udev autodetect modconf block keyboard keymap netconf dropbear encryptssh filesystems fsck)
+EOF
+sudo mkinitcpio -p linux
+sudo sed -i -r s/"GRUB_CMDLINE_LINUX=\"(.*)\""/"GRUB_CMDLINE_LINUX=\"\1 ip=:::::${KERNEL_NIC}:dhcp\""/g /etc/default/grub
+sudo grub-mkconfig -o /boot/grub/grub.cfg
