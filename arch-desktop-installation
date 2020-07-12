@@ -2,10 +2,22 @@
 
 set -x
 
+sudo /bin/true || exit 1
+
 NIC="$(grep -oP "(?<=Name=).*" $(find /etc/systemd/network -type f | sort | head -1))"
 
 sudo sed -i s/"#Color"/"Color"/g /etc/pacman.conf
-sudo pacman -Syy
+
+curl -O https://download.sublimetext.com/sublimehq-pub.gpg
+sudo pacman-key --add sublimehq-pub.gpg
+sudo pacman-key --lsign-key 8A8F901A
+sudo tee -a /etc/pacman.conf <<-EOF
+
+	[sublime-text]
+	Server = https://download.sublimetext.com/arch/stable/x86_64
+EOF
+rm sublimehq-pub.gpg
+
 PACKAGES=(
 	adobe-source-code-pro-fonts
 	adobe-source-sans-pro-fonts
@@ -50,6 +62,7 @@ PACKAGES=(
 	scrot
 	slock
 	sshfs
+	sublime-text
 	tcpdump
 	testdisk
 	thunderbird
@@ -57,9 +70,7 @@ PACKAGES=(
 	ufw
 	unrar
 	unzip
-	virt-manager
 	wget
-	wireshark-qt
 	xclip
 	xcursor-vanilla-dmz
 	xorg-server
@@ -70,79 +81,15 @@ PACKAGES=(
 	xterm
 	zip
 )
-sudo pacman -S --noconfirm ${PACKAGES[*]}
+sudo pacman -Syu --noconfirm ${PACKAGES[*]}
 
 SYMBOLA_VERSION="2.60-1"
-wget "http://mirrors.kernel.org/ubuntu/pool/universe/t/ttf-ancient-fonts/fonts-symbola_${SYMBOLA_VERSION}_all.deb" -O /tmp/fonts-symbola.deb
-7z x -so /tmp/fonts-symbola.deb data.tar | tar -xO ./usr/share/fonts/truetype/ancient-scripts/Symbola_hint.ttf > /tmp/Symbola.ttf
+curl -O "http://mirrors.edge.kernel.org/ubuntu/pool/universe/t/ttf-ancient-fonts/fonts-symbola_${SYMBOLA_VERSION}_all.deb"
+7z x -so "fonts-symbola_${SYMBOLA_VERSION}_all.deb" data.tar | tar -x "./usr/share/fonts/truetype/ancient-scripts/Symbola_hint.ttf" --transform="s/.*/Symbola.ttf/g"
 sudo mkdir -p /usr/share/fonts/truetype/ancient-scripts
-sudo cp /tmp/Symbola.ttf /usr/share/fonts/truetype/ancient-scripts
-
-SUBLIME_VERSION="3211"
-wget "https://download.sublimetext.com/sublime_text_3_build_${SUBLIME_VERSION}_x64.tar.bz2" -O "/tmp/sublime_text_3_build_${SUBLIME_VERSION}_x64.tar.bz2"
-sudo tar -jxvf "/tmp/sublime_text_3_build_${SUBLIME_VERSION}_x64.tar.bz2" -C /opt
-sudo ln -s /opt/sublime_text_3/sublime_text /usr/local/bin/sublime-text
-
-sudo tee /usr/local/bin/archiver <<-EOF
-	#!/bin/bash
-
-	[[ "\${#}" -eq 1 && -f "\${1}" ]] || exit 1
-	FILENAME="\${1}"
-	MIME_TYPE="\$(file --brief --mime-type "\${FILENAME}")"
-	case "\${MIME_TYPE}" in
-	    "application/zip")
-	        xterm -e "unzip -l \"\${FILENAME}\" | less"
-	        ;;
-	    "application/gzip")
-	        xterm -e "gzip -d -c \"\${FILENAME}\" | less"
-	        ;;
-	    "application/x-bzip")
-	        xterm -e "bzip2 -d -c \"\${FILENAME}\" | less"
-	        ;;
-	    "application/x-lzma")
-	        xterm -e "lzma -d -c \"\${FILENAME}\" | less"
-	        ;;
-	    "application/x-xz")
-	        xterm -e "xz -d -c \"\${FILENAME}\" | less"
-	        ;;
-	    "application/x-tar"|"application/x-compressed-tar"|"application/x-bzip-compressed-tar"|"application/x-lzma-compressed-tar"|"application/x-xz-compressed-tar")
-	        xterm -e "tar tf \"\${FILENAME}\" | less"
-	        ;;
-	    "application/x-7z-compressed")
-	        xterm -e "7z l \"\${FILENAME}\" | less"
-	        ;;
-	    "application/x-rar")
-	        xterm -e "unrar l \"\${FILENAME}\" | less"
-	        ;;
-	    *)
-	        xterm -e "echo \"Unsupported MIME type: \${MIME_TYPE}\" | less"
-	        ;;
-	esac
-EOF
-sudo chmod +x /usr/local/bin/archiver
-
-sudo tee /usr/local/bin/mpv <<-EOF
-	#!/bin/bash
-
-	MPV="/usr/bin/mpv"
-	if [[ -t 1 ]]
-	    then
-	        "\${MPV}" "\${@}"
-	    else
-	        [[ "\${#}" -eq 1 && -f "\${1}" ]] || exit 1
-	        FILENAME="\${1}"
-	        MIME_TYPE="\$(file --brief --mime-type "\${FILENAME}")"
-	        case "\${MIME_TYPE}" in
-	            "video/x-matroska")
-	                "\${MPV}" "\${FILENAME}"
-	                ;;
-	            *)
-	                xterm -e "echo \"Unsupported MIME type: \${MIME_TYPE}\" | less"
-	                ;;
-	        esac
-	fi
-EOF
-sudo chmod +x /usr/local/bin/mpv
+sudo cp Symbola.ttf /usr/share/fonts/truetype/ancient-scripts
+rm Symbola.ttf
+rm "fonts-symbola_${SYMBOLA_VERSION}_all.deb"
 
 sudo tee /usr/local/bin/screenshot <<-EOF
 	#!/bin/bash
@@ -170,26 +117,21 @@ sudo chmod +x /usr/local/bin/screenshot
 sudo perl -pi -e "s/#CC3333/#707070/g" /usr/bin/slock
 sudo perl -pi -e "s/#005577/#A6E22E/g" /usr/bin/slock
 
-sudo ln -s /usr/bin/vim /usr/local/bin/vi
+sudo sed -i "s/kpdl(comma)/kpdl(dot)/g" /usr/share/X11/xkb/symbols/de
 
-sudo systemctl mask avahi-daemon.service
 sudo systemctl enable ufw.service
 sudo ufw default reject incoming
 sudo ufw default allow outgoing
 sudo ufw allow proto tcp to 0.0.0.0/0 port 22
 sudo ufw enable
-sudo usermod -a -G wireshark "${USER}"
+
+sudo systemctl mask avahi-daemon.service
 
 sudo tee /etc/ssh/ssh_config <<-EOF
-	# $(lsb_release -d -s 2> /dev/null)
-	# $(date --iso-8601=seconds 2> /dev/null)
-
 	SendEnv LANG LC_*
+	ServerAliveInterval 10
 EOF
 sudo tee /etc/ssh/sshd_config <<-EOF
-	# $(lsb_release -d -s 2> /dev/null)
-	# $(date --iso-8601=seconds 2> /dev/null)
-
 	Port 22
 
 	HostKey /etc/ssh/ssh_host_rsa_key
@@ -205,7 +147,6 @@ sudo tee /etc/ssh/sshd_config <<-EOF
 EOF
 sudo systemctl enable sshd.service
 
-sudo sed -i "s/kpdl(comma)/kpdl(dot)/g" /usr/share/X11/xkb/symbols/de
 sudo tee /etc/X11/xorg.conf.d/10-keyboard.conf <<-EOF
 	Section "InputClass"
 	        Identifier "system-keyboard"
@@ -246,6 +187,7 @@ sudo tee /etc/gtk-2.0/gtkrc <<-EOF
 	gtk-xft-hintstyle = "hintfull"
 	gtk-xft-rgba = "rgb"
 EOF
+
 sudo mkdir -p /etc/gtk-3.0
 sudo tee /etc/gtk-3.0/settings.ini <<-EOF
 	[Settings]
@@ -267,100 +209,24 @@ sudo tee /etc/gtk-3.0/settings.ini <<-EOF
 	gtk-xft-rgba = rgb
 EOF
 
-sudo find /usr/share/applications -type f,l -delete
-sudo mkdir /usr/local/share/applications
-sudo python3 <<-EOF
-	import os
-
-	def write(name, program, argument=None, display=True):
-	    with open(f'/usr/local/share/applications/{program}.desktop', mode='w', encoding='utf-8') as fd:
-	        lines = list()
-	        lines.append(f'[Desktop Entry]')
-	        lines.append(f'Version=1.0')
-	        lines.append(f'Type=Application')
-	        lines.append(f'Name={name}')
-	        if argument is None:
-	            lines.append(f'Exec={program}')
-	        else:
-	            lines.append(f'Exec={program} {argument}')
-	        if display:
-	            lines.append(f'NoDisplay=false')
-	        else:
-	            lines.append(f'NoDisplay=true')
-	        lines.append(f'StartupNotify=false')
-	        lines.append(f'Terminal=false')
-	        fd.write(os.linesep.join(lines))
-	        fd.write(os.linesep)
-
-	write('Archiver', 'archiver', argument='%f', display=False)
-	write('GIMP', 'gimp', argument='%F', display=True)
-	write('GPicview', 'gpicview', argument='%f', display=True)
-	write('LibreOffice', 'libreoffice', argument='%F', display=True)
-	write('Mozilla Firefox', 'firefox', argument='%U', display=True)
-	write('Mozilla Thunderbird', 'thunderbird', argument=None, display=True)
-	write('MPV', 'mpv', argument='%f', display=False)
-	write('PCMan File Manager', 'pcmanfm', argument='%f', display=True)
-	write('PulseAudio Volume Control', 'pavucontrol', argument=None, display=True)
-	write('Sublime Text', 'sublime-text', argument='%F', display=True)
-	write('Terminal', 'xterm', argument=None, display=True)
-	write('Virtual Machine Manager', 'virt-manager', argument=None, display=True)
-	write('Wireshark', 'wireshark', argument='%f', display=True)
-EOF
-sudo tee /usr/local/share/applications/defaults.list <<-EOF
+sudo tee /etc/xdg/mimeapps.list <<-EOF
 	[Default Applications]
-	x-scheme-handler/http=firefox.desktop
-	x-scheme-handler/https=firefox.desktop
-	x-scheme-handler/about=firefox.desktop
-	x-scheme-handler/unknown=firefox.desktop
-
-	inode/directory=pcmanfm.desktop
-
-	application/json=sublime-text.desktop
-	application/sql=sublime-text.desktop
-	application/xml=sublime-text.desktop
-	text/css=sublime-text.desktop
-	text/csv=sublime-text.desktop
-	text/html=sublime-text.desktop
-	text/markdown=sublime-text.desktop
-	text/plain=sublime-text.desktop
-
-	application/pdf=firefox.desktop
-
-	application/vnd.oasis.opendocument.database=libreoffice.desktop
-	application/vnd.oasis.opendocument.formula=libreoffice.desktop
-	application/vnd.oasis.opendocument.graphics=libreoffice.desktop
-	application/vnd.oasis.opendocument.graphics-template=libreoffice.desktop
-	application/vnd.oasis.opendocument.presentation=libreoffice.desktop
-	application/vnd.oasis.opendocument.presentation-template=libreoffice.desktop
-	application/vnd.oasis.opendocument.spreadsheet=libreoffice.desktop
-	application/vnd.oasis.opendocument.spreadsheet-template=libreoffice.desktop
-	application/vnd.oasis.opendocument.text=libreoffice.desktop
-	application/vnd.oasis.opendocument.text-template=libreoffice.desktop
-	application/vnd.oasis.opendocument.text-web=libreoffice.desktop
-	application/vnd.oasis.opendocument.text-master=libreoffice.desktop
-
+	application/javascript=sublime_text.desktop
+	application/json=sublime_text.desktop
+	application/sql=sublime_text.desktop
+	application/xml=sublime_text.desktop
+	application/x-shellscript=sublime_text.desktop
 	image/bmp=gpicview.desktop
 	image/gif=gpicview.desktop
 	image/jpeg=gpicview.desktop
 	image/png=gpicview.desktop
-	image/svg+xml=gpicview.desktop
 	image/tiff=gpicview.desktop
-
-	video/x-matroska=mpv.desktop
-
-	application/zip=archiver.desktop
-	application/gzip=archiver.desktop
-	application/x-bzip=archiver.desktop
-	application/x-lzma=archiver.desktop
-	application/x-xz=archiver.desktop
-	application/x-tar=archiver.desktop
-	application/x-compressed-tar=archiver.desktop
-	application/x-bzip-compressed-tar=archiver.desktop
-	application/x-lzma-compressed-tar=archiver.desktop
-	application/x-xz-compressed-tar=archiver.desktop
-	application/x-7z-compressed=archiver.desktop
-	application/vnd.rar=archiver.desktop
-	application/vnd.debian.binary-package=archiver.desktop
+	image/svg+xml=gpicview.desktop
+	text/css=sublime_text.desktop
+	text/csv=sublime_text.desktop
+	text/html=sublime_text.desktop
+	text/markdown=sublime_text.desktop
+	text/plain=sublime_text.desktop
 EOF
 
 tee "${HOME}/.xinitrc" <<-EOF
@@ -432,8 +298,6 @@ tee "${HOME}/.bash_profile" <<-EOF
 	fi
 EOF
 
-rm "${HOME}/.bash_logout"
-
 tee "${HOME}/.bashrc" <<-EOF
 	case \$- in
 	    *i*)
@@ -444,7 +308,8 @@ tee "${HOME}/.bashrc" <<-EOF
 	                PS1="\[\e[31m\]\u@\h\[\e[m\]:\[\e[34m\]\w\[\e[m\]\\$ "
 	        fi
 
-	        EDITOR=vim
+	        EDITOR=/usr/bin/vim
+	        PAGER=/usr/bin/less
 
 	        HISTCONTROL=ignoreboth
 	        HISTFILESIZE=-1
@@ -454,8 +319,6 @@ tee "${HOME}/.bashrc" <<-EOF
 	        shopt -s checkwinsize
 	        shopt -s globstar
 	        shopt -s histappend
-
-	        source /usr/share/bash-completion/bash_completion
 
 	        eval \$(dircolors -b)
 
@@ -509,19 +372,32 @@ tee "${HOME}/.bashrc" <<-EOF
 	esac
 EOF
 
-touch "${HOME}/.hushlogin"
-
-tee "${HOME}/.vimrc" <<-EOF
-	set expandtab
-	set ignorecase
-	set smartcase
-	set shiftwidth=4
-	set softtabstop=4
-	set tabstop=4
-	syntax on
+tee "${HOME}/.bash_logout" <<-EOF
 EOF
 
+touch "${HOME}/.hushlogin"
+
 mkdir -p "${HOME}/.i3"
+tee "${HOME}/.i3/start" <<-EOF
+	#!/bin/bash
+
+	declare -A APPLICATIONS
+	APPLICATIONS=(
+	    ["firefox"]="firefox"
+	    ["gimp"]="gimp"
+	    ["gpicview"]="gpicview"
+	    ["libreoffice"]="libreoffice"
+	    ["pavucontrol"]="pavucontrol"
+	    ["pcmanfm"]="pcmanfm"
+	    ["sublime-text"]="subl"
+	    ["thunderbird"]="thunderbird"
+	    ["xterm"]="xterm"
+	)
+	SELECTION="\$(dmenu -i -sb "#707070" <<< \$(printf "%s\n" "\${!APPLICATIONS[@]}" | sort))"
+	i3-msg "exec --no-startup-id \${APPLICATIONS[\${SELECTION}]}"
+EOF
+chmod +x "${HOME}/.i3/start"
+
 tee "${HOME}/.i3/display" <<-EOF
 	#!/bin/sh
 
@@ -546,7 +422,7 @@ tee "${HOME}/.i3/config.d/10-default" <<-EOF
 
 	bindsym \$mod+Return exec --no-startup-id xterm
 	bindsym \$mod+Shift+q kill
-	bindsym \$mod+d exec --no-startup-id i3-dmenu-desktop --dmenu="dmenu -i -sb #707070" --entry-type=command
+	bindsym \$mod+d exec --no-startup-id ${HOME}/.i3/start
 
 	bindsym \$mod+Left focus left
 	bindsym \$mod+Down focus down
@@ -613,7 +489,7 @@ tee "${HOME}/.i3/config.d/10-default" <<-EOF
 	bindsym \$mod+Shift+F9 move container to workspace 19:F9
 	bindsym \$mod+Shift+F10 move container to workspace 20:F10
 	bindsym \$mod+Shift+F11 move container to workspace 21:F11
-	bindsym \$mod+Shift+F12 move container to workspace 22:Spotify
+	bindsym \$mod+Shift+F12 move container to workspace 22:F12
 
 	set \$exit i3 [e]xit [r]estart
 	bindsym \$mod+Shift+e mode "\$exit"
@@ -791,108 +667,8 @@ tee "${HOME}/.config/libfm/libfm.conf" <<-EOF
 	places_unmounted=1
 EOF
 
-firefox -headless -CreateProfile "${USER} ${HOME}/.mozilla/firefox/${USER}"
-timeout --signal=SIGUSR1 1 firefox -headless -P "${USER}"
-tee "${HOME}/.mozilla/firefox/${USER}/prefs.js" <<-EOF
-	user_pref("app.shield.optoutstudies.enabled", false);
-	user_pref("app.update.auto", false);
-	user_pref("app.update.enabled", false);
-	user_pref("browser.bookmarks.autoExportHTML", true);
-	user_pref("browser.contentblocking.category", "strict");
-	user_pref("browser.download.useDownloadDir", false);
-	user_pref("browser.formfill.enable", false);
-	user_pref("browser.newtabpage.activity-stream.asrouter.userprefs.cfr.addons", false);
-	user_pref("browser.newtabpage.activity-stream.asrouter.userprefs.cfr.features", false);
-	user_pref("browser.newtabpage.activity-stream.feeds.section.highlights", false);
-	user_pref("browser.newtabpage.activity-stream.feeds.topsites", false);
-	user_pref("browser.newtabpage.activity-stream.section.highlights.includeBookmarks", false);
-	user_pref("browser.newtabpage.activity-stream.section.highlights.includeDownloads", false);
-	user_pref("browser.newtabpage.activity-stream.section.highlights.includePocket", false);
-	user_pref("browser.newtabpage.activity-stream.section.highlights.includeVisited", false);
-	user_pref("browser.newtabpage.enabled", false);
-	user_pref("browser.pageActions.persistedActions", "{\"ids\":[\"bookmark\",\"pinTab\",\"bookmarkSeparator\",\"copyURL\",\"emailLink\",\"addSearchEngine\",\"sendToDevice\",\"pocket\",\"screenshots_mozilla_org\"],\"idsInUrlbar\":[],\"version\":1}");
-	user_pref("browser.safebrowsing.downloads.enabled", false);
-	user_pref("browser.safebrowsing.downloads.remote.block_potentially_unwanted", false);
-	user_pref("browser.safebrowsing.downloads.remote.block_uncommon", false);
-	user_pref("browser.safebrowsing.malware.enabled", false);
-	user_pref("browser.safebrowsing.phishing.enabled", false);
-	user_pref("browser.search.suggest.enabled", false);
-	user_pref("browser.search.update", false);
-	user_pref("browser.shell.checkDefaultBrowser", false);
-	user_pref("browser.startup.homepage", "https://www.google.de/");
-	user_pref("browser.uiCustomization.state", "{\"currentVersion\":16,\"dirtyAreaCache\":[\"PersonalToolbar\",\"nav-bar\",\"toolbar-menubar\",\"TabsToolbar\"],\"newElementCount\":0,\"placements\":{\"PersonalToolbar\":[\"personal-bookmarks\"],\"TabsToolbar\":[\"tabbrowser-tabs\",\"new-tab-button\",\"alltabs-button\"],\"nav-bar\":[\"back-button\",\"forward-button\",\"stop-reload-button\",\"home-button\",\"urlbar-container\",\"downloads-button\",\"sidebar-button\"],\"toolbar-menubar\":[\"menubar-items\"],\"widget-overflow-fixed-list\":[]},\"seen\":[\"developer-button\"]}");
-	user_pref("browser.urlbar.searchSuggestionsChoice", false);
-	user_pref("browser.urlbar.suggest.history", false);
-	user_pref("browser.urlbar.suggest.openpage", false);
-	user_pref("browser.urlbar.suggest.searches", false);
-	user_pref("datareporting.healthreport.uploadEnabled", false);
-	user_pref("font.name.monospace.x-western", "Source Code Pro");
-	user_pref("font.name.sans-serif.x-western", "Source Sans Pro");
-	user_pref("font.name.serif.x-western", "Source Serif Pro");
-	user_pref("general.smoothScroll", false);
-	user_pref("intl.accept_languages", "de,de-de,en,en-us");
-	user_pref("lightweightThemes.selectedThemeID", "firefox-compact-light@mozilla.org");
-	user_pref("media.videocontrols.picture-in-picture.video-toggle.enabled", false);
-	user_pref("network.cookie.cookieBehavior", 4);
-	user_pref("permissions.default.camera", 2);
-	user_pref("permissions.default.desktop-notification", 2);
-	user_pref("permissions.default.geo", 2);
-	user_pref("permissions.default.microphone", 2);
-	user_pref("permissions.default.xr", 2);
-	user_pref("privacy.cpd.offlineApps", true);
-	user_pref("privacy.cpd.siteSettings", true);
-	user_pref("privacy.donottrackheader.enabled", true);
-	user_pref("privacy.history.custom", true);
-	user_pref("privacy.sanitize.timeSpan", 0);
-	user_pref("privacy.trackingprotection.enabled", true);
-	user_pref("signon.autofillForms", false);
-	user_pref("signon.generation.enabled", false);
-	user_pref("signon.management.page.breach-alerts.enabled", false);
-	user_pref("toolkit.telemetry.reportingpolicy.firstRun", false);
-EOF
-
-thunderbird -headless -CreateProfile "${USER} ${HOME}/.thunderbird/${USER}"
-timeout --signal=SIGUSR1 1 thunderbird -headless -P "${USER}"
-tee "${HOME}/.thunderbird/${USER}/prefs.js" <<-EOF
-	user_pref("font.name.monospace.x-western", "Source Code Pro");
-	user_pref("font.name.sans-serif.x-western", "Source Sans Pro");
-	user_pref("font.name.serif.x-western", "Source Serif Pro");
-	user_pref("lightweightThemes.selectedThemeID", "thunderbird-compact-light@mozilla.org");
-	user_pref("mail.biff.play_sound", false);
-	user_pref("mail.chat.play_sound", false);
-	user_pref("mail.chat.show_desktop_notifications", false);
-	user_pref("mail.collect_email_address_outgoing", false);
-	user_pref("mail.compose.big_attachments.notify", false);
-	user_pref("mail.enable_autocomplete", false);
-	user_pref("mail.phishing.detection.enabled", false);
-	user_pref("mail.prompt_purge_threshhold", false);
-	user_pref("mail.shell.checkDefaultClient", false);
-	user_pref("mail.showCondensedAddresses", false);
-	user_pref("mailnews.database.global.indexer.enabled", false);
-	user_pref("mailnews.start_page.enabled", false);
-	user_pref("mailnews.start_page.url", "");
-	user_pref("messenger.startup.action", 0);
-	user_pref("messenger.status.awayWhenIdle", false);
-	user_pref("messenger.status.reportIdle", false);
-	user_pref("network.cookie.cookieBehavior", 1);
-	user_pref("network.cookie.lifetimePolicy", 2);
-	user_pref("places.history.enabled", false);
-	user_pref("privacy.donottrackheader.enabled", true);
-	user_pref("purple.conversations.im.send_typing", false);
-	user_pref("spellchecker.dictionary", "de-DE");
-	user_pref("toolkit.telemetry.prompted", 2);
-	user_pref("toolkit.telemetry.rejected", true);
-EOF
-tee "${HOME}/.thunderbird/${USER}/xulstore.json" <<-EOF
-	{"chrome://messenger/content/messenger.xul":{"mail-bar3":{"currentset":"button-getmsg,button-newmsg,button-address,separator,qfb-show-filter-bar,spring,button-appmenu"},"mail-toolbar-menubar2":{"autohide":"true"}}}
-EOF
-tee "${HOME}/.thunderbird/Crash Reports/crashreporter.ini" <<-EOF
-	[Crash Reporter]
-	SubmitReport=0
-EOF
-
 mkdir -p "${HOME}/.config/sublime-text-3/Packages/User"
-unzip -p "/opt/sublime_text_3/Packages/Color Scheme - Default.sublime-package" Monokai.sublime-color-scheme \
+unzip -p "/opt/sublime_text/Packages/Color Scheme - Default.sublime-package" Monokai.sublime-color-scheme \
 | sed "s/\"black\": \"hsl(0, 0%, 0%)\"/\"black\": \"rgb(0, 0, 0)\"/g" \
 | sed "s/\"black2\": \"hsl(60, 17%, 11%)\"/\"black2\": \"rgb(32, 32, 32)\"/g" \
 | sed "s/\"black3\": \"hsl(70, 8%, 15%)\"/\"black3\": \"rgb(39, 39, 39)\"/g" \
@@ -945,24 +721,13 @@ tee "${HOME}/.config/sublime-text-3/Local/Session.sublime_session" <<-EOF
 	{"windows":[{"menu_visible": false}]}
 EOF
 
-mkdir -p "${HOME}/.config/GIMP/2.10"
-tee "${HOME}/.config/GIMP/2.10/gimprc" <<-EOF
-	(theme "System")
-	(icon-theme "Color")
-EOF
-
-mkdir "${HOME}/.config/mpv"
-tee "${HOME}/.config/mpv/config" <<-EOF
-	stop-screensaver=yes
-EOF
-
 chmod -R g-rwx "${HOME}/"
 chmod -R o-rwx "${HOME}/"
 
 MANUFACTURER="$(sudo dmidecode -s system-manufacturer)"
 if [ "${MANUFACTURER}" = "QEMU" ]
 	then
-		sudo pacman --sync --noconfirm spice-vdagent
+		sudo pacman -Syu --noconfirm  spice-vdagent
 		tee "${HOME}/.i3/config.d/21-spice" <<-EOF
 			exec --no-startup-id spice-vdagent
 		EOF
