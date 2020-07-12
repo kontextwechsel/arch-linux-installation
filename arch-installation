@@ -1,9 +1,15 @@
 #!/bin/bash
 
+sudo /bin/true || exit 1
+
+loadkeys de-latin1-nodeadkeys
+
 ARRAY=()
 while IFS= read -r ENTRY
 do
-	ARRAY+=("$(awk -F '|' '{ print $1 }' <<< "${ENTRY}")")
+	DISK="$(awk -F '|' '{ print $1 }' <<< "${ENTRY}")"
+	NAME="$(awk -F '|' '{ print $2 }' <<< "${ENTRY}")"
+	ARRAY+=("${DISK}")
 	ARRAY+=("")
 	if [[ ${#ARRAY[@]} -gt 3 ]]
 		then
@@ -26,7 +32,15 @@ fi
 ARRAY=()
 while IFS= read -r ENTRY
 do
-	ARRAY+=("$(awk -F '|' '{ print $1 }' <<< "${ENTRY}")")
+	NIC="$(awk -F '|' '{ print $1 }' <<< "${ENTRY}")"
+	MAC="$(awk -F '|' '{ print $2 }' <<< "${ENTRY}")"
+	KERNEL_NIC="$(dmesg | grep -oP "(?<=${NIC}: renamed from ).*")"
+	if [[ -z "${KERNEL_NIC}" ]]
+		then
+			ARRAY+=("${NIC}")
+		else
+			ARRAY+=("${KERNEL_NIC}")
+	fi
 	ARRAY+=("")
 	if [[ ${#ARRAY[@]} -gt 3 ]]
 		then
@@ -57,6 +71,25 @@ PASSWORD=$(whiptail --title "Arch Linux" --passwordbox "Password" 8 78 3>&1 1>&2
 
 set -x
 
+if [[ "${DISK}" == *nvm* ]]
+	then
+		PARTITION_PREFIX="${DISK}p"
+	else
+		PARTITION_PREFIX="${DISK}"
+fi
+
+if [[ -d /sys/firmware/efi/efivars ]]
+	then
+		BOOT_MODE="UEFI"
+		UEFI_PARTITION="${PARTITION_PREFIX}1"
+		BOOT_PARTITION="${PARTITION_PREFIX}2"
+		ROOT_PARTITION="${PARTITION_PREFIX}3"
+	else
+		BOOT_MODE="LEGACY"
+		BOOT_PARTITION="${PARTITION_PREFIX}1"
+		ROOT_PARTITION="${PARTITION_PREFIX}2"
+fi
+
 # pacman -Syy
 # pacman -S --noconfirm reflector
 # reflector --country DE --protocol https --age 12 --sort rate --save /etc/pacman.d/mirrorlist
@@ -66,24 +99,39 @@ cat > /etc/pacman.d/mirrorlist <<-EOF
 EOF
 pacman -Syy
 
-loadkeys de-latin1-nodeadkeys
-parted "${DISK}" mklabel msdos
-parted "${DISK}" mkpart primary 1MiB 512MiB
-parted "${DISK}" mkpart primary 512MiB 100%
-parted "${DISK}" set 1 boot on
-mkfs.ext4 "${DISK}1"
-cryptsetup --batch-mode luksFormat "${DISK}2" <<-EOF
+if [[ "${BOOT_MODE}" == "UEFI" ]]
+	then
+		parted "${DISK}" mklabel gpt
+		parted "${DISK}" mkpart EFI 1MiB 512MiB
+		parted "${DISK}" mkpart BOOT 512MiB 1024MiB
+		parted "${DISK}" mkpart LINUX 1024MiB 100%
+		parted "${DISK}" set 1 esp on
+		mkfs.fat -F32 "${UEFI_PARTITION}"
+		mkfs.ext4 "${BOOT_PARTITION}"
+	else
+		parted "${DISK}" mklabel msdos
+		parted "${DISK}" mkpart primary 1MiB 512MiB
+		parted "${DISK}" mkpart primary 512MiB 100%
+		parted "${DISK}" set 1 boot on
+		mkfs.ext4 "${BOOT_PARTITION}"
+fi
+cryptsetup --batch-mode luksFormat "${ROOT_PARTITION}" <<-EOF
 	${PASSWORD}
 	${PASSWORD}
 EOF
-CRYPT_PART_ID="$(uuidgen)"
-cryptsetup open "${DISK}2" "${CRYPT_PART_ID}" <<-EOF
+CRYPT_PARTITION_ID="$(uuidgen)"
+cryptsetup open "${ROOT_PARTITION}" "${CRYPT_PARTITION_ID}" <<-EOF
 	${PASSWORD}
 EOF
-mkfs.ext4 "/dev/mapper/${CRYPT_PART_ID}"
-mount "/dev/mapper/${CRYPT_PART_ID}" /mnt
+mkfs.ext4 "/dev/mapper/${CRYPT_PARTITION_ID}"
+mount "/dev/mapper/${CRYPT_PARTITION_ID}" /mnt
 mkdir /mnt/boot
-mount "${DISK}1" /mnt/boot
+mount "${BOOT_PARTITION}" /mnt/boot
+if [[ "${BOOT_MODE}" == "UEFI" ]]
+	then
+		mkdir /mnt/boot/efi
+		mount "${UEFI_PARTITION}" /mnt/boot/efi
+fi
 
 PACKAGES=(
 	base
@@ -94,6 +142,12 @@ PACKAGES=(
 	sudo
 	vim
 )
+if [[ "${BOOT_MODE}" == "UEFI" ]]
+	then
+		PACKAGES+=(
+			efibootmgr
+		)
+fi
 pacstrap /mnt ${PACKAGES[*]}
 genfstab -U /mnt > /mnt/etc/fstab
 
@@ -119,6 +173,14 @@ cat > /mnt/etc/hosts <<-EOF
 	::1 localhost
 	127.0.1.1 ${HOSTNAME}
 EOF
+
+cat > /mnt/etc/systemd/logind.conf <<-EOF
+	[Login]
+	HandlePowerKey=ignore
+	HandleSuspendKey=ignore
+	HandleHibernateKey=ignore
+EOF
+
 cat > /mnt/etc/systemd/network/10-default.network <<-EOF
 	[Match]
 	Name=${NIC}
@@ -126,22 +188,30 @@ cat > /mnt/etc/systemd/network/10-default.network <<-EOF
 	[Network]
 	DHCP=ipv4
 EOF
-cat > /mnt/etc/systemd/logind.conf <<-EOF
-	[Login]
-	HandlePowerKey=ignore
-	HandleSuspendKey=ignore
-	HandleHibernateKey=ignore
-EOF
+arch-chroot /mnt systemctl enable systemd-networkd.service
+
 cat > /mnt/etc/systemd/timesyncd.conf <<-EOF
 	[Time]
 	NTP=de.pool.ntp.org
 EOF
-ln -sf /var/run/systemd/resolve/stub-resolv.conf /mnt/etc/resolv.conf
-
-arch-chroot /mnt systemctl enable systemd-networkd.service
 arch-chroot /mnt systemctl enable systemd-timesyncd.service
+
+ln -sf /var/run/systemd/resolve/stub-resolv.conf /mnt/etc/resolv.conf
 arch-chroot /mnt systemctl enable systemd-resolved.service
+
 arch-chroot /mnt systemctl enable fstrim.timer
+
+cat > /mnt/etc/vimrc <<-EOF
+	runtime! archlinux.vim
+	let skip_defaults_vim=1
+	set expandtab
+	set ignorecase
+	set smartcase
+	set shiftwidth=4
+	set softtabstop=4
+	set tabstop=4
+	syntax on
+EOF
 
 arch-chroot /mnt useradd -m -s /bin/bash "${USER}"
 arch-chroot /mnt passwd "${USER}" <<-EOF
@@ -158,28 +228,30 @@ cat > /mnt/etc/sudoers.d/umask <<-EOF
 EOF
 chmod u=r,g=r,o= /mnt/etc/sudoers.d/umask
 arch-chroot /mnt passwd -l root
+ln -s /dev/null /mnt/root/.bash_history
 
 if [[ "${NIC}" == w* ]]
 	then
-		arch-chroot /mnt pacman -S wpa_supplicant
+		arch-chroot /mnt pacman -Syu --noconfirm wpa_supplicant
 		cat > "/mnt/etc/wpa_supplicant/wpa_supplicant-${NIC}.conf" <<-EOF
 			ctrl_interface=/run/wpa_supplicant
+			ctrl_interface_group=${USER}
+			update_config=1
 		EOF
+		chmod g-rwx "/mnt/etc/wpa_supplicant/wpa_supplicant-${NIC}.conf"
+		chmod o-rwx "/mnt/etc/wpa_supplicant/wpa_supplicant-${NIC}.conf"
 		cat > /mnt/usr/local/bin/wpa_cli <<-EOF
 			#!/bin/sh
 
-			sudo /usr/bin/wpa_cli -i ${NIC}
+			/usr/bin/wpa_cli -i ${NIC}
 		EOF
 		chmod +x /mnt/usr/local/bin/wpa_cli
-		cat >> "/mnt/etc/sudoers.d/${USER}" <<-EOF
-			${USER} ALL=(ALL) NOPASSWD: /usr/bin/wpa_cli
-		EOF
 		arch-chroot /mnt systemctl enable "wpa_supplicant@${NIC}.service"
 fi
 
 if [[ "$(hostnamectl | awk 'BEGIN { IGNORECASE = 1 } $1 ~ "chassis" { print $2 }')" != "vm" ]]
 	then
-		arch-chroot /mnt pacman -S intel-ucode
+		arch-chroot /mnt pacman -Syu --noconfirm intel-ucode
 fi
 
 cat > /mnt/etc/default/grub <<-EOF
@@ -188,7 +260,7 @@ cat > /mnt/etc/default/grub <<-EOF
 	GRUB_TIMEOUT=0
 	GRUB_TIMEOUT_STYLE=hidden
 	GRUB_DISABLE_RECOVERY=true
-	GRUB_CMDLINE_LINUX="cryptdevice=${DISK}2:${CRYPT_PART_ID}:allow-discards"
+	GRUB_CMDLINE_LINUX="cryptdevice=${ROOT_PARTITION}:${CRYPT_PARTITION_ID}:allow-discards net.ifnames=0"
 	GRUB_CMDLINE_LINUX_DEFAULT="quiet loglevel=3"
 EOF
 cat > /mnt/etc/mkinitcpio.conf <<-EOF
@@ -198,9 +270,10 @@ cat > /mnt/etc/mkinitcpio.conf <<-EOF
 	HOOKS=(base udev autodetect modconf block keyboard keymap encrypt filesystems fsck)
 EOF
 arch-chroot /mnt mkinitcpio -p linux
-arch-chroot /mnt grub-install "${DISK}"
+if [[ "${BOOT_MODE}" == "UEFI" ]]
+	then
+		arch-chroot /mnt grub-install --target=x86_64-efi --bootloader-id=GRUB --efi-directory=/boot/efi
+	else
+		arch-chroot /mnt grub-install "${DISK}"
+fi
 arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
-
-wget -P "/mnt/home/${USER}" https://kontextwechsel.de/arch-desktop-installation
-chmod +x "/mnt/home/${USER}/arch-desktop-installation"
-arch-chroot /mnt chown "${USER}":"${USER}" "/home/${USER}/arch-desktop-installation"
