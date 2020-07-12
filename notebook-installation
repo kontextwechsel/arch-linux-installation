@@ -1,0 +1,63 @@
+#!/bin/bash
+
+set -x
+
+sudo /bin/true || exit 1
+
+PACKAGES=(
+	acpilight
+	blueman
+	libappindicator-gtk3
+	tlp)
+sudo pacman -Syu --noconfirm ${PACKAGES[*]}
+
+sudo systemctl enable bluetooth.service
+sudo systemctl enable tlp.service
+
+sudo usermod -a -G video "${USER}"
+
+sudo tee -a /etc/systemd/logind.conf <<-EOF
+	HandleLidSwitch=suspend
+	HandleLidSwitchDocked=suspend
+EOF
+
+sudo tee -a /etc/X11/xorg.conf.d/90-default.conf <<-EOF
+
+	Section "InputClass"
+	    Identifier "Touchpad control"
+	    MatchIsTouchpad "on"
+	    Driver "libinput"
+	        Option "ClickMethod" "clickfinger"
+	        Option "Tapping" "off"
+	        Option "ScrollMethod" "twofinger"
+	        Option "NaturalScrolling" "on"
+	EndSection
+EOF
+
+tee "${HOME}/.i3/config.d/41-backlight" <<-EOF
+	bindsym XF86MonBrightnessUp exec --no-startup-id xbacklight -inc 10
+	bindsym XF86MonBrightnessDown exec --no-startup-id xbacklight -dec 10
+EOF
+tee "${HOME}/.i3/config.d/64-blueman" <<-EOF
+	exec --no-startup-id blueman-applet
+EOF
+tee "${HOME}/.i3/config.d/70-window" <<-EOF
+	for_window [class="jetbrains"] floating disable
+	for_window [class="jetbrains" title="win"] floating enable
+EOF
+
+tee "${HOME}/.i3/status.d/40-battery" <<-EOF
+	order += "battery 0"
+	battery 0 {
+	    path = "/sys/class/power_supply/BAT%d/uevent"
+	    format = "%status %percentage"
+	    format_down = ""
+	    status_unk = "?"
+	    status_bat = "🔋"
+	    status_chr = "⚡"
+	    status_full = "🔌"
+	    low_threshold = 10
+	    last_full_capacity = true
+	    integer_battery_capacity = true
+	}
+EOF
