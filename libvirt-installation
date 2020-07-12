@@ -1,0 +1,17 @@
+#!/bin/bash
+
+set -x
+
+sudo /bin/true || exit 1
+
+PACKAGES=(
+	dnsmasq
+	ebtables
+	libvirt
+	qemu
+	virt-manager
+)
+sudo pacman -S --noconfirm ${PACKAGES[*]}
+
+sudo systemctl enable libvirtd.service
+sudo usermod -a -G libvirt "${USER}"
