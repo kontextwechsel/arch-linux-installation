@@ -1,12 +1,18 @@
 #!/bin/bash
 
+COLOR_DARK_GRAY="#464646"
+COLOR_MEDIUM_GRAY="#6f6f6f"
+COLOR_PINK="#f92472"
+COLOR_GREEN="#a6e22c"
+COLOR_WHITE="#f7f7f7"
+
 set -x
 
 sudo /bin/true || exit 1
 
 NIC="$(grep -oP "(?<=Name=).*" $(find /etc/systemd/network -type f | sort | head -1))"
 
-sudo sed -i s/"#Color"/"Color"/g /etc/pacman.conf
+sudo sed -i "s/#Color/Color/g" /etc/pacman.conf
 
 curl -O https://download.sublimetext.com/sublimehq-pub.gpg
 sudo pacman-key --add sublimehq-pub.gpg
@@ -114,8 +120,8 @@ sudo tee /usr/local/bin/screenshot <<-EOF
 EOF
 sudo chmod +x /usr/local/bin/screenshot
 
-sudo perl -pi -e "s/#CC3333/#707070/g" /usr/bin/slock
-sudo perl -pi -e "s/#005577/#A6E22E/g" /usr/bin/slock
+sudo perl -pi -e "s/#CC3333/${COLOR_MEDIUM_GRAY^^}/g" /usr/bin/slock
+sudo perl -pi -e "s/#005577/${COLOR_GREEN^^}/g" /usr/bin/slock
 
 sudo sed -i "s/kpdl(comma)/kpdl(dot)/g" /usr/share/X11/xkb/symbols/de
 
@@ -252,24 +258,24 @@ tee "${HOME}/.Xresources" <<-EOF
 	XTerm.VT100.faceName: Source Code Pro
 	XTerm.VT100.faceSize: 14
 	XTerm.VT100.allowBoldFonts: false
-	XTerm.VT100.background: rgb:27/27/27
-	XTerm.VT100.foreground: rgb:F8/F8/F8
-	XTerm.VT100.color0: rgb:70/70/70
-	XTerm.VT100.color1: rgb:F9/24/72
-	XTerm.VT100.color2: rgb:A6/E2/2C
-	XTerm.VT100.color3: rgb:E7/DB/74
-	XTerm.VT100.color4: rgb:67/D8/EF
-	XTerm.VT100.color5: rgb:AC/80/FF
-	XTerm.VT100.color6: rgb:2A/A1/98
-	XTerm.VT100.color7: rgb:F8/F8/F8
-	XTerm.VT100.color8: rgb:27/27/27
-	XTerm.VT100.color9: rgb:F9/24/72
-	XTerm.VT100.color10: rgb:A6/E2/2C
-	XTerm.VT100.color11: rgb:E7/DB/74
-	XTerm.VT100.color12: rgb:67/D8/EF
-	XTerm.VT100.color13: rgb:AC/80/FF
-	XTerm.VT100.color14: rgb:2A/A1/98
-	XTerm.VT100.color15: rgb:F8/F8/F8
+	XTerm.VT100.background: rgb:28/28/28
+	XTerm.VT100.foreground: rgb:f7/f7/f7
+	XTerm.VT100.color0: rgb:6f/6f/6f
+	XTerm.VT100.color1: rgb:f9/24/72
+	XTerm.VT100.color2: rgb:a6/e2/2c
+	XTerm.VT100.color3: rgb:e7/db/74
+	XTerm.VT100.color4: rgb:67/d8/ef
+	XTerm.VT100.color5: rgb:ac/80/ff
+	XTerm.VT100.color6: rgb:2a/a1/98
+	XTerm.VT100.color7: rgb:f8/f8/f8
+	XTerm.VT100.color8: rgb:28/28/28
+	XTerm.VT100.color9: rgb:f9/24/72
+	XTerm.VT100.color10: rgb:a6/e2/2c
+	XTerm.VT100.color11: rgb:e7/db/74
+	XTerm.VT100.color12: rgb:67/d8/ef
+	XTerm.VT100.color13: rgb:ac/80/ff
+	XTerm.VT100.color14: rgb:2a/a1/98
+	XTerm.VT100.color15: rgb:f7/f7/f7
 	XTerm.VT100.alternateScroll: true
 	XTerm.VT100.fastScroll: true
 	XTerm.VT100.jumpScroll: true
@@ -393,7 +399,7 @@ tee "${HOME}/.i3/start" <<-EOF
 	    ["thunderbird"]="thunderbird"
 	    ["xterm"]="xterm"
 	)
-	SELECTION="\$(dmenu -i -sb "#707070" <<< \$(printf "%s\n" "\${!APPLICATIONS[@]}" | sort))"
+	SELECTION="\$(dmenu -i -sb "${COLOR_MEDIUM_GRAY}" <<< \$(printf "%s\n" "\${!APPLICATIONS[@]}" | sort))"
 	i3-msg "exec --no-startup-id \${APPLICATIONS[\${SELECTION}]}"
 EOF
 chmod +x "${HOME}/.i3/start"
@@ -415,10 +421,10 @@ tee "${HOME}/.i3/config.d/10-default" <<-EOF
 	floating_modifier \$mod
 
 	font pango:Source Code Pro 10
-	client.focused             #444444    #444444    #F8F8F8    #707070
-	client.focused_inactive    #444444    #444444    #707070    #F8F8F8
-	client.unfocused           #444444    #444444    #707070    #F8F8F8
-	client.urgent              #444444    #F92472    #F8F8F8    #F92472
+	client.focused ${COLOR_DARK_GRAY} ${COLOR_DARK_GRAY} ${COLOR_WHITE} ${COLOR_MEDIUM_GRAY}
+	client.focused_inactive ${COLOR_DARK_GRAY} ${COLOR_DARK_GRAY} ${COLOR_MEDIUM_GRAY} ${COLOR_WHITE}
+	client.unfocused ${COLOR_DARK_GRAY} ${COLOR_DARK_GRAY} ${COLOR_MEDIUM_GRAY} ${COLOR_WHITE}
+	client.urgent ${COLOR_DARK_GRAY} ${COLOR_PINK} ${COLOR_WHITE} ${COLOR_PINK}
 
 	bindsym \$mod+Return exec --no-startup-id xterm
 	bindsym \$mod+Shift+q kill
@@ -521,13 +527,13 @@ tee "${HOME}/.i3/config.d/30-status" <<-EOF
 	    strip_workspace_numbers yes
 
 	    colors {
-	        background    #444444
-	        statusline    #F8F8F8
-	        separator     #707070
-	        focused_workspace     #F8F8F8    #707070    #F8F8F8
-	        active_workspace      #F8F8F8    #707070    #F8F8F8
-	        inactive_workspace    #707070    #444444    #F8F8F8
-	        urgent_workspace      #707070    #F92472    #F8F8F8
+	        background ${COLOR_DARK_GRAY}
+	        statusline ${COLOR_WHITE}
+	        separator ${COLOR_MEDIUM_GRAY}
+	        focused_workspace ${COLOR_WHITE} ${COLOR_MEDIUM_GRAY} ${COLOR_WHITE}
+	        active_workspace ${COLOR_WHITE} ${COLOR_MEDIUM_GRAY} ${COLOR_WHITE}
+	        inactive_workspace ${COLOR_MEDIUM_GRAY} ${COLOR_DARK_GRAY} ${COLOR_WHITE}
+	        urgent_workspace ${COLOR_MEDIUM_GRAY} ${COLOR_PINK} ${COLOR_WHITE}
 	    }
 	}
 EOF
@@ -562,9 +568,9 @@ mkdir -p "${HOME}/.i3/status.d"
 tee "${HOME}/.i3/status.d/10-default" <<-EOF
 	general {
 	    colors = true
-	    color_good = "#A6E22C"
-	    color_degraded = "#707070"
-	    color_bad = "#F92472"
+	    color_good = "${COLOR_GREEN}"
+	    color_degraded = "${COLOR_MEDIUM_GRAY}"
+	    color_bad = "${COLOR_PINK}"
 	    interval = 5
 	}
 EOF
@@ -623,21 +629,21 @@ tee "${HOME}/.i3/dunst" <<-EOF
 	    show_indicators = false
 
 	[urgency_low]
-	    background = "#444444"
-	    foreground = "#F8F8F8"
-	    frame_color = "#707070"
+	    background = "${COLOR_DARK_GRAY}"
+	    foreground = "${COLOR_WHITE}"
+	    frame_color = "${COLOR_MEDIUM_GRAY}"
 	    timeout = 3
 
 	[urgency_normal]
-	    background = "#444444"
-	    foreground = "#F8F8F8"
-	    frame_color = "#2AA198"
+	    background = "${COLOR_DARK_GRAY}"
+	    foreground = "${COLOR_WHITE}"
+	    frame_color = "${COLOR_MEDIUM_GRAY}"
 	    timeout = 10
 
 	[urgency_critical]
-	    background = "#444444"
-	    foreground = "#F8F8F8"
-	    frame_color = "#F92472"
+	    background = "${COLOR_DARK_GRAY}"
+	    foreground = "${COLOR_WHITE}"
+	    frame_color = "${COLOR_MEDIUM_GRAY}"
 	    timeout = 0
 EOF
 
@@ -669,31 +675,21 @@ EOF
 
 mkdir -p "${HOME}/.config/sublime-text-3/Packages/User"
 unzip -p "/opt/sublime_text/Packages/Color Scheme - Default.sublime-package" Monokai.sublime-color-scheme \
-| sed "s/\"black\": \"hsl(0, 0%, 0%)\"/\"black\": \"rgb(0, 0, 0)\"/g" \
-| sed "s/\"black2\": \"hsl(60, 17%, 11%)\"/\"black2\": \"rgb(32, 32, 32)\"/g" \
-| sed "s/\"black3\": \"hsl(70, 8%, 15%)\"/\"black3\": \"rgb(39, 39, 39)\"/g" \
-| sed "s/\"blue\": \"hsl(190, 81%, 67%)\"/\"blue\": \"rgb(103, 216, 239)\"/g" \
-| sed "s/\"grey\": \"hsl(55, 8%, 26%)\"/\"grey\": \"rgb(70, 70, 70)\"/g" \
-| sed "s/\"orange\": \"hsl(32, 98%, 56%)\"/\"orange\": \"rgb(253, 150, 33)\"/g" \
-| sed "s/\"orange2\": \"hsl(30, 83%, 34%)\"/\"orange2\": \"rgb(159, 87, 15)\"/g" \
-| sed "s/\"orange3\": \"hsl(47, 100%, 79%)\"/\"orange3\": \"rgb(255, 232, 148)\"/g" \
-| sed "s/\"purple\": \"hsl(261, 100%, 75%)\"/\"purple\": \"rgb(172, 128, 255)\"/g" \
-| sed "s/\"red\": \"hsl(0, 93%, 59%)\"/\"red\": \"rgb(248, 53, 53)\"/g" \
-| sed "s/\"red2\": \"hsl(338, 95%, 56%)\"/\"red2\": \"rgb(249, 36, 114)\"/g" \
-| sed "s/\"white\": \"hsl(0, 0%, 97%)\"/\"white\": \"rgb(248, 248, 248)\"/g" \
-| sed "s/\"white2\": \"hsl(60, 36%, 96%)\"/\"white2\": \"rgb(248, 248, 248)\"/g" \
-| sed "s/\"white3\": \"hsl(60, 30%, 96%)\"/\"white3\": \"rgb(248, 248, 248)\"/g" \
-| sed "s/\"yellow\": \"hsl(54, 70%, 68%)\"/\"yellow\": \"rgb(241, 250, 140)\"/g" \
-| sed "s/\"yellow2\": \"hsl(80, 76%, 53%)\"/\"yellow2\": \"rgb(166, 226, 44)\"/g" \
-| sed "s/\"yellow3\": \"hsl(60, 12%, 79%)\"/\"yellow3\": \"rgb(207, 207, 207)\"/g" \
-| sed "s/\"yellow4\": \"hsl(55, 11%, 22%)\"/\"yellow4\": \"rgb(60, 60, 60)\"/g" \
-| sed "s/\"yellow5\": \"hsl(50, 11%, 41%)\"/\"yellow5\": \"rgb(112, 112, 112)\"/g" \
-| sed "s/\"name\": \"Monokai\"/\"name\": \"Felix\"/g" \
-| sed "s/\"author\": \"Sublime HQ Pty Ltd, Wimer Hazenberg\"/\"author\": \"Auf zum Atem!\"/g" \
-| sed "s/Monokai/Felix/g" > "${HOME}/.config/sublime-text-3/Packages/User/Felix.sublime-color-scheme"
+| sed -r "s/\"(name)\"(\s*):(\s*)\".*?\"/\"\1\"\2:\3\"Auf zum Atem\!\"/g" \
+| sed -r "s/\"(author)\"(\s*):(\s*)\".*?\"/\"\1\"\2:\3\"Me\"/g" \
+| sed -r "s/\"(black2)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(32, 32, 32)\"/g" \
+| sed -r "s/\"(black3)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(40, 40, 40)\"/g" \
+| sed -r "s/\"(grey)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(70, 70, 70)\"/g" \
+| sed -r "s/\"(white)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(247, 247, 247)\"/g" \
+| sed -r "s/\"(white2)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(248, 248, 248)\"/g" \
+| sed -r "s/\"(white3)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(247, 247, 247)\"/g" \
+| sed -r "s/\"(yellow3)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(206, 206, 206)\"/g" \
+| sed -r "s/\"(yellow4)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(60, 60, 60)\"/g" \
+| sed -r "s/\"(yellow5)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(111, 111, 111)\"/g" \
+| tee "${HOME}/.config/sublime-text-3/Packages/User/Auf zum Atem"'!'".sublime-color-scheme"
 tee "${HOME}/.config/sublime-text-3/Packages/User/Preferences.sublime-settings" <<-EOF
 	{
-	    "color_scheme": "Packages/User/Felix.sublime-color-scheme",
+	    "color_scheme": "Packages/User/Auf zum Atem!.sublime-color-scheme",
 	    "draw_white_space": "all",
 	    "ensure_newline_at_eof_on_save": true,
 	    "fallback_encoding": "ISO 8859-1",
