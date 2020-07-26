@@ -1,18 +1,21 @@
 #!/bin/bash
 
-NIC="$(grep -oP "(?<=Name=).*" $(find /etc/systemd/network -type f | sort | head -1))"
-KERNEL_NIC="$(dmesg | grep -oP "(?<=${NIC}: renamed from ).*")"
+set -x
 
-sudo rm /etc/ssh/ssh_host_*
-sudo ssh-keygen -A -m PEM
-sudo pacman -S --noconfirm mkinitcpio-dropbear mkinitcpio-netconf mkinitcpio-utils
-sudo cp ~/.ssh/authorized_keys /etc/dropbear/root_key
-sudo tee /etc/mkinitcpio.conf <<-EOF
-	MODULES=()
-	BINARIES=(/usr/lib/libgcc_s.so.1)
-	FILES=()
-	HOOKS=(base udev autodetect modconf block keyboard keymap netconf dropbear encryptssh filesystems fsck)
-EOF
+[[ ! -f "${HOME}/.ssh/authorized_keys" ]] && exit 1
+
+sudo pacman -Syu --noconfirm mkinitcpio-dropbear mkinitcpio-netconf mkinitcpio-utils
+
+sudo cp "${HOME}/.ssh/authorized_keys" /etc/dropbear/root_key
+sudo dropbearkey -t rsa -f /etc/dropbear/dropbear_rsa_host_key
+sudo dropbearkey -t ecdsa -f /etc/dropbear/dropbear_ecdsa_host_key
+sudo dropbearkey -t ed25519 -f /etc/dropbear/dropbear_ed25519_host_key
+sudo sed -i -r s/"(copy_openssh_keys \|\| generate_keys)"/"#\1"/g /usr/lib/initcpio/install/dropbear
+
+sudo sed -i s/"BINARIES=()"/"BINARIES=(\/usr\/lib\/libgcc_s.so.1)"/g /etc/mkinitcpio.conf
+sudo sed -i s/"HOOKS=(base udev autodetect modconf block keyboard keymap encrypt filesystems fsck)"/"HOOKS=(base udev autodetect modconf block keyboard keymap netconf dropbear encryptssh filesystems fsck)"/g /etc/mkinitcpio.conf
 sudo mkinitcpio -p linux
-sudo sed -i -r s/"GRUB_CMDLINE_LINUX=\"(.*)\""/"GRUB_CMDLINE_LINUX=\"\1 ip=:::::${KERNEL_NIC}:dhcp\""/g /etc/default/grub
+
+NIC="$(grep -oP "(?<=Name=).*" $(find /etc/systemd/network -type f | sort | head -1))"
+sudo sed -i -r s/"GRUB_CMDLINE_LINUX=\"(.*)\""/"GRUB_CMDLINE_LINUX=\"\1 ip=:::::${NIC}:dhcp\""/g /etc/default/grub
 sudo grub-mkconfig -o /boot/grub/grub.cfg

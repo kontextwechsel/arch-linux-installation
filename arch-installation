@@ -187,6 +187,9 @@ cat > /mnt/etc/systemd/network/10-default.network <<-EOF
 
 	[Network]
 	DHCP=ipv4
+
+	[DHCP]
+	UseDomains=true
 EOF
 arch-chroot /mnt systemctl enable systemd-networkd.service
 
