@@ -32,7 +32,7 @@ PACKAGES=(
 	arc-icon-theme
 	bash-completion
 	bc
-	bind-tools
+	bind
 	dmenu
 	dmidecode
 	dunst
@@ -173,6 +173,12 @@ sudo tee /etc/X11/xorg.conf.d/90-default.conf <<-EOF
 	    Option "OffTime" "10"
 	    Option "BlankTime" "5"
 	EndSection
+EOF
+
+sudo mkdir -p /usr/share/icons/default
+sudo tee /usr/share/icons/default/index.theme <<-EOF
+	[Icon Theme]
+	Inherits=Vanilla-DMZ
 EOF
 
 sudo mkdir -p /etc/gtk-2.0
@@ -320,6 +326,7 @@ tee "${HOME}/.bashrc" <<-EOF
 	        HISTCONTROL=ignoreboth
 	        HISTFILESIZE=-1
 	        HISTSIZE=-1
+	        HISTTIMEFORMAT="%Y-%m-%d %H:%M:%S "
 
 	        shopt -s autocd
 	        shopt -s checkwinsize
@@ -370,9 +377,14 @@ tee "${HOME}/.bashrc" <<-EOF
 	        }
 	        alias git="git:pretty"
 
-	        if [[ -d "\${HOME}/.bash" ]]
+	        if [[ -d "${HOME}/.bash" ]]
 	            then
-	                source <(find "\${HOME}/.bash" -maxdepth 1 -type f -executable -printf "alias %P='%p'\n")
+	                PATH="${HOME}/.bash:${PATH}"
+	        fi
+
+	        if [[ -f "${HOME}/.bash_aliases" ]]
+	            then
+	                source "${HOME}/.bash_aliases"
 	        fi
 	        ;;
 	esac
