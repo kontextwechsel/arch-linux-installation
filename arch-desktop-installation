@@ -358,8 +358,8 @@ tee "${HOME}/.bashrc" <<-EOF
 	        alias reboot="/usr/bin/systemctl reboot"
 	        alias suspend="/usr/bin/systemctl suspend"
 
-	        alias bc="/usr/bin/bc -l"
-	        alias cal="/usr/bin/cal -A 4 -B 4"
+	        alias bc="/usr/bin/bc --mathlib"
+	        alias cal="/usr/bin/cal --months 9 --span"
 
 	        function git:pretty () {
 	            PARAMETERS=("\${@}")
