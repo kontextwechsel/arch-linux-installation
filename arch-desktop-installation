@@ -149,7 +149,7 @@ sudo tee /etc/ssh/sshd_config <<-EOF
 	AuthenticationMethods publickey
 	ClientAliveInterval 10
 	LoginGraceTime 10
-	Subsystem sftp /usr/lib/openssh/sftp-server
+	Subsystem sftp /usr/lib/ssh/sftp-server
 EOF
 sudo systemctl enable sshd.service
 
