@@ -254,7 +254,14 @@ fi
 
 if [[ "$(hostnamectl | awk 'BEGIN { IGNORECASE = 1 } $1 ~ "chassis" { print $2 }')" != "vm" ]]
 	then
-		arch-chroot /mnt pacman -Syu --noconfirm intel-ucode
+		case "$(cat /proc/cpuinfo | awk '$1 == "vendor_id" { print $3 }' | head -1)" in
+			"AuthenticAMD")
+				arch-chroot /mnt pacman -Syu --noconfirm amd-ucode
+				;;
+			"GenuineIntel")
+				arch-chroot /mnt pacman -Syu --noconfirm intel-ucode
+				;;
+		esac
 fi
 
 cat > /mnt/etc/default/grub <<-EOF
