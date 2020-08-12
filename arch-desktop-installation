@@ -377,14 +377,14 @@ tee "${HOME}/.bashrc" <<-EOF
 	        }
 	        alias git="git:pretty"
 
-	        if [[ -d "${HOME}/.bash" ]]
+	        if [[ -d "\${HOME}/.bash" ]]
 	            then
-	                PATH="${HOME}/.bash:${PATH}"
+	                PATH="\${HOME}/.bash:\${PATH}"
 	        fi
 
-	        if [[ -f "${HOME}/.bash_aliases" ]]
+	        if [[ -f "\${HOME}/.bash_aliases" ]]
 	            then
-	                source "${HOME}/.bash_aliases"
+	                source "\${HOME}/.bash_aliases"
 	        fi
 	        ;;
 	esac
@@ -589,8 +589,8 @@ EOF
 tee "${HOME}/.i3/status.d/20-volume" <<-EOF
 	order += "volume master"
 	volume master {
-	    format = "%volume"
-	    format_muted = "mute"
+	    format = "🔊 %volume"
+	    format_muted = "🔈"
 	    device = "default"
 	    mixer = "Master"
 	    mixer_idx = 0
