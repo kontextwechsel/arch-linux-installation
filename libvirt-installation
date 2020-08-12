@@ -8,10 +8,11 @@ PACKAGES=(
 	dnsmasq
 	ebtables
 	libvirt
+	openbsd-netcat
 	qemu
 	virt-manager
 )
-sudo pacman -S --noconfirm ${PACKAGES[*]}
+sudo pacman -Syu --noconfirm ${PACKAGES[*]}
 
 sudo systemctl enable libvirtd.service
 sudo usermod -a -G libvirt "${USER}"
