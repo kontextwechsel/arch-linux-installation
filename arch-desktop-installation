@@ -40,7 +40,9 @@ PACKAGES=(
 	firefox
 	gimp
 	git
+	gnome-themes-extra # Arc theme dependency
 	gpicview
+	gtk-engine-murrine # Arc theme dependency
 	gvfs
 	htop
 	i3-wm
