@@ -91,13 +91,10 @@ PACKAGES=(
 )
 sudo pacman -Syu --noconfirm ${PACKAGES[*]}
 
-SYMBOLA_VERSION="2.60-1"
-curl -O "http://mirrors.edge.kernel.org/ubuntu/pool/universe/t/ttf-ancient-fonts/fonts-symbola_${SYMBOLA_VERSION}_all.deb"
-7z x -so "fonts-symbola_${SYMBOLA_VERSION}_all.deb" data.tar | tar -x "./usr/share/fonts/truetype/ancient-scripts/Symbola_hint.ttf" --transform="s/.*/Symbola.ttf/g"
-sudo mkdir -p /usr/share/fonts/truetype/ancient-scripts
-sudo cp Symbola.ttf /usr/share/fonts/truetype/ancient-scripts
-rm Symbola.ttf
-rm "fonts-symbola_${SYMBOLA_VERSION}_all.deb"
+curl -O https://dn-works.com/wp-content/uploads/2020/UFAS-Fonts/Symbola.zip
+sudo mkdir -p /usr/share/fonts/ancient-scripts
+sudo unzip -d /usr/share/fonts/ancient-scripts Symbola.zip Symbola.otf
+rm Symbola.zip
 
 sudo tee /usr/local/bin/screenshot <<-EOF
 	#!/bin/bash
