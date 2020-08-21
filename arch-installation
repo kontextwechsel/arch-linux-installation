@@ -32,7 +32,7 @@ while IFS= read -r NIC
 				for NAME in ID_NET_NAME_FROM_DATABASE ID_NET_NAME_ONBOARD ID_NET_NAME_SLOT ID_NET_NAME_PATH ID_NET_NAME_MAC
 					do
 						eval PROPERTY=\$"${NAME}"
-						if [[ -n ${PROPERTY:+DUMMY} ]]
+						if [[ -n ${PROPERTY:+SUBSTITUTION} ]]
 							then
 								ARRAY+=("${PROPERTY}")
 								ARRAY+=("")
@@ -257,15 +257,6 @@ if [[ "$(hostnamectl | awk 'BEGIN { IGNORECASE = 1 } $1 ~ "chassis" { print $2 }
 		esac
 fi
 
-cat > /mnt/etc/default/grub <<-EOF
-	GRUB_DISTRIBUTOR="Arch"
-	GRUB_DEFAULT=0
-	GRUB_TIMEOUT=0
-	GRUB_TIMEOUT_STYLE=hidden
-	GRUB_DISABLE_RECOVERY=true
-	GRUB_CMDLINE_LINUX="cryptdevice=${ROOT_PARTITION}:${CRYPT_PARTITION_ID}:allow-discards"
-	GRUB_CMDLINE_LINUX_DEFAULT="quiet loglevel=3"
-EOF
 cat > /mnt/etc/mkinitcpio.conf <<-EOF
 	MODULES=()
 	BINARIES=()
@@ -273,6 +264,24 @@ cat > /mnt/etc/mkinitcpio.conf <<-EOF
 	HOOKS=(base udev autodetect modconf block keyboard keymap encrypt filesystems fsck)
 EOF
 arch-chroot /mnt mkinitcpio -p linux
+
+for ENTRY in $(ls /dev/disk/by-uuid)
+	do
+		if [[ "$(readlink -f "/dev/disk/by-uuid/${ENTRY}")" = "${ROOT_PARTITION}" ]]
+			then
+				ROOT_PARTITION_BY_UUID="/dev/disk/by-uuid/${ENTRY}"
+				break
+		fi
+	done
+cat > /mnt/etc/default/grub <<-EOF
+	GRUB_DISTRIBUTOR="Arch"
+	GRUB_DEFAULT=0
+	GRUB_TIMEOUT=0
+	GRUB_TIMEOUT_STYLE=hidden
+	GRUB_DISABLE_RECOVERY=true
+	GRUB_CMDLINE_LINUX="cryptdevice=${ROOT_PARTITION_BY_UUID}:${CRYPT_PARTITION_ID}:allow-discards"
+	GRUB_CMDLINE_LINUX_DEFAULT="quiet loglevel=3"
+EOF
 if [[ "${BOOT_MODE}" = UEFI ]]
 	then
 		arch-chroot /mnt grub-install --target=x86_64-efi --bootloader-id=GRUB --efi-directory=/boot/efi
