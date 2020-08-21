@@ -163,7 +163,7 @@ sudo mkinitcpio -p linux
 
 NIC="$(cat /etc/systemd/network/10-*.network | awk 'BEGIN { RS="\n\n" ; FS="\n" } $1 == "[Match]" { print $0 }' | awk 'BEGIN { FS="=" } $1 == "Name" { print $2 }')"
 KERNEL_NIC="$(dmesg | grep -oP "(?<=${NIC}: renamed from )(.+)(?=$)")"
-if [[ -n "${KERNEL_NIC}:+DUMMY" ]]
+if [[ -n "${KERNEL_NIC}:+SUBSTITUTION" ]]
 	then
 		NIC="${KERNEL_NIC}"
 fi
