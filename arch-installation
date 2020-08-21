@@ -5,60 +5,53 @@ sudo /bin/true || exit 1
 loadkeys de-latin1-nodeadkeys
 
 ARRAY=()
-while IFS= read -r ENTRY
-do
-	DISK="$(awk -F '|' '{ print $1 }' <<< "${ENTRY}")"
-	NAME="$(awk -F '|' '{ print $2 }' <<< "${ENTRY}")"
-	ARRAY+=("${DISK}")
-	ARRAY+=("")
-	if [[ ${#ARRAY[@]} -gt 3 ]]
-		then
-			ARRAY+=("OFF")
-		else
-			ARRAY+=("ON")
-	fi
-done <<< $(sudo parted --list --machine 2> /dev/null | awk -F : '$0 ~ "/dev/" && $0 !~ "/dev/mapper/" { printf "%s|%s\n", $1, $7 }' | sort)
-if [[ ${#ARRAY[@]} -gt 0 ]]
-	then
-			LENGTH=$((${#ARRAY[@]} / 3))
-			HEIGHT=$((${LENGTH} + 7))
-			SELECTION=$(whiptail --title "Arch Linux" --radiolist "Installation disk" ${HEIGHT} 78 ${LENGTH} "${ARRAY[@]}" 3>&1 1>&2 2>&3)
-			[[ -z "${SELECTION}" ]] && exit 1
-			DISK="${SELECTION}"
-	else
-			exit 0
-fi
+while IFS= read -r DISK
+	do
+		ARRAY+=("${DISK}")
+		ARRAY+=("")
+		if [[ ${#ARRAY[@]} -gt 3 ]]
+			then
+				ARRAY+=("OFF")
+			else
+				ARRAY+=("ON")
+		fi
+done <<< $(sudo parted --list --machine 2> /dev/null | awk 'BEGIN { RS = "\n\n" ; FS = "\n" } { print $2 }' | awk 'BEGIN { FS=":" } { print $1 }' | sort)
+[[ ${#ARRAY[@]} -gt 0 ]] || exit 1
+LENGTH=$((${#ARRAY[@]} / 3))
+HEIGHT=$((${LENGTH} + 7))
+DISK=$(whiptail --title "Arch Linux" --radiolist "Installation disk" "${HEIGHT}" 78 "${LENGTH}" "${ARRAY[@]}" 3>&1 1>&2 2>&3)
+[[ -z "${DISK}" ]] && exit 1
 
 ARRAY=()
-while IFS= read -r ENTRY
-do
-	NIC="$(awk -F '|' '{ print $1 }' <<< "${ENTRY}")"
-	MAC="$(awk -F '|' '{ print $2 }' <<< "${ENTRY}")"
-	KERNEL_NIC="$(dmesg | grep -oP "(?<=${NIC}: renamed from ).*")"
-	if [[ -z "${KERNEL_NIC}" ]]
-		then
-			ARRAY+=("${NIC}")
-		else
-			ARRAY+=("${KERNEL_NIC}")
-	fi
-	ARRAY+=("")
-	if [[ ${#ARRAY[@]} -gt 3 ]]
-		then
-			ARRAY+=("OFF")
-		else
-			ARRAY+=("ON")
-	fi
-done <<< $(ip -o link show | awk '$(NF - 3) == "link/ether" { printf "%s|%s\n", substr($2, 1, length($2) - 1), $(NF - 2) }' | sort)
-if [[ ${#ARRAY[@]} -gt 0 ]]
-	then
-			LENGTH=$((${#ARRAY[@]} / 3))
-			HEIGHT=$((${LENGTH} + 7))
-			SELECTION=$(whiptail --title "Arch Linux" --radiolist "Network interface" ${HEIGHT} 78 ${LENGTH} "${ARRAY[@]}" 3>&1 1>&2 2>&3)
-			[[ -z "${SELECTION}" ]] && exit 1
-			NIC="${SELECTION}"
-	else
-			exit 0
-fi
+while IFS= read -r NIC
+	do
+		if [[ -e "/sys/class/net/${NIC}" ]]
+			then
+				unset ID_NET_NAME_FROM_DATABASE ID_NET_NAME_ONBOARD ID_NET_NAME_SLOT ID_NET_NAME_PATH ID_NET_NAME_MAC
+				source <(udevadm info --query=property --export "/sys/class/net/${NIC}")
+				for NAME in ID_NET_NAME_FROM_DATABASE ID_NET_NAME_ONBOARD ID_NET_NAME_SLOT ID_NET_NAME_PATH ID_NET_NAME_MAC
+					do
+						eval PROPERTY=\$"${NAME}"
+						if [[ -n ${PROPERTY:+DUMMY} ]]
+							then
+								ARRAY+=("${PROPERTY}")
+								ARRAY+=("")
+								if [[ ${#ARRAY[@]} -gt 3 ]]
+									then
+										ARRAY+=("OFF")
+									else
+										ARRAY+=("ON")
+								fi
+								break
+						fi
+					done
+		fi
+	done <<< $(ip --brief link show | awk '{ print $1 }' | sort)
+[[ ${#ARRAY[@]} -gt 0 ]] || exit 1
+LENGTH=$((${#ARRAY[@]} / 3))
+HEIGHT=$((${LENGTH} + 7))
+NIC=$(whiptail --title "Arch Linux" --radiolist "Network interface" "${HEIGHT}" 78 "${LENGTH}" "${ARRAY[@]}" 3>&1 1>&2 2>&3)
+[[ -z "${NIC}" ]] && exit 1
 
 HOSTNAME=$(whiptail --title "Arch Linux" --inputbox "Hostname" 8 78 3>&1 1>&2 2>&3)
 [[ -z "${HOSTNAME}" ]] && exit 1
@@ -71,7 +64,7 @@ PASSWORD=$(whiptail --title "Arch Linux" --passwordbox "Password" 8 78 3>&1 1>&2
 
 set -x
 
-if [[ "${DISK}" == *nvm* ]]
+if [[ "${DISK}" = *nvm* ]]
 	then
 		PARTITION_PREFIX="${DISK}p"
 	else
@@ -99,7 +92,7 @@ cat > /etc/pacman.d/mirrorlist <<-EOF
 EOF
 pacman -Syy
 
-if [[ "${BOOT_MODE}" == "UEFI" ]]
+if [[ "${BOOT_MODE}" = UEFI ]]
 	then
 		parted "${DISK}" mklabel gpt
 		parted "${DISK}" mkpart EFI 1MiB 512MiB
@@ -127,7 +120,7 @@ mkfs.ext4 "/dev/mapper/${CRYPT_PARTITION_ID}"
 mount "/dev/mapper/${CRYPT_PARTITION_ID}" /mnt
 mkdir /mnt/boot
 mount "${BOOT_PARTITION}" /mnt/boot
-if [[ "${BOOT_MODE}" == "UEFI" ]]
+if [[ "${BOOT_MODE}" = UEFI ]]
 	then
 		mkdir /mnt/boot/efi
 		mount "${UEFI_PARTITION}" /mnt/boot/efi
@@ -142,13 +135,13 @@ PACKAGES=(
 	sudo
 	vim
 )
-if [[ "${BOOT_MODE}" == "UEFI" ]]
+if [[ "${BOOT_MODE}" = UEFI ]]
 	then
 		PACKAGES+=(
 			efibootmgr
 		)
 fi
-pacstrap /mnt ${PACKAGES[*]}
+pacstrap /mnt "${PACKAGES[@]}"
 genfstab -U /mnt > /mnt/etc/fstab
 
 sed -i -r s/"#(de_DE.UTF-8 UTF-8)"/"\1"/g /mnt/etc/locale.gen
@@ -181,7 +174,7 @@ cat > /mnt/etc/systemd/logind.conf <<-EOF
 	HandleHibernateKey=ignore
 EOF
 
-cat > /mnt/etc/systemd/network/10-default.network <<-EOF
+cat > "/mnt/etc/systemd/network/10-${NIC}.network" <<-EOF
 	[Match]
 	Name=${NIC}
 
@@ -233,7 +226,7 @@ chmod u=r,g=r,o= /mnt/etc/sudoers.d/umask
 arch-chroot /mnt passwd -l root
 ln -s /dev/null /mnt/root/.bash_history
 
-if [[ "${NIC}" == w* ]]
+if [[ "${NIC}" = w* ]]
 	then
 		arch-chroot /mnt pacman -Syu --noconfirm wpa_supplicant
 		cat > "/mnt/etc/wpa_supplicant/wpa_supplicant-${NIC}.conf" <<-EOF
@@ -252,9 +245,9 @@ if [[ "${NIC}" == w* ]]
 		arch-chroot /mnt systemctl enable "wpa_supplicant@${NIC}.service"
 fi
 
-if [[ "$(hostnamectl | awk 'BEGIN { IGNORECASE = 1 } $1 ~ "chassis" { print $2 }')" != "vm" ]]
+if [[ "$(hostnamectl | awk 'BEGIN { IGNORECASE = 1 } $1 ~ "chassis" { print $2 }')" != vm ]]
 	then
-		case "$(cat /proc/cpuinfo | awk '$1 == "vendor_id" { print $3 }' | head -1)" in
+		case "$(cat /proc/cpuinfo | awk 'BEGIN { RS="\n\n" ; FS="\n" } { print $2 ; exit }' | awk '{ print $3 }')" in
 			"AuthenticAMD")
 				arch-chroot /mnt pacman -Syu --noconfirm amd-ucode
 				;;
@@ -270,7 +263,7 @@ cat > /mnt/etc/default/grub <<-EOF
 	GRUB_TIMEOUT=0
 	GRUB_TIMEOUT_STYLE=hidden
 	GRUB_DISABLE_RECOVERY=true
-	GRUB_CMDLINE_LINUX="cryptdevice=${ROOT_PARTITION}:${CRYPT_PARTITION_ID}:allow-discards net.ifnames=0"
+	GRUB_CMDLINE_LINUX="cryptdevice=${ROOT_PARTITION}:${CRYPT_PARTITION_ID}:allow-discards"
 	GRUB_CMDLINE_LINUX_DEFAULT="quiet loglevel=3"
 EOF
 cat > /mnt/etc/mkinitcpio.conf <<-EOF
@@ -280,7 +273,7 @@ cat > /mnt/etc/mkinitcpio.conf <<-EOF
 	HOOKS=(base udev autodetect modconf block keyboard keymap encrypt filesystems fsck)
 EOF
 arch-chroot /mnt mkinitcpio -p linux
-if [[ "${BOOT_MODE}" == "UEFI" ]]
+if [[ "${BOOT_MODE}" = UEFI ]]
 	then
 		arch-chroot /mnt grub-install --target=x86_64-efi --bootloader-id=GRUB --efi-directory=/boot/efi
 	else
