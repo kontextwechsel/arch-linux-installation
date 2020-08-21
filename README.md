@@ -138,12 +138,53 @@ sudo dropbearkey -t ecdsa -f /etc/dropbear/dropbear_ecdsa_host_key
 sudo dropbearkey -t ed25519 -f /etc/dropbear/dropbear_ed25519_host_key
 sudo sed -i -r s/"(copy_openssh_keys \|\| generate_keys)"/"#\1"/g /usr/lib/initcpio/install/dropbear
 
-sudo sed -i s/"BINARIES=()"/"BINARIES=(\/usr\/lib\/libgcc_s.so.1)"/g /etc/mkinitcpio.conf
-sudo sed -i s/"HOOKS=(base udev autodetect modconf block keyboard keymap encrypt filesystems fsck)"/"HOOKS=(base udev autodetect modconf block keyboard keymap netconf dropbear encryptssh filesystems fsck)"/g /etc/mkinitcpio.conf
+source /etc/mkinitcpio.conf
+BINARIES+=("/usr/lib/libgcc_s.so.1")
+BUFFER=()
+for ENTRY in "${HOOKS[@]}"
+	do
+		if [[ "${ENTRY}" == encrypt ]]
+			then
+				BUFFER+=("netconf")
+				BUFFER+=("dropbear")
+				BUFFER+=("encryptssh")
+			else
+				BUFFER+=("${ENTRY}")
+		fi
+	done
+HOOKS=("${BUFFER[@]}")
+sudo tee /etc/mkinitcpio.conf <<-EOF
+	MODULES=(${MODULES[*]})
+	BINARIES=(${BINARIES[*]})
+	FILES=(${FILES[*]})
+	HOOKS=(${HOOKS[*]})
+EOF
 sudo mkinitcpio -p linux
 
-NIC="$(grep -oP "(?<=Name=).*" $(find /etc/systemd/network -type f | sort | head -1))"
-sudo sed -i -r s/"GRUB_CMDLINE_LINUX=\"(.*)\""/"GRUB_CMDLINE_LINUX=\"\1 ip=:::::${NIC}:dhcp\""/g /etc/default/grub
+NIC="$(cat /etc/systemd/network/10-*.network | awk 'BEGIN { RS="\n\n" ; FS="\n" } $1 == "[Match]" { print $0 }' | awk 'BEGIN { FS="=" } $1 == "Name" { print $2 }')"
+KERNEL_NIC="$(dmesg | grep -oP "(?<=${NIC}: renamed from )(.+)(?=$)")"
+if [[ -n "${KERNEL_NIC}:+DUMMY" ]]
+	then
+		NIC="${KERNEL_NIC}"
+fi
+
+source /etc/default/grub
+BUFFER=()
+for ENTRY in "${GRUB_CMDLINE_LINUX}"
+	do
+		BUFFER+=("${ENTRY}")
+	done
+BUFFER+=("ip=:::::${NIC}:dhcp")
+GRUB_CMDLINE_LINUX=("${BUFFER[@]}")
+sudo tee /etc/default/grub <<-EOF
+	GRUB_DISTRIBUTOR="${GRUB_DISTRIBUTOR}"
+	GRUB_DEFAULT="${GRUB_DEFAULT}"
+	GRUB_TIMEOUT="${GRUB_TIMEOUT}"
+	GRUB_TIMEOUT_STYLE="${GRUB_TIMEOUT_STYLE}"
+	GRUB_DISABLE_RECOVERY="${GRUB_DISABLE_RECOVERY}"
+	GRUB_CMDLINE_LINUX="${GRUB_CMDLINE_LINUX[*]}"
+	GRUB_CMDLINE_LINUX_DEFAULT="${GRUB_CMDLINE_LINUX_DEFAULT}"
+EOF
 sudo grub-mkconfig -o /boot/grub/grub.cfg
 ```
 
@@ -158,7 +199,7 @@ PACKAGES=(
 	qemu
 	virt-manager
 )
-sudo pacman -Syu ${PACKAGES[*]}
+sudo pacman -Syu "${PACKAGES[@]}"
 
 sudo systemctl enable libvirtd.service
 sudo usermod -a -G libvirt "${USER}"
