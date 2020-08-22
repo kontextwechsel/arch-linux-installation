@@ -20,27 +20,27 @@ sudo pacman -Syu acpilight
 sudo usermod -a -G video "${USER}"
 
 mkdir -p "${HOME}/.local/bin"
-tee "${HOME}/.local/bin/xbacklight" <<-EOF
-	#!/bin/sh
+tee "${HOME}/.local/bin/xbacklight" <<EOF
+#!/bin/sh
 
-	/usr/bin/xbacklight "\$@"
-	/usr/bin/xbacklight -get > "\${HOME}/.brightness"
-	killall -USR1 i3status
+/usr/bin/xbacklight "\$@"
+/usr/bin/xbacklight -get > "\${HOME}/.brightness"
+killall -USR1 i3status
 EOF
 chmod +x "${HOME}/.local/bin/xbacklight"
 
-tee "${HOME}/.i3/config.d/41-backlight" <<-EOF
-	bindsym XF86MonBrightnessUp exec --no-startup-id xbacklight -inc 10
-	bindsym XF86MonBrightnessDown exec --no-startup-id xbacklight -dec 10
-	exec --no-startup-id xbacklight -set 10
+tee "${HOME}/.i3/config.d/41-backlight" <<EOF
+bindsym XF86MonBrightnessUp exec --no-startup-id xbacklight -inc 10
+bindsym XF86MonBrightnessDown exec --no-startup-id xbacklight -dec 10
+exec --no-startup-id xbacklight -set 10
 EOF
 
-tee "${HOME}/.i3/status.d/35-brightness" <<-EOF
-	order += "read_file brightness"
-	read_file brightness {
-	    path = "\${HOME}/.brightness"
-	    format = "🔆 %content%"
-	}
+tee "${HOME}/.i3/status.d/35-brightness" <<EOF
+order += "read_file brightness"
+read_file brightness {
+    path = "\${HOME}/.brightness"
+    format = "🔆 %content%"
+}
 EOF
 
 sudo systemctl mask systemd-backlight@backlight:acpi_video0.service
@@ -52,25 +52,25 @@ sudo systemctl mask systemd-backlight@backlight:acpi_video0.service
 sudo pacman -Syu tlp
 sudo systemctl enable tlp.service
 
-sudo tee -a /etc/systemd/logind.conf <<-EOF
-	HandleLidSwitch=suspend
-	HandleLidSwitchDocked=suspend
+sudo tee -a /etc/systemd/logind.conf <<EOF
+HandleLidSwitch=suspend
+HandleLidSwitchDocked=suspend
 EOF
 
-tee "${HOME}/.i3/status.d/40-battery" <<-EOF
-	order += "battery 0"
-	battery 0 {
-	    path = "/sys/class/power_supply/BAT%d/uevent"
-	    format = "%status %percentage"
-	    format_down = ""
-	    status_unk = "?"
-	    status_bat = "🔋"
-	    status_chr = "⚡"
-	    status_full = "🔌"
-	    low_threshold = 10
-	    last_full_capacity = true
-	    integer_battery_capacity = true
-	}
+tee "${HOME}/.i3/status.d/40-battery" <<EOF
+order += "battery 0"
+battery 0 {
+    path = "/sys/class/power_supply/BAT%d/uevent"
+    format = "%status %percentage"
+    format_down = ""
+    status_unk = "?"
+    status_bat = "🔋"
+    status_chr = "⚡"
+    status_full = "🔌"
+    low_threshold = 10
+    last_full_capacity = true
+    integer_battery_capacity = true
+}
 EOF
 ```
 
@@ -80,17 +80,17 @@ EOF
 sudo pacman -Syu blueman libappindicator-gtk3
 sudo systemctl enable bluetooth.service
 
-tee "${HOME}/.i3/config.d/64-blueman" <<-EOF
-	exec --no-startup-id blueman-applet
+tee "${HOME}/.i3/config.d/64-blueman" <<EOF
+exec --no-startup-id blueman-applet
 EOF
 ```
 
 ### JetBrains
 
 ```bash
-tee "${HOME}/.i3/config.d/70-window" <<-EOF
-	for_window [class="jetbrains"] floating disable
-	for_window [class="jetbrains" title="win"] floating enable
+tee "${HOME}/.i3/config.d/70-window" <<EOF
+for_window [class="jetbrains"] floating disable
+for_window [class="jetbrains" title="win"] floating enable
 EOF
 ```
 
@@ -99,35 +99,35 @@ EOF
 ```bash
 sudo pacman -Syu imwheel
 
-tee "${HOME}/.imwheelrc" <<-EOF
-	".*"
-	None, Up, Button4, 3
-	None, Down, Button5, 3
-	Control_L, Up, Control_L|Button4
-	Control_L, Down, Control_L|Button5
-	Shift_L, Up, Shift_L|Button4
-	Shift_L, Down, Shift_L|Button5
+tee "${HOME}/.imwheelrc" <<EOF
+".*"
+None, Up, Button4, 3
+None, Down, Button5, 3
+Control_L, Up, Control_L|Button4
+Control_L, Down, Control_L|Button5
+Shift_L, Up, Shift_L|Button4
+Shift_L, Down, Shift_L|Button5
 EOF
 
-tee "${HOME}/.i3/config.d/65-imwheel" <<-EOF
-	exec --no-startup-id imwheel -b 45
+tee "${HOME}/.i3/config.d/65-imwheel" <<EOF
+exec --no-startup-id imwheel -b 45
 EOF
 ```
 
 ### Touchpad
 
 ```bash
-sudo tee -a /etc/X11/xorg.conf.d/90-default.conf <<-EOF
+sudo tee -a /etc/X11/xorg.conf.d/90-default.conf <<EOF
 
-	Section "InputClass"
-	    Identifier "Touchpad control"
-	    MatchIsTouchpad "on"
-	    Driver "libinput"
-	        Option "ClickMethod" "clickfinger"
-	        Option "Tapping" "off"
-	        Option "ScrollMethod" "twofinger"
-	        Option "NaturalScrolling" "on"
-	EndSection
+Section "InputClass"
+    Identifier "Touchpad control"
+    MatchIsTouchpad "on"
+    Driver "libinput"
+        Option "ClickMethod" "clickfinger"
+        Option "Tapping" "off"
+        Option "ScrollMethod" "twofinger"
+        Option "NaturalScrolling" "on"
+EndSection
 EOF
 ```
 
@@ -145,8 +145,8 @@ sudo pacman -Syu libva-mesa-driver libva-utils
 sudo pacman -Syu nvidia
 
 mkdir -p "${HOME}/.config/mpv"
-tee "${HOME}/.config/mpv/mpv.conf" <<-EOF
-	hwdec=nvdec
+tee "${HOME}/.config/mpv/mpv.conf" <<EOF
+hwdec=nvdec
 EOF
 ```
 
@@ -184,11 +184,11 @@ for ENTRY in "${HOOKS[@]}"
 		fi
 	done
 HOOKS=("${BUFFER[@]}")
-sudo tee /etc/mkinitcpio.conf <<-EOF
-	MODULES=(${MODULES[*]})
-	BINARIES=(${BINARIES[*]})
-	FILES=(${FILES[*]})
-	HOOKS=(${HOOKS[*]})
+sudo tee /etc/mkinitcpio.conf <<EOF
+MODULES=(${MODULES[*]})
+BINARIES=(${BINARIES[*]})
+FILES=(${FILES[*]})
+HOOKS=(${HOOKS[*]})
 EOF
 sudo mkinitcpio -p linux
 
@@ -207,14 +207,14 @@ for ENTRY in "${GRUB_CMDLINE_LINUX}"
 	done
 BUFFER+=("ip=:::::${NIC}:dhcp")
 GRUB_CMDLINE_LINUX=("${BUFFER[@]}")
-sudo tee /etc/default/grub <<-EOF
-	GRUB_DISTRIBUTOR="${GRUB_DISTRIBUTOR}"
-	GRUB_DEFAULT="${GRUB_DEFAULT}"
-	GRUB_TIMEOUT="${GRUB_TIMEOUT}"
-	GRUB_TIMEOUT_STYLE="${GRUB_TIMEOUT_STYLE}"
-	GRUB_DISABLE_RECOVERY="${GRUB_DISABLE_RECOVERY}"
-	GRUB_CMDLINE_LINUX="${GRUB_CMDLINE_LINUX[*]}"
-	GRUB_CMDLINE_LINUX_DEFAULT="${GRUB_CMDLINE_LINUX_DEFAULT}"
+sudo tee /etc/default/grub <<EOF
+GRUB_DISTRIBUTOR="${GRUB_DISTRIBUTOR}"
+GRUB_DEFAULT="${GRUB_DEFAULT}"
+GRUB_TIMEOUT="${GRUB_TIMEOUT}"
+GRUB_TIMEOUT_STYLE="${GRUB_TIMEOUT_STYLE}"
+GRUB_DISABLE_RECOVERY="${GRUB_DISABLE_RECOVERY}"
+GRUB_CMDLINE_LINUX="${GRUB_CMDLINE_LINUX[*]}"
+GRUB_CMDLINE_LINUX_DEFAULT="${GRUB_CMDLINE_LINUX_DEFAULT}"
 EOF
 sudo grub-mkconfig -o /boot/grub/grub.cfg
 ```
