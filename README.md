@@ -27,6 +27,7 @@ tee "${HOME}/.local/bin/xbacklight" <<-EOF
 	/usr/bin/xbacklight -get > "\${HOME}/.brightness"
 	killall -USR1 i3status
 EOF
+chmod +x "${HOME}/.local/bin/xbacklight"
 
 tee "${HOME}/.i3/config.d/41-backlight" <<-EOF
 	bindsym XF86MonBrightnessUp exec --no-startup-id xbacklight -inc 10
@@ -41,6 +42,8 @@ tee "${HOME}/.i3/status.d/35-brightness" <<-EOF
 	    format = "🔆 %content%"
 	}
 EOF
+
+sudo systemctl mask systemd-backlight@backlight:acpi_video0.service
 ```
 
 ### Battery
@@ -82,6 +85,35 @@ tee "${HOME}/.i3/config.d/64-blueman" <<-EOF
 EOF
 ```
 
+### JetBrains
+
+```bash
+tee "${HOME}/.i3/config.d/70-window" <<-EOF
+	for_window [class="jetbrains"] floating disable
+	for_window [class="jetbrains" title="win"] floating enable
+EOF
+```
+
+### Scroll wheel
+
+```bash
+sudo pacman -Syu imwheel
+
+tee "${HOME}/.imwheelrc" <<-EOF
+	".*"
+	None, Up, Button4, 3
+	None, Down, Button5, 3
+	Control_L, Up, Control_L|Button4
+	Control_L, Down, Control_L|Button5
+	Shift_L, Up, Shift_L|Button4
+	Shift_L, Down, Shift_L|Button5
+EOF
+
+tee "${HOME}/.i3/config.d/65-imwheel" <<-EOF
+	exec --no-startup-id imwheel -b 45
+EOF
+```
+
 ### Touchpad
 
 ```bash
@@ -118,13 +150,12 @@ tee "${HOME}/.config/mpv/mpv.conf" <<-EOF
 EOF
 ```
 
-### Window
+## Docker
 
 ```bash
-tee "${HOME}/.i3/config.d/70-window" <<-EOF
-	for_window [class="jetbrains"] floating disable
-	for_window [class="jetbrains" title="win"] floating enable
-EOF
+sudo pacman -Syu docker
+sudo systemctl enable docker.service
+sudo usermod -a -G docker "${USER}"
 ```
 
 ## Dropbear
@@ -200,7 +231,6 @@ PACKAGES=(
 	virt-manager
 )
 sudo pacman -Syu "${PACKAGES[@]}"
-
 sudo systemctl enable libvirtd.service
 sudo usermod -a -G libvirt "${USER}"
 ```
