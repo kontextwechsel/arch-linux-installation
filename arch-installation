@@ -99,6 +99,7 @@ if [[ "${BOOT_MODE}" = UEFI ]]
 		parted "${DISK}" mkpart BOOT 512MiB 1024MiB
 		parted "${DISK}" mkpart LINUX 1024MiB 100%
 		parted "${DISK}" set 1 esp on
+		partprobe "${DISK}"
 		mkfs.fat -F32 "${UEFI_PARTITION}"
 		mkfs.ext4 "${BOOT_PARTITION}"
 	else
@@ -106,6 +107,7 @@ if [[ "${BOOT_MODE}" = UEFI ]]
 		parted "${DISK}" mkpart primary 1MiB 512MiB
 		parted "${DISK}" mkpart primary 512MiB 100%
 		parted "${DISK}" set 1 boot on
+		partprobe "${DISK}"
 		mkfs.ext4 "${BOOT_PARTITION}"
 fi
 cryptsetup --batch-mode luksFormat "${ROOT_PARTITION}" <<-EOF
