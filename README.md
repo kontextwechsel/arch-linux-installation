@@ -85,6 +85,89 @@ exec --no-startup-id blueman-applet
 EOF
 ```
 
+### Hibernate
+
+#### Swap
+
+```bash
+sudo dd if=/dev/zero of=/swapfile bs=1K count="$(awk '$1 == "MemTotal:" { print $2 }' /proc/meminfo)" status=progress
+sudo chmod u=rw,g=,o= /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+sudo tee -a /etc/fstab <<EOF
+
+# /swapfile
+/swapfile none swap defaults 0 0
+EOF
+```
+
+#### Resume
+
+```bash
+source /etc/mkinitcpio.conf
+BUFFER=()
+for ENTRY in "${HOOKS[@]}"
+	do
+		BUFFER+=("${ENTRY}")
+		if [[ "${ENTRY}" == filesystems ]]
+			then
+				BUFFER+=("resume")
+		fi
+	done
+HOOKS=("${BUFFER[@]}")
+sudo tee /etc/mkinitcpio.conf <<EOF
+MODULES=(${MODULES[*]})
+BINARIES=(${BINARIES[*]})
+FILES=(${FILES[*]})
+HOOKS=(${HOOKS[*]})
+EOF
+sudo mkinitcpio -p linux
+
+source /etc/default/grub
+BUFFER=()
+for ENTRY in "${GRUB_CMDLINE_LINUX}"
+	do
+		BUFFER+=("${ENTRY}")
+	done
+BUFFER+=("resume=$(awk '$2 == "/" { print $1 }' /etc/fstab)")
+BUFFER+=("resume_offset=$(sudo filefrag -v /swapfile | awk '$1 == "0:" { print substr($4,0,length($4-2)) }')")
+GRUB_CMDLINE_LINUX=("${BUFFER[@]}")
+sudo tee /etc/default/grub <<EOF
+GRUB_DISTRIBUTOR="${GRUB_DISTRIBUTOR}"
+GRUB_DEFAULT="${GRUB_DEFAULT}"
+GRUB_TIMEOUT="${GRUB_TIMEOUT}"
+GRUB_TIMEOUT_STYLE="${GRUB_TIMEOUT_STYLE}"
+GRUB_DISABLE_RECOVERY="${GRUB_DISABLE_RECOVERY}"
+GRUB_CMDLINE_LINUX="${GRUB_CMDLINE_LINUX[*]}"
+GRUB_CMDLINE_LINUX_DEFAULT="${GRUB_CMDLINE_LINUX_DEFAULT}"
+EOF
+sudo grub-mkconfig -o /boot/grub/grub.cfg
+```
+
+#### Alias
+
+```bash
+TEMP="$(mktemp)"
+while IFS= read -r LINE
+	do
+		echo "${LINE}" >> "${TEMP}"
+		if [[ "${LINE}" = *"alias suspend"* ]]
+			then
+				echo "${LINE//suspend/hibernate}" >> "${TEMP}"
+		fi
+	done < "${HOME}/.bashrc"
+tee "${HOME}/.bashrc" < "${TEMP}"
+rm "${TEMP}"
+```
+
+#### Battery
+
+```bash
+sudo tee /etc/udev/rules.d/90-battery.rules <<EOF
+SUBSYSTEM=="power_supply", ATTR{status}=="Discharging", ATTR{capacity}=="[0-5]", RUN+="/usr/bin/systemctl hibernate"
+EOF
+```
+
 ### JetBrains
 
 ```bash
