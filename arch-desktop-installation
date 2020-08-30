@@ -419,7 +419,7 @@ chmod +x "${HOME}/.i3/start"
 tee "${HOME}/.i3/display" <<-EOF
 	#!/bin/sh
 
-	for MONITOR in "\$(xrandr | grep connected | grep -v disconnected | awk '{ print \$1 }')"
+	for MONITOR in "\$(xrandr | awk '\$2 == "connected" { print \$1 }')"
 	    do
 	        xrandr --output "\${MONITOR}" --auto
 	    done
@@ -485,7 +485,7 @@ tee "${HOME}/.i3/config.d/10-default" <<-EOF
 	bindsym \$mod+F9 workspace 19:F9
 	bindsym \$mod+F10 workspace 20:F10
 	bindsym \$mod+F11 workspace 21:F11
-	bindsym \$mod+F12 workspace 22:Spotify
+	bindsym \$mod+F12 workspace 22:F12
 	bindsym \$mod+Shift+1 move container to workspace 1
 	bindsym \$mod+Shift+2 move container to workspace 2
 	bindsym \$mod+Shift+3 move container to workspace 3
