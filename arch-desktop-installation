@@ -217,6 +217,9 @@ sudo tee /etc/xdg/mimeapps.list <<-EOF
 	text/html=sublime_text.desktop
 	text/markdown=sublime_text.desktop
 	text/plain=sublime_text.desktop
+	text/x-c=sublime_text.desktop
+	text/x-c++=sublime_text.desktop
+	text/x-java=sublime_text.desktop
 EOF
 
 mkdir -p "${HOME}/.local/bin"
@@ -435,7 +438,8 @@ EOF
 tee "${HOME}/.bash_logout" <<-EOF
 EOF
 
-touch "${HOME}/.hushlogin"
+tee "${HOME}/.hushlogin" <<-EOF
+EOF
 
 mkdir -p "${HOME}/.config/i3"
 tee "${HOME}/.config/i3/10-default" <<-EOF
