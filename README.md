@@ -29,13 +29,13 @@ killall -USR1 i3status
 EOF
 chmod +x "${HOME}/.local/bin/xbacklight"
 
-tee "${HOME}/.i3/config.d/41-backlight" <<EOF
+tee "${HOME}/.config/i3/41-backlight" <<EOF
 bindsym XF86MonBrightnessUp exec --no-startup-id xbacklight -inc 10
 bindsym XF86MonBrightnessDown exec --no-startup-id xbacklight -dec 10
 exec --no-startup-id xbacklight -set 10
 EOF
 
-tee "${HOME}/.i3/status.d/35-brightness" <<EOF
+tee "${HOME}/.config/i3status/35-brightness" <<EOF
 order += "read_file brightness"
 read_file brightness {
     path = "\${HOME}/.brightness"
@@ -57,7 +57,7 @@ HandleLidSwitch=suspend
 HandleLidSwitchDocked=suspend
 EOF
 
-tee "${HOME}/.i3/status.d/40-battery" <<EOF
+tee "${HOME}/.config/i3status/40-battery" <<EOF
 order += "battery 0"
 battery 0 {
     path = "/sys/class/power_supply/BAT%d/uevent"
@@ -80,7 +80,7 @@ EOF
 sudo pacman -Syu blueman libappindicator-gtk3
 sudo systemctl enable bluetooth.service
 
-tee "${HOME}/.i3/config.d/64-blueman" <<EOF
+tee "${HOME}/.config/i3/64-blueman" <<EOF
 exec --no-startup-id blueman-applet
 EOF
 ```
@@ -160,7 +160,7 @@ EOF
 ### JetBrains
 
 ```bash
-tee "${HOME}/.i3/config.d/70-window" <<EOF
+tee "${HOME}/.config/i3/70-window" <<EOF
 for_window [class="jetbrains"] floating disable
 for_window [class="jetbrains" title="win"] floating enable
 EOF
@@ -181,7 +181,7 @@ Shift_L, Up, Shift_L|Button4
 Shift_L, Down, Shift_L|Button5
 EOF
 
-tee "${HOME}/.i3/config.d/65-imwheel" <<EOF
+tee "${HOME}/.config/i3/65-imwheel" <<EOF
 exec --no-startup-id imwheel -b 45
 EOF
 ```
