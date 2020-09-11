@@ -204,12 +204,12 @@ sudo tee -a /etc/X11/xorg.conf.d/90-default.conf <<EOF
 
 Section "InputClass"
     Identifier "Touchpad control"
-    MatchIsTouchpad "on"
+    MatchIsTouchpad
     Driver "libinput"
         Option "ClickMethod" "clickfinger"
-        Option "Tapping" "off"
+        Option "NoTapping"
         Option "ScrollMethod" "twofinger"
-        Option "NaturalScrolling" "on"
+        Option "NaturalScrolling"
 EndSection
 EOF
 ```

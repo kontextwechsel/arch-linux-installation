@@ -158,19 +158,20 @@ sudo systemctl enable sshd.service
 
 sudo tee /etc/X11/xorg.conf.d/10-keyboard.conf <<-EOF
 	Section "InputClass"
-	        Identifier "system-keyboard"
-	        MatchIsKeyboard "on"
+	        Identifier "Keyboard configuration"
+	        MatchIsKeyboard
 	        Option "XkbLayout" "de"
 	        Option "XkbVariant" "nodeadkeys"
 	EndSection
 EOF
 sudo tee /etc/X11/xorg.conf.d/90-default.conf <<-EOF
 	Section "ServerFlags"
-	    Option "DontVTSwitch" "true"
+	    Option "DontVTSwitch"
+	    Option "DontZap"
 	EndSection
 
 	Section "ServerLayout"
-	    Identifier "Display off"
+	    Identifier "Display control"
 	    Option "StandbyTime" "0"
 	    Option "SuspendTime" "0"
 	    Option "OffTime" "10"
