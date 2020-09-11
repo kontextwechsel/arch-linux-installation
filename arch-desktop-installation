@@ -44,6 +44,9 @@ PACKAGES=(
 	gpicview
 	gtk-engine-murrine # Arc theme dependency
 	gvfs
+	gvfs-mtp
+	gvfs-nfs
+	gvfs-smb
 	htop
 	i3-wm
 	i3status
