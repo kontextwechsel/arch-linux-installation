@@ -98,29 +98,6 @@ sudo mkdir -p /usr/share/fonts/ancient-scripts
 sudo unzip -d /usr/share/fonts/ancient-scripts Symbola.zip Symbola.otf
 rm Symbola.zip
 
-sudo tee /usr/local/bin/screenshot <<-EOF
-	#!/bin/bash
-
-	FILE="%Y-%m-%d-%H-%M-%S.png"
-	ARGS=("--overwrite")
-	for ARGUMENT in "\${@}"
-	    do
-	        case "\${ARGUMENT}" in
-	            -s|--select)
-	                ARGS+=("--select")
-	                shift
-	                ;;
-	            -c|--clipboard)
-	                FILE="\$(mktemp)"
-	                trap "{ xclip -selection clipboard -target image/png -in \${FILE}; rm -rf \${FILE}; }" EXIT
-	                shift
-	                ;;
-	        esac
-	    done
-	scrot "\${ARGS[@]}" "\${FILE}"
-EOF
-sudo chmod +x /usr/local/bin/screenshot
-
 sudo perl -pi -e "s/#CC3333/${COLOR_MEDIUM_GRAY^^}/g" /usr/bin/slock
 sudo perl -pi -e "s/#005577/${COLOR_GREEN^^}/g" /usr/bin/slock
 
@@ -276,6 +253,29 @@ tee "${HOME}/.local/bin/display-configuration" <<-EOF
 	fi
 EOF
 chmod +x "${HOME}/.local/bin/display-configuration"
+
+tee "${HOME}/.local/bin/screenshot" <<-EOF
+	#!/bin/bash
+
+	FILE="%Y-%m-%d-%H-%M-%S.png"
+	ARGS=("--overwrite")
+	for ARGUMENT in "\${@}"
+	    do
+	        case "\${ARGUMENT}" in
+	            -s|--select)
+	                ARGS+=("--select")
+	                shift
+	                ;;
+	            -c|--clipboard)
+	                FILE="\$(mktemp)"
+	                trap "{ xclip -selection clipboard -target image/png -in \${FILE}; rm -rf \${FILE}; }" EXIT
+	                shift
+	                ;;
+	        esac
+	    done
+	scrot "\${ARGS[@]}" "\${FILE}"
+EOF
+chmod +x "${HOME}/.local/bin/screenshot"
 
 mkdir -p "${HOME}/.config/application-launcher"
 tee "${HOME}/.config/application-launcher/config" <<-EOF
