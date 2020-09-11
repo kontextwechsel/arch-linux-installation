@@ -90,7 +90,7 @@ EOF
 #### Swap
 
 ```bash
-sudo dd if=/dev/zero of=/swapfile bs=1K count="$(awk '$1 == "MemTotal:" { print $2 }' /proc/meminfo)" status=progress
+sudo dd if=/dev/zero of=/swapfile bs=1K count="$(free -k | awk 'BEGIN { FS=":[[:space:]]*" } $1 == "Mem" { print $2 }' | awk '{ print $1 }')" status=progress
 sudo chmod u=rw,g=,o= /swapfile
 sudo mkswap /swapfile
 sudo swapon /swapfile
