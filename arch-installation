@@ -146,37 +146,37 @@ fi
 pacstrap /mnt "${PACKAGES[@]}"
 genfstab -U /mnt > /mnt/etc/fstab
 
-sed -i -r s/"#(de_DE.UTF-8 UTF-8)"/"\1"/g /mnt/etc/locale.gen
-sed -i -r s/"#(en_US.UTF-8 UTF-8)"/"\1"/g /mnt/etc/locale.gen
+arch-chroot /mnt sed -i -r s/"#(de_DE.UTF-8 UTF-8)"/"\1"/g /etc/locale.gen
+arch-chroot /mnt sed -i -r s/"#(en_US.UTF-8 UTF-8)"/"\1"/g /etc/locale.gen
 arch-chroot /mnt locale-gen
-cat > /mnt/etc/locale.conf <<-EOF
+arch-chroot /mnt tee /etc/locale.conf <<-EOF
 	LANG=en_US.UTF-8
 EOF
-ln -sf /usr/share/zoneinfo/Europe/Berlin /mnt/etc/localtime
-cat > /mnt/etc/timezone <<-EOF
+arch-chroot /mnt ln -sf /usr/share/zoneinfo/Europe/Berlin /etc/localtime
+arch-chroot /mnt tee /etc/timezone <<-EOF
 	Europe/Berlin
 EOF
-cat > /mnt/etc/vconsole.conf <<-EOF
+arch-chroot /mnt tee /etc/vconsole.conf <<-EOF
 	KEYMAP=de-latin1-nodeadkeys
 EOF
 
-cat > /mnt/etc/hostname <<-EOF
+arch-chroot /mnt tee /etc/hostname <<-EOF
 	${HOSTNAME}
 EOF
-cat > /mnt/etc/hosts <<-EOF
+arch-chroot /mnt tee /etc/hosts <<-EOF
 	127.0.0.1 localhost
 	::1 localhost
 	127.0.1.1 ${HOSTNAME}
 EOF
 
-cat > /mnt/etc/systemd/logind.conf <<-EOF
+arch-chroot /mnt tee /etc/systemd/logind.conf <<-EOF
 	[Login]
 	HandlePowerKey=ignore
 	HandleSuspendKey=ignore
 	HandleHibernateKey=ignore
 EOF
 
-cat > "/mnt/etc/systemd/network/10-${NIC}.network" <<-EOF
+arch-chroot /mnt tee "/etc/systemd/network/10-${NIC}.network" <<-EOF
 	[Match]
 	Name=${NIC}
 
@@ -188,18 +188,18 @@ cat > "/mnt/etc/systemd/network/10-${NIC}.network" <<-EOF
 EOF
 arch-chroot /mnt systemctl enable systemd-networkd.service
 
-cat > /mnt/etc/systemd/timesyncd.conf <<-EOF
+arch-chroot /mnt tee /etc/systemd/timesyncd.conf <<-EOF
 	[Time]
 	NTP=de.pool.ntp.org
 EOF
 arch-chroot /mnt systemctl enable systemd-timesyncd.service
 
-ln -sf /var/run/systemd/resolve/stub-resolv.conf /mnt/etc/resolv.conf
+arch-chroot /mnt ln -sf /var/run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 arch-chroot /mnt systemctl enable systemd-resolved.service
 
 arch-chroot /mnt systemctl enable fstrim.timer
 
-cat > /mnt/etc/vimrc <<-EOF
+arch-chroot /mnt tee /etc/vimrc <<-EOF
 	runtime! archlinux.vim
 	let skip_defaults_vim=1
 	set expandtab
@@ -216,34 +216,34 @@ arch-chroot /mnt passwd "${USER}" <<-EOF
 	${PASSWORD}
 	${PASSWORD}
 EOF
-cat > "/mnt/etc/sudoers.d/${USER}" <<-EOF
+arch-chroot /mnt tee "/etc/sudoers.d/${USER}" <<-EOF
 	${USER} ALL=(ALL) ALL
 	${USER} ALL=(ALL) NOPASSWD: /usr/bin/ip
 EOF
-chmod u=r,g=r,o= "/mnt/etc/sudoers.d/${USER}"
-cat > /mnt/etc/sudoers.d/umask <<-EOF
+arch-chroot /mnt chmod u=r,g=r,o= "/etc/sudoers.d/${USER}"
+arch-chroot /mnt tee /etc/sudoers.d/umask <<-EOF
 	Defaults umask_override
 EOF
-chmod u=r,g=r,o= /mnt/etc/sudoers.d/umask
+arch-chroot /mnt chmod u=r,g=r,o= /etc/sudoers.d/umask
 arch-chroot /mnt passwd -l root
-ln -s /dev/null /mnt/root/.bash_history
+arch-chroot /mnt ln -s /dev/null /root/.bash_history
 
 if [[ "${NIC}" = w* ]]
 	then
 		arch-chroot /mnt pacman -Syu --noconfirm wpa_supplicant
-		cat > "/mnt/etc/wpa_supplicant/wpa_supplicant-${NIC}.conf" <<-EOF
+		arch-chroot /mnt tee "/etc/wpa_supplicant/wpa_supplicant-${NIC}.conf" <<-EOF
 			ctrl_interface=/run/wpa_supplicant
 			ctrl_interface_group=${USER}
 			update_config=1
 		EOF
-		chmod g-rwx "/mnt/etc/wpa_supplicant/wpa_supplicant-${NIC}.conf"
-		chmod o-rwx "/mnt/etc/wpa_supplicant/wpa_supplicant-${NIC}.conf"
-		cat > /mnt/usr/local/bin/wpa_cli <<-EOF
+		arch-chroot /mnt chmod g-rwx "/etc/wpa_supplicant/wpa_supplicant-${NIC}.conf"
+		arch-chroot /mnt chmod o-rwx "/etc/wpa_supplicant/wpa_supplicant-${NIC}.conf"
+		arch-chroot /mnt tee /usr/local/bin/wpa_cli <<-EOF
 			#!/bin/sh
 
 			/usr/bin/wpa_cli -i ${NIC}
 		EOF
-		chmod +x /mnt/usr/local/bin/wpa_cli
+		arch-chroot /mnt chmod +x /usr/local/bin/wpa_cli
 		arch-chroot /mnt systemctl enable "wpa_supplicant@${NIC}.service"
 fi
 
@@ -259,7 +259,7 @@ if [[ "$(hostnamectl | awk 'BEGIN { IGNORECASE = 1 } $1 ~ "chassis" { print $2 }
 		esac
 fi
 
-cat > /mnt/etc/mkinitcpio.conf <<-EOF
+arch-chroot /mnt tee /etc/mkinitcpio.conf <<-EOF
 	MODULES=()
 	BINARIES=()
 	FILES=()
@@ -275,7 +275,7 @@ for ENTRY in $(ls /dev/disk/by-uuid)
 				break
 		fi
 	done
-cat > /mnt/etc/default/grub <<-EOF
+arch-chroot /mnt tee /etc/default/grub <<-EOF
 	GRUB_DISTRIBUTOR="Arch"
 	GRUB_DEFAULT=0
 	GRUB_TIMEOUT=0
