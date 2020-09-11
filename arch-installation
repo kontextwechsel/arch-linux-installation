@@ -234,7 +234,7 @@ if [[ "${NIC}" = w* ]]
 		arch-chroot /mnt chmod g-rwx "/etc/wpa_supplicant/wpa_supplicant-${NIC}.conf"
 		arch-chroot /mnt chmod o-rwx "/etc/wpa_supplicant/wpa_supplicant-${NIC}.conf"
 		arch-chroot /mnt tee /usr/local/bin/wpa_cli <<-EOF
-			#!/bin/sh
+			#!/bin/bash
 
 			/usr/bin/wpa_cli -i ${NIC}
 		EOF
