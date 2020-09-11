@@ -43,7 +43,7 @@ read_file brightness {
 }
 EOF
 
-sudo systemctl mask systemd-backlight@backlight:acpi_video0.service
+sudo systemctl mask systemd-backlight@.service
 ```
 
 ### Battery
