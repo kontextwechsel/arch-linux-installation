@@ -83,15 +83,6 @@ if [[ -d /sys/firmware/efi/efivars ]]
 		ROOT_PARTITION="${PARTITION_PREFIX}2"
 fi
 
-# pacman -Syy
-# pacman -S --noconfirm reflector
-# reflector --country DE --protocol https --age 12 --sort rate --save /etc/pacman.d/mirrorlist
-cat > /etc/pacman.d/mirrorlist <<-EOF
-	Server = https://mirrors.kernel.org/archlinux/\$repo/os/\$arch
-	Server = https://mirrors.mit.edu/archlinux/\$repo/os/\$arch
-EOF
-pacman -Syy
-
 if [[ "${BOOT_MODE}" = UEFI ]]
 	then
 		parted "${DISK}" mklabel gpt
@@ -127,6 +118,12 @@ if [[ "${BOOT_MODE}" = UEFI ]]
 		mkdir /mnt/boot/efi
 		mount "${UEFI_PARTITION}" /mnt/boot/efi
 fi
+
+tee /etc/pacman.d/mirrorlist <<-EOF
+	Server = https://mirrors.kernel.org/archlinux/\$repo/os/\$arch
+	Server = https://mirrors.mit.edu/archlinux/\$repo/os/\$arch
+EOF
+pacman -Syy
 
 PACKAGES=(
 	base
