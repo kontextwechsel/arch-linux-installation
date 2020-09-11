@@ -247,9 +247,9 @@ if [[ "${NIC}" = w* ]]
 		arch-chroot /mnt systemctl enable "wpa_supplicant@${NIC}.service"
 fi
 
-if [[ "$(hostnamectl | awk 'BEGIN { IGNORECASE = 1 } $1 ~ "chassis" { print $2 }')" != vm ]]
+if [[ "$(sudo dmidecode -s system-manufacturer)" != QEMU ]]
 	then
-		case "$(cat /proc/cpuinfo | awk 'BEGIN { RS="\n\n" ; FS="\n" } { print $2 ; exit }' | awk '{ print $3 }')" in
+		case "$(lscpu | awk 'BEGIN { FS=":[[:space:]]*" } $1 == "Vendor ID" { print $2 }')" in
 			"AuthenticAMD")
 				arch-chroot /mnt pacman -Syu --noconfirm amd-ucode
 				;;
