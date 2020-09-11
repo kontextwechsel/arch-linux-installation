@@ -132,7 +132,7 @@ sudo systemctl enable sshd.service
 sudo tee /etc/X11/xorg.conf.d/10-keyboard.conf <<-EOF
 	Section "InputClass"
 	        Identifier "Keyboard configuration"
-	        MatchIsKeyboard
+	        MatchIsKeyboard "on"
 	        Option "XkbLayout" "de"
 	        Option "XkbVariant" "nodeadkeys"
 	EndSection

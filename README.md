@@ -193,7 +193,7 @@ sudo tee -a /etc/X11/xorg.conf.d/90-default.conf <<EOF
 
 Section "InputClass"
     Identifier "Touchpad control"
-    MatchIsTouchpad
+    MatchIsTouchpad "on"
     Driver "libinput"
         Option "ClickMethod" "clickfinger"
         Option "NoTapping"
