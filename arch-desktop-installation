@@ -2,15 +2,13 @@
 
 sudo /bin/true || exit 1
 
-set -x
-
 COLOR_DARK_GRAY="#464646"
 COLOR_MEDIUM_GRAY="#6f6f6f"
 COLOR_PINK="#f92472"
 COLOR_GREEN="#a6e22c"
 COLOR_WHITE="#f7f7f7"
 
-NIC="$(cat /etc/systemd/network/10-*.network | awk 'BEGIN { RS="\n\n" ; FS="\n" } $1 == "[Match]" { print $0 }' | awk 'BEGIN { FS="=" } $1 == "Name" { print $2 }')"
+set -x
 
 sudo sed -i "s/#Color/Color/g" /etc/pacman.conf
 
@@ -133,8 +131,6 @@ sudo ufw default reject incoming
 sudo ufw default allow outgoing
 sudo ufw allow proto tcp to 0.0.0.0/0 port 22
 sudo ufw enable
-
-sudo systemctl mask avahi-daemon.service
 
 sudo tee /etc/ssh/ssh_config <<-EOF
 	SendEnv LANG LC_*
@@ -607,6 +603,7 @@ tee "${HOME}/.i3/status.d/30-disk" <<-EOF
 	    format = "%free"
 	}
 EOF
+NIC="$(ip --brief link show | awk '$2 == "UP" { print $1; exit }')"
 if [[ "${NIC}" = w* ]]
 	then
 		tee "${HOME}/.i3/status.d/60-wlan" <<-EOF
@@ -737,8 +734,7 @@ EOF
 chmod -R g-rwx "${HOME}/"
 chmod -R o-rwx "${HOME}/"
 
-MANUFACTURER="$(sudo dmidecode -s system-manufacturer)"
-if [ "${MANUFACTURER}" = QEMU ]
+if [[ "$(sudo dmidecode -s system-manufacturer)" = QEMU ]]
 	then
 		sudo pacman -Syu --noconfirm  spice-vdagent
 		tee "${HOME}/.i3/config.d/21-spice" <<-EOF
