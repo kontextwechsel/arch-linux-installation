@@ -358,23 +358,24 @@ tee "${HOME}/.bashrc" <<-EOF
 	        alias less="/usr/bin/less --ignore-case"
 	        alias ls="/usr/bin/ls --color=auto --group-directories-first"
 
-	        alias poweroff="/usr/bin/systemctl poweroff"
-	        alias reboot="/usr/bin/systemctl reboot"
-	        alias suspend="/usr/bin/systemctl suspend"
-
 	        alias bc="/usr/bin/bc --mathlib"
 	        alias cal="/usr/bin/cal --months 9 --span"
+
+	        for COMMAND in poweroff reboot suspend hibernate
+	        do
+	            alias "\${COMMAND}"="/usr/bin/systemctl \${COMMAND}"
+	        done
 
 	        function git:pretty () {
 	            PARAMETERS=("\${@}")
 	            case "\${1}" in
-	                (log)
+	                log)
 	                    /usr/bin/git --no-pager log --all --decorate=full --reverse "\${PARAMETERS[@]:1}"
 	                    ;;
-	                (graph)
+	                graph)
 	                    /usr/bin/git --no-pager log --all --decorate=full --graph "\${PARAMETERS[@]:1}"
 	                    ;;
-	                (*)
+	                *)
 	                    /usr/bin/git --no-pager "\${PARAMETERS[@]}"
 	                    ;;
 	            esac

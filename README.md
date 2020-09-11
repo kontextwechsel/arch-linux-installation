@@ -149,22 +149,6 @@ sudo tee /etc/default/grub <<< "${BUFFER}"
 sudo grub-mkconfig -o /boot/grub/grub.cfg
 ```
 
-#### Alias
-
-```bash
-TEMP="$(mktemp)"
-while IFS= read -r LINE
-	do
-		echo "${LINE}" >> "${TEMP}"
-		if [[ "${LINE}" = *"alias suspend"* ]]
-			then
-				echo "${LINE//suspend/hibernate}" >> "${TEMP}"
-		fi
-	done < "${HOME}/.bashrc"
-tee "${HOME}/.bashrc" < "${TEMP}"
-rm "${TEMP}"
-```
-
 #### Battery
 
 ```bash
