@@ -104,43 +104,48 @@ EOF
 #### Resume
 
 ```bash
-source /etc/mkinitcpio.conf
-BUFFER=()
-for ENTRY in "${HOOKS[@]}"
+unset BUFFER
+while IFS="=" read -r K V
 	do
-		BUFFER+=("${ENTRY}")
-		if [[ "${ENTRY}" == filesystems ]]
+		IFS=" " read -r -a A <<< "$(sed -r "s/\((.*)\)/\1/g" <<< ${V})"
+		if [[ "${K}" = HOOKS ]]
 			then
-				BUFFER+=("resume")
+				T=()
+				for E in "${A[@]}"
+					do
+						T+=("${E}")
+						if [[ "${E}" = filesystems ]]
+							then
+								T+=("resume")
+						fi
+					done
+				BUFFER+="${K}=(${T[*]})"$'\n'
+			else
+				BUFFER+="${K}=(${A[*]})"$'\n'
 		fi
-	done
-HOOKS=("${BUFFER[@]}")
-sudo tee /etc/mkinitcpio.conf <<EOF
-MODULES=(${MODULES[*]})
-BINARIES=(${BINARIES[*]})
-FILES=(${FILES[*]})
-HOOKS=(${HOOKS[*]})
-EOF
+	done < /etc/mkinitcpio.conf
+sudo tee /etc/mkinitcpio.conf <<< "${BUFFER}"
 sudo mkinitcpio -p linux
 
-source /etc/default/grub
-BUFFER=()
-for ENTRY in "${GRUB_CMDLINE_LINUX}"
+unset BUFFER
+while IFS="=" read -r K V
 	do
-		BUFFER+=("${ENTRY}")
-	done
-BUFFER+=("resume=$(awk '$2 == "/" { print $1 }' /etc/fstab)")
-BUFFER+=("resume_offset=$(sudo filefrag -v /swapfile | awk '$1 == "0:" { print substr($4,0,length($4-2)) }')")
-GRUB_CMDLINE_LINUX=("${BUFFER[@]}")
-sudo tee /etc/default/grub <<EOF
-GRUB_DISTRIBUTOR="${GRUB_DISTRIBUTOR}"
-GRUB_DEFAULT="${GRUB_DEFAULT}"
-GRUB_TIMEOUT="${GRUB_TIMEOUT}"
-GRUB_TIMEOUT_STYLE="${GRUB_TIMEOUT_STYLE}"
-GRUB_DISABLE_RECOVERY="${GRUB_DISABLE_RECOVERY}"
-GRUB_CMDLINE_LINUX="${GRUB_CMDLINE_LINUX[*]}"
-GRUB_CMDLINE_LINUX_DEFAULT="${GRUB_CMDLINE_LINUX_DEFAULT}"
-EOF
+		IFS=" " read -r -a A <<< "$(sed -r "s/\"(.*)\"/\1/g" <<< ${V})"
+		if [[ "${K}" = GRUB_CMDLINE_LINUX ]]
+			then
+				T=()
+				for E in "${A[@]}"
+					do
+						T+=("${E}")
+					done
+				T+=("resume=$(awk '$2 == "/" { print $1 }' /etc/fstab)")
+				T+=("resume_offset=$(sudo filefrag -v /swapfile | awk 'BEGIN { FS="[[:space:].:]+" } $2 == "0" { print $5 }')")
+				BUFFER+="${K}=\"${T[*]}\""$'\n'
+			else
+				BUFFER+="${K}=\"${A[*]}\""$'\n'
+		fi
+	done < /etc/default/grub
+sudo tee /etc/default/grub <<< "${BUFFER}"
 sudo grub-mkconfig -o /boot/grub/grub.cfg
 ```
 
@@ -252,53 +257,57 @@ sudo dropbearkey -t ecdsa -f /etc/dropbear/dropbear_ecdsa_host_key
 sudo dropbearkey -t ed25519 -f /etc/dropbear/dropbear_ed25519_host_key
 sudo sed -i -r s/"(copy_openssh_keys \|\| generate_keys)"/"#\1"/g /usr/lib/initcpio/install/dropbear
 
-source /etc/mkinitcpio.conf
-BINARIES+=("/usr/lib/libgcc_s.so.1")
-BUFFER=()
-for ENTRY in "${HOOKS[@]}"
+unset BUFFER
+while IFS="=" read -r K V
 	do
-		if [[ "${ENTRY}" == encrypt ]]
+		IFS=" " read -r -a A <<< "$(sed -r "s/\((.*)\)/\1/g" <<< "${V}")"
+		if [[ "${K}" = HOOKS ]]
 			then
-				BUFFER+=("netconf")
-				BUFFER+=("dropbear")
-				BUFFER+=("encryptssh")
+				T=()
+				for E in "${A[@]}"
+					do
+						if [[ "${E}" = encrypt ]]
+							then
+								T+=("netconf")
+								T+=("dropbear")
+								T+=("encryptssh")
+							else
+								T+=("${E}")
+						fi
+					done
+				BUFFER+="${K}=(${T[*]})"$'\n'
 			else
-				BUFFER+=("${ENTRY}")
+				BUFFER+="${K}=(${A[*]})"$'\n'
 		fi
-	done
-HOOKS=("${BUFFER[@]}")
-sudo tee /etc/mkinitcpio.conf <<EOF
-MODULES=(${MODULES[*]})
-BINARIES=(${BINARIES[*]})
-FILES=(${FILES[*]})
-HOOKS=(${HOOKS[*]})
-EOF
+	done < /etc/mkinitcpio.conf
+sudo tee /etc/mkinitcpio.conf <<< "${BUFFER}"
 sudo mkinitcpio -p linux
 
-NIC="$(cat /etc/systemd/network/10-*.network | awk 'BEGIN { RS="\n\n" ; FS="\n" } $1 == "[Match]" { print $0 }' | awk 'BEGIN { FS="=" } $1 == "Name" { print $2 }')"
+NIC="$(ip --brief link show | awk '$2 == "UP" { print $1; exit }')"
 KERNEL_NIC="$(dmesg | grep -oP "(?<=${NIC}: renamed from )(.+)(?=$)")"
 if [[ -n "${KERNEL_NIC}:+SUBSTITUTION" ]]
 	then
 		NIC="${KERNEL_NIC}"
 fi
 
-source /etc/default/grub
-BUFFER=()
-for ENTRY in "${GRUB_CMDLINE_LINUX}"
+unset BUFFER
+while IFS="=" read -r K V
 	do
-		BUFFER+=("${ENTRY}")
-	done
-BUFFER+=("ip=:::::${NIC}:dhcp")
-GRUB_CMDLINE_LINUX=("${BUFFER[@]}")
-sudo tee /etc/default/grub <<EOF
-GRUB_DISTRIBUTOR="${GRUB_DISTRIBUTOR}"
-GRUB_DEFAULT="${GRUB_DEFAULT}"
-GRUB_TIMEOUT="${GRUB_TIMEOUT}"
-GRUB_TIMEOUT_STYLE="${GRUB_TIMEOUT_STYLE}"
-GRUB_DISABLE_RECOVERY="${GRUB_DISABLE_RECOVERY}"
-GRUB_CMDLINE_LINUX="${GRUB_CMDLINE_LINUX[*]}"
-GRUB_CMDLINE_LINUX_DEFAULT="${GRUB_CMDLINE_LINUX_DEFAULT}"
-EOF
+		IFS=" " read -r -a A <<< "$(sed -r "s/\"(.*)\"/\1/g" <<< "${V}")"
+		if [[ "${K}" = GRUB_CMDLINE_LINUX ]]
+			then
+				T=()
+				for E in "${A[@]}"
+					do
+						T+=("${E}")
+					done
+				T+=("ip=:::::${NIC}:dhcp")
+				BUFFER+="${K}=\"${T[*]}\""$'\n'
+			else
+				BUFFER+="${K}=\"${A[*]}\""$'\n'
+		fi
+	done < /etc/default/grub
+sudo tee /etc/default/grub <<< "${BUFFER}"
 sudo grub-mkconfig -o /boot/grub/grub.cfg
 ```
 
