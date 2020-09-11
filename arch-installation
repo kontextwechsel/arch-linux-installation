@@ -2,8 +2,6 @@
 
 sudo /bin/true || exit 1
 
-loadkeys de-latin1-nodeadkeys
-
 BUFFER=()
 while IFS= read -r DISK
 	do
