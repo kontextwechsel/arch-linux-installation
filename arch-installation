@@ -4,25 +4,25 @@ sudo /bin/true || exit 1
 
 loadkeys de-latin1-nodeadkeys
 
-ARRAY=()
+BUFFER=()
 while IFS= read -r DISK
 	do
-		ARRAY+=("${DISK}")
-		ARRAY+=("")
-		if [[ ${#ARRAY[@]} -gt 3 ]]
+		BUFFER+=("${DISK}")
+		BUFFER+=("")
+		if [[ ${#BUFFER[@]} -gt 3 ]]
 			then
-				ARRAY+=("OFF")
+				BUFFER+=("OFF")
 			else
-				ARRAY+=("ON")
+				BUFFER+=("ON")
 		fi
-done <<< $(sudo parted --list --machine 2> /dev/null | awk 'BEGIN { RS = "\n\n" ; FS = "\n" } { print $2 }' | awk 'BEGIN { FS=":" } { print $1 }' | sort)
-[[ ${#ARRAY[@]} -gt 0 ]] || exit 1
-LENGTH=$((${#ARRAY[@]} / 3))
+done <<< $(sudo parted --list --machine | awk 'BEGIN { RS = "\n\n" ; FS = "\n" } { print $2 }' | awk 'BEGIN { FS=":" } { print $1 }' | sort)
+[[ ${#BUFFER[@]} -gt 0 ]] || exit 1
+LENGTH=$((${#BUFFER[@]} / 3))
 HEIGHT=$((${LENGTH} + 7))
-DISK=$(whiptail --title "Arch Linux" --radiolist "Installation disk" "${HEIGHT}" 78 "${LENGTH}" "${ARRAY[@]}" 3>&1 1>&2 2>&3)
+DISK=$(whiptail --title "Arch Linux" --radiolist "Installation disk" "${HEIGHT}" 78 "${LENGTH}" "${BUFFER[@]}" 3>&1 1>&2 2>&3)
 [[ -z "${DISK}" ]] && exit 1
 
-ARRAY=()
+BUFFER=()
 while IFS= read -r NIC
 	do
 		if [[ -e "/sys/class/net/${NIC}" ]]
@@ -34,23 +34,23 @@ while IFS= read -r NIC
 						eval PROPERTY=\$"${NAME}"
 						if [[ -n ${PROPERTY:+SUBSTITUTION} ]]
 							then
-								ARRAY+=("${PROPERTY}")
-								ARRAY+=("")
-								if [[ ${#ARRAY[@]} -gt 3 ]]
+								BUFFER+=("${PROPERTY}")
+								BUFFER+=("")
+								if [[ ${#BUFFER[@]} -gt 3 ]]
 									then
-										ARRAY+=("OFF")
+										BUFFER+=("OFF")
 									else
-										ARRAY+=("ON")
+										BUFFER+=("ON")
 								fi
 								break
 						fi
 					done
 		fi
 	done <<< $(ip --brief link show | awk '{ print $1 }' | sort)
-[[ ${#ARRAY[@]} -gt 0 ]] || exit 1
-LENGTH=$((${#ARRAY[@]} / 3))
+[[ ${#BUFFER[@]} -gt 0 ]] || exit 1
+LENGTH=$((${#BUFFER[@]} / 3))
 HEIGHT=$((${LENGTH} + 7))
-NIC=$(whiptail --title "Arch Linux" --radiolist "Network interface" "${HEIGHT}" 78 "${LENGTH}" "${ARRAY[@]}" 3>&1 1>&2 2>&3)
+NIC=$(whiptail --title "Arch Linux" --radiolist "Network interface" "${HEIGHT}" 78 "${LENGTH}" "${BUFFER[@]}" 3>&1 1>&2 2>&3)
 [[ -z "${NIC}" ]] && exit 1
 
 HOSTNAME=$(whiptail --title "Arch Linux" --inputbox "Hostname" 8 78 3>&1 1>&2 2>&3)
