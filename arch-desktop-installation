@@ -262,7 +262,7 @@ tee "${HOME}/.local/bin/screenshot" <<-EOF
 
 	FILE="%Y-%m-%d-%H-%M-%S.png"
 	ARGS=("--overwrite")
-	while [[ "\${#}" > 0  ]]
+	while [[ "\${#}" > 0 ]]
 	    do
 	        case "\${1}" in
 	            -s|--select)
@@ -270,7 +270,7 @@ tee "${HOME}/.local/bin/screenshot" <<-EOF
 	                shift
 	                ;;
 	            -c|--clipboard)
-	                FILE="\$(mktemp)"
+	                FILE="\$(mktemp --suffix=".png")"
 	                trap "{ xclip -selection clipboard -target image/png -in \${FILE}; rm -rf \${FILE}; }" EXIT
 	                shift
 	                ;;
@@ -402,9 +402,9 @@ tee "${HOME}/.bashrc" <<-EOF
 	        alias cal="/usr/bin/cal --months 9 --span"
 
 	        for COMMAND in poweroff reboot suspend hibernate
-	        do
-	            alias "\${COMMAND}"="/usr/bin/systemctl \${COMMAND}"
-	        done
+	            do
+	                alias "\${COMMAND}"="/usr/bin/systemctl \${COMMAND}"
+	            done
 
 	        function git:pretty () {
 	            PARAMETERS=("\${@}")
