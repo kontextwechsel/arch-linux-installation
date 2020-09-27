@@ -262,9 +262,9 @@ tee "${HOME}/.local/bin/screenshot" <<-EOF
 
 	FILE="%Y-%m-%d-%H-%M-%S.png"
 	ARGS=("--overwrite")
-	for ARGUMENT in "\${@}"
+	while [[ "\${#}" > 0  ]]
 	    do
-	        case "\${ARGUMENT}" in
+	        case "\${1}" in
 	            -s|--select)
 	                ARGS+=("--select")
 	                shift

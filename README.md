@@ -20,19 +20,44 @@ sudo pacman -Syu acpilight
 sudo usermod -a -G video "${USER}"
 
 mkdir -p "${HOME}/.local/bin"
-tee "${HOME}/.local/bin/xbacklight" <<EOF
+tee "${HOME}/.local/bin/backlight" <<EOF
 #!/bin/bash
 
-/usr/bin/xbacklight "\$@"
-/usr/bin/xbacklight -get > "\${HOME}/.brightness"
-killall -USR1 i3status
+BRIGHTNESS="\$(xbacklight -get)"
+while [[ "\${#}" > 0 ]]
+    do
+        case "\${1}" in
+            -i|--increment)
+                BRIGHTNESS="\$(("\${BRIGHTNESS}" > 90 ? 100 : "\${BRIGHTNESS}" + 10))"
+                shift
+                ;;
+            -d|--decrement)
+                BRIGHTNESS="\$(("\${BRIGHTNESS}" < 10 ? 0 : "\${BRIGHTNESS}" - 10))"
+                shift
+                ;;
+            -r|--reset)
+                if [[ -f "\${HOME}/.brightness" ]]
+                    then
+                        BRIGHTNESS="\$(< "\${HOME}/.brightness")"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+if [[ "\${BRIGHTNESS}" != "\$(xbacklight -get)" ]]
+    then
+        xbacklight -set "\${BRIGHTNESS}"
+        echo "\${BRIGHTNESS}" > "\${HOME}/.brightness"
+        killall -USR1 i3status
+fi
 EOF
-chmod +x "${HOME}/.local/bin/xbacklight"
+chmod +x "${HOME}/.local/bin/backlight"
 
 tee "${HOME}/.config/i3.d/41-backlight" <<EOF
-bindsym XF86MonBrightnessUp exec --no-startup-id xbacklight -inc 10
-bindsym XF86MonBrightnessDown exec --no-startup-id xbacklight -dec 10
-exec --no-startup-id xbacklight -set 10
+bindsym XF86MonBrightnessUp exec --no-startup-id backlight --increment
+bindsym XF86MonBrightnessDown exec --no-startup-id backlight --decrement
+exec --no-startup-id backlight --reset
 EOF
 
 tee "${HOME}/.config/i3status.d/35-brightness" <<EOF
@@ -309,4 +334,6 @@ PACKAGES=(
 sudo pacman -Syu "${PACKAGES[@]}"
 sudo systemctl enable libvirtd.service
 sudo usermod -a -G libvirt "${USER}"
+
+echo "virt-manager=/usr/bin/virt-manager" >> "${HOME}/.config/application-launcher/config"
 ```
