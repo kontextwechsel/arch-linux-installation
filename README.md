@@ -102,12 +102,8 @@ EOF
 ### Bluetooth
 
 ```bash
-sudo pacman -Syu blueman libappindicator-gtk3
+sudo pacman -Syu bluez bluez-utils pulseaudio-bluetooth
 sudo systemctl enable bluetooth.service
-
-tee "${HOME}/.config/i3.d/64-blueman" <<EOF
-exec --no-startup-id blueman-applet
-EOF
 ```
 
 ### Hibernate
