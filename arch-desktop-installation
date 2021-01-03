@@ -68,6 +68,7 @@ PACKAGES=(
 	pwgen
 	python
 	python-virtualenv
+	ripgrep
 	rsync
 	scrot
 	slock
@@ -299,7 +300,7 @@ tee "${HOME}/.xinitrc" <<-EOF
 	mkdir -p "/run/user/\${UID}/i3status"
 	awk 'NR!=1 && FNR==1 { printf "\n" } { print }' "\${HOME}/.config/i3.d/"* > "/run/user/\${UID}/i3/config"
 	awk 'NR!=1 && FNR==1 { printf "\n" } { print }' "\${HOME}/.config/i3status.d/"* > "/run/user/\${UID}/i3status/config"
-	exec /usr/bin/i3 -c "/run/user/\${UID}/i3/config"
+	exec /usr/bin/i3 -c "/run/user/\${UID}/i3/config"  > /dev/null 2>&1
 EOF
 
 tee "${HOME}/.Xresources" <<-EOF
@@ -364,13 +365,19 @@ tee "${HOME}/.bashrc" <<-EOF
 	                PS1="\[\e[31m\]\u@\h\[\e[m\]:\[\e[34m\]\w\[\e[m\]\\$ "
 	        fi
 
-	        EDITOR=/usr/bin/vim
-	        PAGER=/usr/bin/less
+	        export EDITOR=/usr/bin/vim
+	        export PAGER=/usr/bin/less
 
 	        HISTCONTROL=ignoreboth
 	        HISTFILESIZE=-1
 	        HISTSIZE=-1
 	        HISTTIMEFORMAT="%Y-%m-%d %H:%M:%S "
+
+	        function history:disable () {
+	            echo -e "\e[93mDISABLE BASH HISTORY\e[0m"
+	            unset HISTFILE
+	        }
+	        bind -x '"\eh":"history:disable"'
 
 	        shopt -s autocd
 	        shopt -s checkwinsize
@@ -410,10 +417,10 @@ tee "${HOME}/.bashrc" <<-EOF
 	            PARAMETERS=("\${@}")
 	            case "\${1}" in
 	                log)
-	                    /usr/bin/git --no-pager log --all --decorate=full --reverse "\${PARAMETERS[@]:1}"
+	                    /usr/bin/git --no-pager log --reverse "\${PARAMETERS[@]:1}"
 	                    ;;
 	                graph)
-	                    /usr/bin/git --no-pager log --all --decorate=full --graph "\${PARAMETERS[@]:1}"
+	                    /usr/bin/git --no-pager log --color=always --graph "\${PARAMETERS[@]:1}" | less -r
 	                    ;;
 	                *)
 	                    /usr/bin/git --no-pager "\${PARAMETERS[@]}"
@@ -602,13 +609,11 @@ tee "${HOME}/.config/i3status.d/10-default" <<-EOF
 	}
 EOF
 tee "${HOME}/.config/i3status.d/20-volume" <<-EOF
-	order += "volume master"
-	volume master {
+	order += "volume pulse"
+	volume pulse {
 	    format = "🔊 %volume"
 	    format_muted = "🔈"
-	    device = "default"
-	    mixer = "Master"
-	    mixer_idx = 0
+	    device = "pulse"
 	}
 EOF
 tee "${HOME}/.config/i3status.d/30-disk" <<-EOF
