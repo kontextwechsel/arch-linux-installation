@@ -13,7 +13,7 @@ while IFS= read -r DISK
 			else
 				BUFFER+=("ON")
 		fi
-done <<< $(sudo parted --list --machine | awk 'BEGIN { RS = "\n\n" ; FS = "\n" } { print $2 }' | awk 'BEGIN { FS=":" } { print $1 }' | sort)
+done <<< $(sudo parted --list --machine --script | awk 'BEGIN { RS = "\n\n" ; FS = "\n" } { print $2 }' | awk 'BEGIN { FS=":" } { print $1 }' | sort)
 [[ ${#BUFFER[@]} -gt 0 ]] || exit 1
 LENGTH=$((${#BUFFER[@]} / 3))
 HEIGHT=$((${LENGTH} + 7))
