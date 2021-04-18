@@ -64,58 +64,41 @@ set -x
 
 if [[ "${DISK}" = *nvm* ]]
 	then
-		PARTITION_PREFIX="${DISK}p"
+		BOOT_PARTITION="${DISK}p1"
+		SYSTEM_PARTITION="${DISK}p2"
 	else
-		PARTITION_PREFIX="${DISK}"
+		BOOT_PARTITION="${DISK}1"
+		SYSTEM_PARTITION="${DISK}2"
 fi
 
 if [[ -d /sys/firmware/efi/efivars ]]
 	then
-		BOOT_MODE="UEFI"
-		UEFI_PARTITION="${PARTITION_PREFIX}1"
-		BOOT_PARTITION="${PARTITION_PREFIX}2"
-		ROOT_PARTITION="${PARTITION_PREFIX}3"
-	else
-		BOOT_MODE="LEGACY"
-		BOOT_PARTITION="${PARTITION_PREFIX}1"
-		ROOT_PARTITION="${PARTITION_PREFIX}2"
-fi
-
-if [[ "${BOOT_MODE}" = UEFI ]]
-	then
-		parted "${DISK}" mklabel gpt
-		parted "${DISK}" mkpart EFI 1MiB 512MiB
-		parted "${DISK}" mkpart BOOT 512MiB 1024MiB
-		parted "${DISK}" mkpart LINUX 1024MiB 100%
-		parted "${DISK}" set 1 esp on
+		parted --script "${DISK}" mklabel gpt
+		parted --script "${DISK}" mkpart EFI 4MiB 516MiB
+		parted --script "${DISK}" mkpart LINUX 516MiB 100%
+		parted --script "${DISK}" set 1 esp on
 		partprobe "${DISK}"
-		mkfs.fat -F32 "${UEFI_PARTITION}"
-		mkfs.ext4 "${BOOT_PARTITION}"
+		mkfs.fat -F32 "${BOOT_PARTITION}"
 	else
-		parted "${DISK}" mklabel msdos
-		parted "${DISK}" mkpart primary 1MiB 512MiB
-		parted "${DISK}" mkpart primary 512MiB 100%
-		parted "${DISK}" set 1 boot on
+		parted --script "${DISK}" mklabel msdos
+		parted --script "${DISK}" mkpart primary 4MiB 516MiB
+		parted --script "${DISK}" mkpart primary 516MiB 100%
+		parted --script "${DISK}" set 1 boot on
 		partprobe "${DISK}"
 		mkfs.ext4 "${BOOT_PARTITION}"
 fi
-cryptsetup --batch-mode luksFormat "${ROOT_PARTITION}" <<-EOF
+cryptsetup --batch-mode luksFormat "${SYSTEM_PARTITION}" <<-EOF
 	${PASSWORD}
 	${PASSWORD}
 EOF
 CRYPT_PARTITION_ID="$(uuidgen)"
-cryptsetup open "${ROOT_PARTITION}" "${CRYPT_PARTITION_ID}" <<-EOF
+cryptsetup open "${SYSTEM_PARTITION}" "${CRYPT_PARTITION_ID}" <<-EOF
 	${PASSWORD}
 EOF
 mkfs.ext4 "/dev/mapper/${CRYPT_PARTITION_ID}"
 mount "/dev/mapper/${CRYPT_PARTITION_ID}" /mnt
 mkdir /mnt/boot
 mount "${BOOT_PARTITION}" /mnt/boot
-if [[ "${BOOT_MODE}" = UEFI ]]
-	then
-		mkdir /mnt/boot/efi
-		mount "${UEFI_PARTITION}" /mnt/boot/efi
-fi
 
 tee /etc/pacman.d/mirrorlist <<-EOF
 	Server = https://mirrors.kernel.org/archlinux/\$repo/os/\$arch
@@ -126,18 +109,11 @@ pacman -Syy
 PACKAGES=(
 	base
 	base-devel
-	grub
 	linux
 	linux-firmware
 	sudo
 	vim
 )
-if [[ "${BOOT_MODE}" = UEFI ]]
-	then
-		PACKAGES+=(
-			efibootmgr
-		)
-fi
 pacstrap /mnt "${PACKAGES[@]}"
 genfstab -U /mnt > /mnt/etc/fstab
 
@@ -215,24 +191,23 @@ arch-chroot /mnt tee "/etc/sudoers.d/${USER}" <<-EOF
 	${USER} ALL=(ALL) ALL
 	${USER} ALL=(ALL) NOPASSWD: /usr/bin/ip
 EOF
-arch-chroot /mnt chmod u=r,g=r,o= "/etc/sudoers.d/${USER}"
+arch-chroot /mnt chmod u=r,go= "/etc/sudoers.d/${USER}"
 arch-chroot /mnt tee /etc/sudoers.d/umask <<-EOF
 	Defaults umask_override
 EOF
-arch-chroot /mnt chmod u=r,g=r,o= /etc/sudoers.d/umask
+arch-chroot /mnt chmod u=r,go= /etc/sudoers.d/umask
 arch-chroot /mnt passwd -l root
 arch-chroot /mnt ln -s /dev/null /root/.bash_history
 
 if [[ "${NIC}" = w* ]]
 	then
-		arch-chroot /mnt pacman -Syu --noconfirm wpa_supplicant
+		arch-chroot /mnt pacman --noconfirm -S wpa_supplicant
 		arch-chroot /mnt tee "/etc/wpa_supplicant/wpa_supplicant-${NIC}.conf" <<-EOF
 			ctrl_interface=/run/wpa_supplicant
 			ctrl_interface_group=${USER}
 			update_config=1
 		EOF
-		arch-chroot /mnt chmod g-rwx "/etc/wpa_supplicant/wpa_supplicant-${NIC}.conf"
-		arch-chroot /mnt chmod o-rwx "/etc/wpa_supplicant/wpa_supplicant-${NIC}.conf"
+		arch-chroot /mnt chmod u=rw,go= "/etc/wpa_supplicant/wpa_supplicant-${NIC}.conf"
 		arch-chroot /mnt tee /usr/local/bin/wpa_cli <<-EOF
 			#!/bin/bash
 
@@ -242,14 +217,17 @@ if [[ "${NIC}" = w* ]]
 		arch-chroot /mnt systemctl enable "wpa_supplicant@${NIC}.service"
 fi
 
-if [[ "$(sudo dmidecode -s system-manufacturer)" != QEMU ]]
+unset MICROCODE_IMAGE
+if [[ "$(</sys/devices/virtual/dmi/id/sys_vendor)" != QEMU ]]
 	then
 		case "$(lscpu | awk 'BEGIN { FS=":[[:space:]]*" } $1 == "Vendor ID" { print $2 }')" in
 			"AuthenticAMD")
-				arch-chroot /mnt pacman -Syu --noconfirm amd-ucode
+				arch-chroot /mnt pacman --noconfirm -S amd-ucode
+				MICROCODE_IMAGE="amd-ucode.img"
 				;;
 			"GenuineIntel")
-				arch-chroot /mnt pacman -Syu --noconfirm intel-ucode
+				arch-chroot /mnt pacman --noconfirm -S intel-ucode
+				MICROCODE_IMAGE="intel-ucode.img"
 				;;
 		esac
 fi
@@ -264,25 +242,52 @@ arch-chroot /mnt mkinitcpio -p linux
 
 for ENTRY in $(ls /dev/disk/by-uuid)
 	do
-		if [[ "$(readlink -f "/dev/disk/by-uuid/${ENTRY}")" = "${ROOT_PARTITION}" ]]
+		if [[ "$(readlink -f "/dev/disk/by-uuid/${ENTRY}")" = "${SYSTEM_PARTITION}" ]]
 			then
-				ROOT_PARTITION_BY_UUID="/dev/disk/by-uuid/${ENTRY}"
-				break
+				SYSTEM_PARTITION_UUID="${ENTRY}"
+		fi
+		if [[ "$(readlink -f "/dev/disk/by-uuid/${ENTRY}")" = "$(readlink -f "/dev/mapper/${CRYPT_PARTITION_ID}")" ]]
+			then
+				CRYPT_PARTITION_UUID="${ENTRY}"
 		fi
 	done
-arch-chroot /mnt tee /etc/default/grub <<-EOF
-	GRUB_DISTRIBUTOR="Arch"
-	GRUB_DEFAULT=0
-	GRUB_TIMEOUT=0
-	GRUB_TIMEOUT_STYLE=hidden
-	GRUB_DISABLE_RECOVERY=true
-	GRUB_CMDLINE_LINUX="cryptdevice=${ROOT_PARTITION_BY_UUID}:${CRYPT_PARTITION_ID}:allow-discards"
-	GRUB_CMDLINE_LINUX_DEFAULT="quiet loglevel=3"
-EOF
-if [[ "${BOOT_MODE}" = UEFI ]]
+if [[ -d /sys/firmware/efi/efivars ]]
 	then
-		arch-chroot /mnt grub-install --bootloader-id=GRUB --efi-directory=/boot/efi
+		arch-chroot /mnt pacman --noconfirm -S efibootmgr
+		arch-chroot /mnt bootctl install
+		arch-chroot /mnt tee /boot/loader/loader.conf <<-EOF
+			default default.conf
+			console-mode max
+			timeout 0
+			auto-entries false
+			auto-firmware true
+			editor false
+		EOF
+		arch-chroot /mnt tee /boot/loader/entries/default.conf <<-EOF
+			title Arch Linux
+			linux /vmlinuz-linux
+		EOF
+		if [[ -n "${MICROCODE_IMAGE:+SUBSTITUTION}" ]]
+			then
+				arch-chroot /mnt tee -a /boot/loader/entries/default.conf <<-EOF
+					initrd /${MICROCODE_IMAGE}
+				EOF
+		fi
+		arch-chroot /mnt tee -a /boot/loader/entries/default.conf <<-EOF
+			initrd /initramfs-linux.img
+			options cryptdevice=UUID=${SYSTEM_PARTITION_UUID}:${CRYPT_PARTITION_ID}:allow-discards root=UUID=${CRYPT_PARTITION_UUID} rw quiet
+		EOF
 	else
+		arch-chroot /mnt pacman --noconfirm -S grub
+		arch-chroot /mnt tee /etc/default/grub <<-EOF
+			GRUB_DISTRIBUTOR="Arch"
+			GRUB_DEFAULT=0
+			GRUB_TIMEOUT=0
+			GRUB_TIMEOUT_STYLE=hidden
+			GRUB_DISABLE_RECOVERY=true
+			GRUB_CMDLINE_LINUX="cryptdevice=UUID=${SYSTEM_PARTITION_UUID}:${CRYPT_PARTITION_ID}:allow-discards"
+			GRUB_CMDLINE_LINUX_DEFAULT="quiet"
+		EOF
 		arch-chroot /mnt grub-install "${DISK}"
+		arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
 fi
-arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
