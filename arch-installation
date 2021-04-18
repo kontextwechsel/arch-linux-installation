@@ -277,6 +277,17 @@ if [[ -d /sys/firmware/efi/efivars ]]
 			initrd /initramfs-linux.img
 			options cryptdevice=UUID=${SYSTEM_PARTITION_UUID}:${CRYPT_PARTITION_ID}:allow-discards root=UUID=${CRYPT_PARTITION_UUID} rw quiet
 		EOF
+		arch-chroot /mnt mkdir /etc/pacman.d/hooks
+		arch-chroot /mnt tee /etc/pacman.d/hooks/10-systemd-boot.hook <<-EOF
+			[Trigger]
+			Type = Package
+			Operation = Upgrade
+			Target = systemd
+
+			[Action]
+			When = PostTransaction
+			Exec = /usr/bin/bootctl update
+		EOF
 	else
 		arch-chroot /mnt pacman --noconfirm -S grub
 		arch-chroot /mnt tee /etc/default/grub <<-EOF
