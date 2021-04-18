@@ -751,8 +751,7 @@ tee "${HOME}/.config/sublime-text-3/Local/Session.sublime_session" <<-EOF
 	{"windows":[{"menu_visible": false}]}
 EOF
 
-chmod -R g-rwx "${HOME}/"
-chmod -R o-rwx "${HOME}/"
+chmod -R go= "${HOME}/"
 
 if [[ "$(</sys/devices/virtual/dmi/id/sys_vendor)" = QEMU ]]
 	then

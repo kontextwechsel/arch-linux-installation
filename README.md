@@ -112,7 +112,7 @@ sudo systemctl enable bluetooth.service
 
 ```bash
 sudo dd if=/dev/zero of=/swapfile bs=1K count="$(free -k | awk 'BEGIN { FS=":[[:space:]]*" } $1 == "Mem" { print $2 }' | awk '{ print $1 }')" status=progress
-sudo chmod u=rw,g=,o= /swapfile
+sudo chmod u=rw,go= /swapfile
 sudo mkswap /swapfile
 sudo swapon /swapfile
 sudo tee -a /etc/fstab <<EOF
