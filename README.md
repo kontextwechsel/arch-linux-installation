@@ -125,7 +125,7 @@ EOF
 #### Resume
 
 ```bash
-unset BUFFER
+BUFFER=()
 while IFS="=" read -r K V
 	do
 		IFS=" " read -r -a A <<< "$(sed -r "s/\((.*)\)/\1/g" <<< ${V})"
@@ -140,34 +140,32 @@ while IFS="=" read -r K V
 								T+=("resume")
 						fi
 					done
-				BUFFER+="${K}=(${T[*]})"$'\n'
+				BUFFER+=("${K}=(${T[*]})")
 			else
-				BUFFER+="${K}=(${A[*]})"$'\n'
+				BUFFER+=("${K}=(${A[*]})")
 		fi
 	done < /etc/mkinitcpio.conf
-sudo tee /etc/mkinitcpio.conf <<< "${BUFFER}"
+IFS=$'\n'
+sudo tee /etc/mkinitcpio.conf <<< "${BUFFER[*]}"
+unset IFS
 sudo mkinitcpio -p linux
 
-unset BUFFER
-while IFS="=" read -r K V
+BUFFER=()
+while IFS=" " read -r K V
 	do
-		IFS=" " read -r -a A <<< "$(sed -r "s/\"(.*)\"/\1/g" <<< ${V})"
-		if [[ "${K}" = GRUB_CMDLINE_LINUX ]]
+		if [[ "${K}" = options ]]
 			then
-				T=()
-				for E in "${A[@]}"
-					do
-						T+=("${E}")
-					done
-				T+=("resume=$(awk '$2 == "/" { print $1 }' /etc/fstab)")
-				T+=("resume_offset=$(sudo filefrag -v /swapfile | awk 'BEGIN { FS="[[:space:].:]+" } $2 == "0" { print $5 }')")
-				BUFFER+="${K}=\"${T[*]}\""$'\n'
+				IFS=" " read -r -a A <<< "${V}"
+				A+=("resume=$(awk '$2 == "/" { print $1 }' /etc/fstab)")
+				A+=("resume_offset=$(sudo filefrag -v /swapfile | awk 'BEGIN { FS="[[:space:].:]+" } $2 == "0" { print $5 }')")
+				BUFFER+=("${K} ${A[*]}")
 			else
-				BUFFER+="${K}=\"${A[*]}\""$'\n'
+				BUFFER+=("${K} ${V}")
 		fi
-	done < /etc/default/grub
-sudo tee /etc/default/grub <<< "${BUFFER}"
-sudo grub-mkconfig -o /boot/grub/grub.cfg
+	done < /boot/loader/entries/default.conf
+IFS=$'\n'
+sudo tee /boot/loader/entries/default.conf <<< "${BUFFER[*]}"
+unset IFS
 ```
 
 #### Battery
@@ -262,7 +260,7 @@ sudo dropbearkey -t ecdsa -f /etc/dropbear/dropbear_ecdsa_host_key
 sudo dropbearkey -t ed25519 -f /etc/dropbear/dropbear_ed25519_host_key
 sudo sed -i -r s/"(copy_openssh_keys \|\| generate_keys)"/"#\1"/g /usr/lib/initcpio/install/dropbear
 
-unset BUFFER
+BUFFER=()
 while IFS="=" read -r K V
 	do
 		IFS=" " read -r -a A <<< "$(sed -r "s/\((.*)\)/\1/g" <<< "${V}")"
@@ -280,40 +278,38 @@ while IFS="=" read -r K V
 								T+=("${E}")
 						fi
 					done
-				BUFFER+="${K}=(${T[*]})"$'\n'
+				BUFFER+=("${K}=(${T[*]})")
 			else
-				BUFFER+="${K}=(${A[*]})"$'\n'
+				BUFFER+=("${K}=(${A[*]})")
 		fi
 	done < /etc/mkinitcpio.conf
-sudo tee /etc/mkinitcpio.conf <<< "${BUFFER}"
+IFS=$'\n'
+sudo tee /etc/mkinitcpio.conf <<< "${BUFFER[*]}"
+unset IFS
 sudo mkinitcpio -p linux
 
 NIC="$(ip --brief link show | awk '$2 == "UP" { print $1; exit }')"
-KERNEL_NIC="$(dmesg | grep -oP "(?<=${NIC}: renamed from )(.+)(?=$)")"
+KERNEL_NIC="$(sudo dmesg | grep -oP "(?<=${NIC}: renamed from )(.+)(?=$)")"
 if [[ -n "${KERNEL_NIC}:+SUBSTITUTION" ]]
 	then
 		NIC="${KERNEL_NIC}"
 fi
 
-unset BUFFER
-while IFS="=" read -r K V
+BUFFER=()
+while IFS=" " read -r K V
 	do
-		IFS=" " read -r -a A <<< "$(sed -r "s/\"(.*)\"/\1/g" <<< "${V}")"
-		if [[ "${K}" = GRUB_CMDLINE_LINUX ]]
+		if [[ "${K}" = options ]]
 			then
-				T=()
-				for E in "${A[@]}"
-					do
-						T+=("${E}")
-					done
-				T+=("ip=:::::${NIC}:dhcp")
-				BUFFER+="${K}=\"${T[*]}\""$'\n'
+				IFS=" " read -r -a A <<< "${V}"
+				A+=("ip=:::::${NIC}:dhcp")
+				BUFFER+=("${K} ${A[*]}")
 			else
-				BUFFER+="${K}=\"${A[*]}\""$'\n'
+				BUFFER+=("${K} ${V}")
 		fi
-	done < /etc/default/grub
-sudo tee /etc/default/grub <<< "${BUFFER}"
-sudo grub-mkconfig -o /boot/grub/grub.cfg
+	done < /boot/loader/entries/default.conf
+IFS=$'\n'
+sudo tee /boot/loader/entries/default.conf <<< "${BUFFER[*]}"
+unset IFS
 ```
 
 ## libvirt
@@ -322,6 +318,7 @@ sudo grub-mkconfig -o /boot/grub/grub.cfg
 PACKAGES=(
 	dnsmasq
 	ebtables
+	edk2-ovmf
 	libvirt
 	openbsd-netcat
 	qemu

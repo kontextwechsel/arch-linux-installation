@@ -92,7 +92,7 @@ PACKAGES=(
 	xterm
 	zip
 )
-sudo pacman -Syu --noconfirm "${PACKAGES[@]}"
+sudo pacman --noconfirm -Sy "${PACKAGES[@]}"
 
 curl -O https://dn-works.com/wp-content/uploads/2020/UFAS-Fonts/Symbola.zip
 sudo mkdir -p /usr/share/fonts/ancient-scripts
@@ -754,9 +754,9 @@ EOF
 chmod -R g-rwx "${HOME}/"
 chmod -R o-rwx "${HOME}/"
 
-if [[ "$(sudo dmidecode -s system-manufacturer)" = QEMU ]]
+if [[ "$(</sys/devices/virtual/dmi/id/sys_vendor)" = QEMU ]]
 	then
-		sudo pacman -Syu --noconfirm  spice-vdagent
+		sudo pacman --noconfirm -S spice-vdagent
 		tee "${HOME}/.config/i3.d/21-spice" <<-EOF
 			exec --no-startup-id spice-vdagent
 		EOF
