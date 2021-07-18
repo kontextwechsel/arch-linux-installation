@@ -99,10 +99,29 @@ sudo mkdir -p /usr/share/fonts/ancient-scripts
 sudo unzip -d /usr/share/fonts/ancient-scripts Symbola.zip Symbola.otf
 rm Symbola.zip
 
-sudo perl -pi -e "s/#CC3333/${COLOR_MEDIUM_GRAY^^}/g" /usr/bin/slock
-sudo perl -pi -e "s/#005577/${COLOR_GREEN^^}/g" /usr/bin/slock
+sudo perl -pi -e "s/#CC3333/${COLOR_MEDIUM_GRAY^^}/g;" -e "s/#005577/${COLOR_GREEN^^}/g;" /usr/bin/slock
+sudo tee /etc/pacman.d/hooks/20-slock.hook <<-EOF
+	[Trigger]
+	Type = Package
+	Operation = Upgrade
+	Target = slock
+
+	[Action]
+	When = PostTransaction
+	Exec = /usr/bin/perl -pi -e "s/#CC3333/${COLOR_MEDIUM_GRAY^^}/g;" -e "s/#005577/${COLOR_GREEN^^}/g;" /usr/bin/slock
+EOF
 
 sudo sed -i "s/kpdl(comma)/kpdl(dot)/g" /usr/share/X11/xkb/symbols/de
+sudo tee /etc/pacman.d/hooks/30-xkeyboard-config.hook <<-EOF
+	[Trigger]
+	Type = Package
+	Operation = Upgrade
+	Target = xkeyboard-config
+
+	[Action]
+	When = PostTransaction
+	Exec = /usr/bin/sed -i "s/kpdl(comma)/kpdl(dot)/g" /usr/share/X11/xkb/symbols/de
+EOF
 
 sudo systemctl enable ufw.service
 sudo ufw default reject incoming
