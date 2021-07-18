@@ -26,6 +26,7 @@ PACKAGES=(
 	adobe-source-code-pro-fonts
 	adobe-source-sans-pro-fonts
 	adobe-source-serif-pro-fonts
+	alacritty
 	arc-gtk-theme
 	arc-icon-theme
 	bash-completion
@@ -303,6 +304,7 @@ chmod +x "${HOME}/.local/bin/screenshot"
 
 mkdir -p "${HOME}/.config/application-launcher"
 tee "${HOME}/.config/application-launcher/config" <<-EOF
+	alacritty=/usr/bin/alacritty
 	firefox=/usr/bin/firefox
 	gimp=/usr/bin/gimp
 	gpicview=/usr/bin/gpicview
@@ -311,7 +313,6 @@ tee "${HOME}/.config/application-launcher/config" <<-EOF
 	pcmanfm=/usr/bin/pcmanfm
 	sublime-text=/usr/bin/subl
 	thunderbird=/usr/bin/thunderbird
-	xterm=/usr/bin/xterm
 EOF
 
 tee "${HOME}/.xinitrc" <<-EOF
@@ -482,7 +483,7 @@ tee "${HOME}/.config/i3.d/10-default" <<-EOF
 	client.unfocused ${COLOR_DARK_GRAY} ${COLOR_DARK_GRAY} ${COLOR_MEDIUM_GRAY} ${COLOR_WHITE}
 	client.urgent ${COLOR_DARK_GRAY} ${COLOR_PINK} ${COLOR_WHITE} ${COLOR_PINK}
 
-	bindsym \$mod+Return exec --no-startup-id xterm
+	bindsym \$mod+Return exec --no-startup-id alacritty
 	bindsym \$mod+Shift+q kill
 	bindsym \$mod+d exec --no-startup-id application-launcher
 
@@ -704,6 +705,118 @@ tee "${HOME}/.config/dunst/dunstrc" <<-EOF
 	    timeout = 0
 EOF
 
+tee "${HOME}/.alacritty.yml" <<-EOF
+	env:
+	  TERM: xterm
+
+	window:
+	  decorations: full
+	  title: Terminal
+	  dynamic_title: true
+	  class:
+	    instance: Terminal
+	    general: Auf zum Atem!
+
+	colors:
+	  primary:
+	    background: '#282828'
+	    foreground: '#f7f7f7'
+	  normal:
+	    black:   '#6f6f6f'
+	    red:     '#f92472'
+	    green:   '#a6e22c'
+	    yellow:  '#e7db74'
+	    blue:    '#67d8ef'
+	    magenta: '#ac80ff'
+	    cyan:    '#2aa198'
+	    white:   '#f8f8f8'
+	  bright:
+	    black:   '#282828'
+	    red:     '#f92472'
+	    green:   '#a6e22c'
+	    yellow:  '#e7db74'
+	    blue:    '#67d8ef'
+	    magenta: '#ac80ff'
+	    cyan:    '#2aa198'
+	    white:   '#f7f7f7'
+	  selection:
+	   text: '#282828'
+	   background: '#f7f7f7'
+	  line_indicator:
+	    foreground: '#282828'
+	    background: '#f7f7f7'
+	  search:
+	    matches:
+	      foreground: '#282828'
+	      background: '#f7f7f7'
+	    focused_match:
+	      foreground: '#f7f7f7'
+	      background: '#2aa198'
+	    bar:
+	      foreground: '#282828'
+	      background: '#f7f7f7'
+	  hints:
+	    start:
+	      foreground: '#f7f7f7'
+	      background: '#f92472'
+	    end:
+	      foreground: '#f92472'
+	      background: '#f7f7f7'
+	background_opacity: 1.0
+
+	font:
+	  normal:
+	    family: Source Code Pro
+	    style: Regular
+	  bold:
+	    style: Regular
+	  italic:
+	    style: Regular
+	  bold_italic:
+	    style: Regular
+	  size: 14.0
+	draw_bold_text_with_bright_colors: false
+
+	cursor:
+	  style:
+	    shape: Block
+	    blinking: Always
+	  blink_interval: 750
+	  unfocused_hollow: true
+
+	scrolling:
+	  history: 16384
+	  multiplier: 4
+
+	mouse:
+	  double_click:
+	    threshold: 400
+	  triple_click:
+	    threshold: 400
+	  hide_when_typing: false
+
+	selection:
+	  semantic_escape_chars: ",│\`|:\"' ()[]{}<>\t"
+	  save_to_clipboard: false
+
+	bell:
+	  animation: Linear
+	  duration: 0
+	  color: '#f7f7f7'
+
+	alt_send_esc: true
+
+	shell:
+	  program: /bin/bash
+	  args: [ '--login' ]
+	working_directory: None
+
+	hints:
+	  enabled: []
+
+	live_config_reload: false
+EOF
+
 mkdir -p "${HOME}/.config/pcmanfm/default"
 tee "${HOME}/.config/pcmanfm/default/pcmanfm.conf" <<-EOF
 	[volume]
@@ -717,7 +830,7 @@ EOF
 mkdir -p "${HOME}/.config/libfm"
 tee "${HOME}/.config/libfm/libfm.conf" <<-EOF
 	[config]
-	terminal=xterm
+	terminal=alacritty
 
 	[places]
 	places_applications=0
