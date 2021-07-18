@@ -429,14 +429,17 @@ tee "${HOME}/.bashrc" <<-EOF
 	        }
 	        alias git="git:pretty"
 
-	        if [[ -d "\${HOME}/.bash" ]]
-	            then
-	                PATH="\${HOME}/.bash:\${PATH}"
-	        fi
-
 	        if [[ -f "\${HOME}/.bash_aliases" ]]
 	            then
 	                source "\${HOME}/.bash_aliases"
+	        fi
+
+	        if [[ -d "\${HOME}/.bash/" ]]
+	            then
+	                for FILE in \$(find "\${HOME}/.bash/" -maxdepth 1 -type f -executable)
+	                do
+	                    alias "\$(basename "\${FILE}")"="\${FILE}"
+	                done
 	        fi
 	        ;;
 	esac
