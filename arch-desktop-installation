@@ -132,6 +132,7 @@ sudo ufw enable
 sudo tee /etc/ssh/ssh_config <<-EOF
 	SendEnv LANG LC_*
 	ServerAliveInterval 10
+	StrictHostKeyChecking yes
 EOF
 sudo tee /etc/ssh/sshd_config <<-EOF
 	Port 22
