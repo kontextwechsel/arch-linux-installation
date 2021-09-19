@@ -174,6 +174,31 @@ unset IFS
 sudo tee /etc/udev/rules.d/90-battery.rules <<EOF
 SUBSYSTEM=="power_supply", ATTR{status}=="Discharging", ATTR{capacity}=="[0-5]", RUN+="/usr/bin/systemctl hibernate"
 EOF
+
+# Workaround for ACPI not reporting battery status
+sudo tee /usr/lib/systemd/system/power-trigger.service <<EOF
+[Unit]
+Description=Power Trigger
+
+[Service]
+Type=oneshot
+ExecStart=udevadm trigger --subsystem-match=power_supply --action=change --attr-match=status=Discharging
+
+[Install]
+WantedBy=default.target
+EOF
+sudo tee /usr/lib/systemd/system/power-trigger.timer <<EOF
+[Unit]
+Description=Power Trigger
+
+[Timer]
+OnCalendar=*:0/1
+Unit=power-trigger.service
+
+[Install]
+WantedBy=default.target
+EOF
+sudo systemctl enable power-trigger.timer
 ```
 
 ### JetBrains
