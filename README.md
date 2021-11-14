@@ -230,6 +230,14 @@ exec --no-startup-id imwheel -b 45
 EOF
 ```
 
+### Sound
+
+Required by _Dell XPS 9310_.
+
+```
+sudo pacman -Syu sof-firmware
+```
+
 ### Touchpad
 
 ```bash
@@ -277,13 +285,24 @@ sudo usermod -a -G docker "${USER}"
 ## Dropbear
 
 ```bash
-sudo pacman -Syu mkinitcpio-dropbear mkinitcpio-netconf mkinitcpio-utils
+sudo pacman -Syu dropbear mkinitcpio-dropbear mkinitcpio-netconf mkinitcpio-utils
 
 sudo cp "${HOME}/.ssh/authorized_keys" /etc/dropbear/root_key
 sudo dropbearkey -t rsa -f /etc/dropbear/dropbear_rsa_host_key
 sudo dropbearkey -t ecdsa -f /etc/dropbear/dropbear_ecdsa_host_key
 sudo dropbearkey -t ed25519 -f /etc/dropbear/dropbear_ed25519_host_key
+
 sudo sed -i -r s/"(copy_openssh_keys \|\| generate_keys)"/"#\1"/g /usr/lib/initcpio/install/dropbear
+sudo tee /etc/pacman.d/hooks/40-mkinitcpio-dropbear.hook <<-EOF
+	[Trigger]
+	Type = Package
+	Operation = Upgrade
+	Target = mkinitcpio-dropbear
+
+	[Action]
+	When = PostTransaction
+	Exec = /usr/bin/sed -i -r s/"(copy_openssh_keys \|\| generate_keys)"/"#\1"/g /usr/lib/initcpio/install/dropbear
+EOF
 
 BUFFER=()
 while IFS="=" read -r K V
