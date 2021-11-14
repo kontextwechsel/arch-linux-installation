@@ -138,9 +138,6 @@ EOF
 sudo tee /etc/ssh/sshd_config <<-EOF
 	Port 22
 
-	HostKey /etc/ssh/ssh_host_rsa_key
-	HostKeyAlgorithms ssh-rsa
-
 	AcceptEnv LANG LC_*
 	AddressFamily inet
 	AllowUsers ${USER}
@@ -880,6 +877,7 @@ tee "${HOME}/.config/sublime-text-3/Packages/User/Preferences.sublime-settings" 
 	    "hot_exit": false,
 	    "line_padding_bottom": 3,
 	    "line_padding_top": 3,
+	    "remember_workspace": false,
 	    "scroll_speed": 0,
 	    "show_encoding": true,
 	    "show_line_endings": true,
