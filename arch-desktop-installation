@@ -64,8 +64,9 @@ PACKAGES=(
 	pass
 	pavucontrol
 	pcmanfm
+	pipewire
+	pipewire-pulse
 	polkit
-	pulseaudio
 	pwgen
 	python
 	python-virtualenv
@@ -83,6 +84,7 @@ PACKAGES=(
 	unrar
 	unzip
 	wget
+	wireplumber	
 	xclip
 	xcursor-vanilla-dmz
 	xorg-server
