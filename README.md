@@ -258,15 +258,7 @@ EndSection
 EOF
 ```
 
-### Video card
-
-#### AMD
-
-```bash
-sudo pacman -Syu libva-mesa-driver libva-utils
-```
-
-#### Nvidia
+### Nvidia
 
 ```bash
 sudo pacman -Syu nvidia
@@ -358,7 +350,6 @@ IFS=$'\n'
 sudo tee /boot/loader/entries/default.conf <<< "${BUFFER[*]}"
 unset IFS
 ```
-
 ## Flatpak
 
 ```bash
@@ -374,7 +365,7 @@ sed -i "1s/^/dbus-update-activation-environment --systemd DBUS_SESSION_BUS_ADDRE
 flatpak remote-add --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 ```
 
-## libvirt
+## KVM/QEMU
 
 ```bash
 PACKAGES=(
@@ -390,5 +381,5 @@ sudo pacman -Syu "${PACKAGES[@]}"
 sudo systemctl enable libvirtd.service
 sudo usermod -a -G libvirt "${USER}"
 
-echo "virt-manager=/usr/bin/virt-manager" >> "${HOME}/.config/application-launcher/config"
+awk -i inplace -v APPLICATION='virt-manager' -v EXECUTABLE='/usr/bin/virt-manager' 'BEGIN { FS = "=" } { if ( !flag && $1 >= APPLICATION ) { printf "%s=%s\n", APPLICATION, EXECUTABLE; flag = 1 } if ( $1 != APPLICATION ) { printf "%s=%s\n", $1, $2 } }' "${HOME}/.config/application-launcher/config"
 ```
