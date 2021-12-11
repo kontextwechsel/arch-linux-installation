@@ -77,6 +77,9 @@ sudo systemctl mask systemd-backlight@.service
 sudo pacman -Syu tlp
 sudo systemctl enable tlp.service
 
+sudo systemctl mask systemd-rfkill.service
+sudo systemctl mask systemd-rfkill.socket
+
 sudo tee -a /etc/systemd/logind.conf <<EOF
 HandleLidSwitch=suspend
 HandleLidSwitchDocked=suspend
