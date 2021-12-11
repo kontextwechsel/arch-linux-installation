@@ -385,12 +385,12 @@ tee "${HOME}/.bashrc" <<-EOF
 	                PS1="\[\e[31m\]\u@\h\[\e[m\]:\[\e[34m\]\w\[\e[m\]\\$ "
 	        fi
 
-	        export EDITOR=/usr/bin/vim
-	        export PAGER=/usr/bin/less
+	        export EDITOR="/usr/bin/vim"
+	        export PAGER="/usr/bin/less"
 
-	        HISTCONTROL=ignoreboth
-	        HISTFILESIZE=-1
-	        HISTSIZE=-1
+	        HISTCONTROL="ignoreboth"
+	        HISTFILESIZE="-1"
+	        HISTSIZE="-1"
 	        HISTTIMEFORMAT="%Y-%m-%d %H:%M:%S "
 
 	        function history:disable () {
@@ -403,6 +403,7 @@ tee "${HOME}/.bashrc" <<-EOF
 	        shopt -s checkwinsize
 	        shopt -s globstar
 	        shopt -s histappend
+	        tabs 4
 
 	        eval \$(dircolors -b)
 
