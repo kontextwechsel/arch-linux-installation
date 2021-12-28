@@ -1,6 +1,6 @@
 #!/bin/bash
 
-sudo /bin/true || exit 1
+sudo true || exit 1
 
 COLOR_DARK_GRAY="#464646"
 COLOR_MEDIUM_GRAY="#6f6f6f"
@@ -37,6 +37,7 @@ PACKAGES=(
 	dunst
 	feh
 	firefox
+	flatpak
 	gimp
 	git
 	gnome-themes-extra # Arc theme dependency
@@ -84,9 +85,11 @@ PACKAGES=(
 	unrar
 	unzip
 	wget
-	wireplumber	
+	wireplumber
 	xclip
 	xcursor-vanilla-dmz
+	xdg-desktop-portal # Flapak dependency
+	xdg-desktop-portal-gtk # Flapak dependency
 	xorg-server
 	xorg-xinit
 	xorg-xrandr
@@ -96,6 +99,8 @@ PACKAGES=(
 	zip
 )
 sudo pacman --noconfirm -Sy "${PACKAGES[@]}"
+
+flatpak remote-add --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 
 curl -O https://dn-works.com/wp-content/uploads/2020/UFAS-Fonts/Symbola.zip
 sudo mkdir -p /usr/share/fonts/ancient-scripts
@@ -252,6 +257,10 @@ tee "${HOME}/.local/bin/application-launcher" <<-EOF
 	    do
 	        BUFFER+=(["\${APPLICATION}"]="\${EXECUTABLE}")
 	    done < "\${HOME}/.config/application-launcher/config"
+	while IFS="=" read -r APPLICATION EXECUTABLE
+	    do
+	        BUFFER+=(["\${APPLICATION}"]="\${EXECUTABLE}")
+	    done <<< "\$(flatpak list --app | awk 'BEGIN { FS="\t" } { printf "%s=/usr/bin/flatpak run %s\n", tolower(\$1), \$2 }')"
 
 	SELECTION="\$(dmenu -i -sb "#6f6f6f" <<< \$(printf "%s\n" "\${!BUFFER[@]}" | sort))"
 	if [[ -n "\${SELECTION}" ]]
@@ -315,6 +324,7 @@ tee "${HOME}/.config/application-launcher/config" <<-EOF
 EOF
 
 tee "${HOME}/.xinitrc" <<-EOF
+	dbus-update-activation-environment --systemd DBUS_SESSION_BUS_ADDRESS DISPLAY XAUTHORITY
 	xrdb -merge "\${HOME}/.Xresources"
 	mkdir -p "/run/user/\${UID}/i3"
 	mkdir -p "/run/user/\${UID}/i3status"

@@ -272,7 +272,7 @@ EOF
 ## Docker
 
 ```bash
-sudo pacman -Syu docker
+sudo pacman -Syu docker docker-compose
 sudo systemctl enable docker.service
 sudo usermod -a -G docker "${USER}"
 ```
@@ -349,20 +349,6 @@ while IFS=" " read -r K V
 IFS=$'\n'
 sudo tee /boot/loader/entries/default.conf <<< "${BUFFER[*]}"
 unset IFS
-```
-## Flatpak
-
-```bash
-PACKAGES=(
-    flatpak
-    xdg-desktop-portal
-    xdg-desktop-portal-gtk
-)
-sudo pacman -Syu "${PACKAGES[@]}"
-
-sed -i "1s/^/dbus-update-activation-environment --systemd DBUS_SESSION_BUS_ADDRESS DISPLAY XAUTHORITY\n/g" "${HOME}/.xinitrc"
-
-flatpak remote-add --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 ```
 
 ## KVM/QEMU
