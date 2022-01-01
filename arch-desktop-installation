@@ -334,6 +334,7 @@ tee "${HOME}/.xinitrc" <<-EOF
 EOF
 
 tee "${HOME}/.Xresources" <<-EOF
+	Xft.dpi: 96
 	XTerm.termName: xterm
 	XTerm.title: Terminal
 	XTerm.VT100.faceName: Source Code Pro
