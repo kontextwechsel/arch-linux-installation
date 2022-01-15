@@ -105,7 +105,7 @@ EOF
 ### Bluetooth
 
 ```bash
-sudo pacman -Syu bluez bluez-utils pulseaudio-bluetooth
+sudo pacman -Syu bluez bluez-utils
 sudo systemctl enable bluetooth.service
 ```
 
