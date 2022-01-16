@@ -396,8 +396,9 @@ tee "${HOME}/.bashrc" <<-EOF
 	                PS1="\[\e[31m\]\u@\h\[\e[m\]:\[\e[34m\]\w\[\e[m\]\\$ "
 	        fi
 
-	        export EDITOR="/usr/bin/vim"
-	        export PAGER="/usr/bin/less"
+	        export EDITOR="vim"
+	        export PAGER="less"
+	        export SYSTEMD_PAGER="less"
 
 	        HISTCONTROL="ignoreboth"
 	        HISTFILESIZE="-1"
