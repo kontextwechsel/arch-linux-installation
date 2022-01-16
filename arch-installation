@@ -2,23 +2,27 @@
 
 sudo /bin/true || exit 1
 
+PROCESS_ID="$$"
+trap "exit 1" USR1
+
+DEFAULT_HEIGHT="8"
+DEFAULT_WIDTH="74"
+
 BUFFER=()
 while IFS= read -r DISK
 	do
 		BUFFER+=("${DISK}")
-		BUFFER+=("")
-		if [[ ${#BUFFER[@]} -gt 3 ]]
+		if [[ ${#BUFFER[@]} -gt 2 ]]
 			then
 				BUFFER+=("OFF")
 			else
 				BUFFER+=("ON")
 		fi
 done <<< $(sudo parted --list --machine --script | awk 'BEGIN { RS = "\n\n" ; FS = "\n" } { print $2 }' | awk 'BEGIN { FS=":" } { print $1 }' | sort)
-[[ ${#BUFFER[@]} -gt 0 ]] || exit 1
-LENGTH=$((${#BUFFER[@]} / 3))
-HEIGHT=$((${LENGTH} + 7))
-DISK=$(whiptail --title "Arch Linux" --radiolist "Installation disk" "${HEIGHT}" 78 "${LENGTH}" "${BUFFER[@]}" 3>&1 1>&2 2>&3)
-[[ -z "${DISK}" ]] && exit 1
+[[ "${#BUFFER[@]}" -gt 0 ]] || exit 1
+LENGTH="$((${#BUFFER[@]} / 2))"
+HEIGHT="$((${LENGTH} + 7))"
+DISK="$(whiptail --title "Arch Linux" --radiolist --noitem "Installation disk" "${HEIGHT}" "${DEFAULT_WIDTH}" "${LENGTH}" "${BUFFER[@]}" 3>&1 1>&2 2>&3 || kill -USR1 "${PROCESS_ID}")"
 
 BUFFER=()
 while IFS= read -r NIC
@@ -33,8 +37,7 @@ while IFS= read -r NIC
 						if [[ -n ${PROPERTY:+SUBSTITUTION} ]]
 							then
 								BUFFER+=("${PROPERTY}")
-								BUFFER+=("")
-								if [[ ${#BUFFER[@]} -gt 3 ]]
+								if [[ ${#BUFFER[@]} -gt 2 ]]
 									then
 										BUFFER+=("OFF")
 									else
@@ -45,20 +48,43 @@ while IFS= read -r NIC
 					done
 		fi
 	done <<< $(ip --brief link show | awk '{ print $1 }' | sort)
-[[ ${#BUFFER[@]} -gt 0 ]] || exit 1
-LENGTH=$((${#BUFFER[@]} / 3))
-HEIGHT=$((${LENGTH} + 7))
-NIC=$(whiptail --title "Arch Linux" --radiolist "Network interface" "${HEIGHT}" 78 "${LENGTH}" "${BUFFER[@]}" 3>&1 1>&2 2>&3)
-[[ -z "${NIC}" ]] && exit 1
+[[ "${#BUFFER[@]}" -gt 0 ]] || exit 1
+LENGTH="$((${#BUFFER[@]} / 2))"
+HEIGHT="$((${LENGTH} + 7))"
+NIC="$(whiptail --title "Arch Linux" --radiolist --noitem "Network interface" "${HEIGHT}" "${DEFAULT_WIDTH}" "${LENGTH}" "${BUFFER[@]}" 3>&1 1>&2 2>&3 || kill -USR1 "${PROCESS_ID}")"
 
-HOSTNAME=$(whiptail --title "Arch Linux" --inputbox "Hostname" 8 78 3>&1 1>&2 2>&3)
-[[ -z "${HOSTNAME}" ]] && exit 1
+HOSTNAME="$(whiptail --title "Arch Linux" --inputbox "Hostname" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -USR1 "${PROCESS_ID}")"
+if [[ ! "${HOSTNAME}" =~ ^[a-zA-Z0-9._-]+$ ]]; then
+	whiptail --title "Arch Linux" --msgbox "Invalid hostname" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
+	exit 1
+fi
 
-USER=$(whiptail --title "Arch Linux" --inputbox "User" 8 78 3>&1 1>&2 2>&3)
-[[ -z "${USER}" ]] && exit 1
+USER="$(whiptail --title "Arch Linux" --inputbox "User" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -USR1 "${PROCESS_ID}")"
+if [[ ! "${USER}" =~ ^[a-z0-9_-]{1,30}$ ]]; then
+	whiptail --title "Arch Linux" --msgbox "Invalid user" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
+	exit 1
+fi
 
-PASSWORD=$(whiptail --title "Arch Linux" --passwordbox "Password" 8 78 3>&1 1>&2 2>&3)
-[[ -z "${PASSWORD}" ]] && exit 1
+PASSWORD="$(whiptail --title "Arch Linux" --passwordbox "Password" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -USR1 "${PROCESS_ID}")"
+if [[ ! "${PASSWORD}" =~ ^.{6,}$ ]]; then
+	whiptail --title "Arch Linux" --msgbox "Invalid password" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
+	exit 1
+fi
+
+TZ="$(whiptail --title "Arch Linux" --inputbox "Time zone" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" "Europe/Berlin" 3>&1 1>&2 2>&3 || kill -USR1 "${PROCESS_ID}")"
+TZ="$(timedatectl list-timezones | grep -iP "^${TZ}$")"
+if [[ -z "${TZ}" ]]; then
+	whiptail --title "Arch Linux" --msgbox "Invalid time zone" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
+	exit 1
+fi
+
+BUFFER=(
+	"de-latin1-nodeadkeys" "German" "ON"
+	"us" "English (US)" "OFF"
+)
+LENGTH="$((${#BUFFER[@]} / 3))"
+HEIGHT="$((${LENGTH} + 7))"
+KEYMAP="$(whiptail --title "Arch Linux" --radiolist --notags "Keyboard layout" "${HEIGHT}" "${DEFAULT_WIDTH}" "${LENGTH}" "${BUFFER[@]}" 3>&1 1>&2 2>&3 || kill -USR1 "${PROCESS_ID}")"
 
 set -x
 
@@ -123,12 +149,12 @@ arch-chroot /mnt locale-gen
 arch-chroot /mnt tee /etc/locale.conf <<-EOF
 	LANG=en_US.UTF-8
 EOF
-arch-chroot /mnt ln -sf /usr/share/zoneinfo/Europe/Berlin /etc/localtime
+arch-chroot /mnt ln -sf "/usr/share/zoneinfo/${TZ}" /etc/localtime
 arch-chroot /mnt tee /etc/timezone <<-EOF
-	Europe/Berlin
+	${TZ}
 EOF
 arch-chroot /mnt tee /etc/vconsole.conf <<-EOF
-	KEYMAP=de-latin1-nodeadkeys
+	KEYMAP=${KEYMAP}
 EOF
 
 arch-chroot /mnt tee /etc/hostname <<-EOF
