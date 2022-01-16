@@ -405,7 +405,7 @@ tee "${HOME}/.bashrc" <<-EOF
 	        HISTSIZE="-1"
 	        HISTTIMEFORMAT="%Y-%m-%d %H:%M:%S "
 
-	        function history:disable () {
+	        function history:disable {
 	            echo -e "\e[93mDISABLE BASH HISTORY\e[0m"
 	            unset HISTFILE
 	        }
@@ -419,7 +419,7 @@ tee "${HOME}/.bashrc" <<-EOF
 
 	        eval \$(dircolors -b)
 
-	        function ssh-agent:init () {
+	        function ssh-agent:init {
 	            pgrep -u "\${USER}" ssh-agent
 	            if [[ "\${?}" -ne 0 ]]
 	                then
@@ -446,7 +446,7 @@ tee "${HOME}/.bashrc" <<-EOF
 	                alias "\${COMMAND}"="/usr/bin/systemctl \${COMMAND}"
 	            done
 
-	        function git:pretty () {
+	        function git:pretty {
 	            PARAMETERS=("\${@}")
 	            case "\${1}" in
 	                log)
