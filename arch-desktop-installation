@@ -155,12 +155,20 @@ sudo tee /etc/ssh/sshd_config <<-EOF
 EOF
 sudo systemctl enable sshd.service
 
+if [[ "$(awk -F= '{ $1 == "KEYMAP"; print substr($2, 0, 2) }' /etc/vconsole.conf)" = "de" ]]; then
+	LAYOUTS="de,us"
+	VARIANTS="nodeadkeys,de_se_fi"
+else
+	LAYOUTS="us,de"
+	VARIANTS="de_se_fi,nodeadkeys"
+fi
 sudo tee /etc/X11/xorg.conf.d/10-keyboard.conf <<-EOF
 	Section "InputClass"
 	        Identifier "Keyboard configuration"
 	        MatchIsKeyboard "on"
-	        Option "XkbLayout" "de"
-	        Option "XkbVariant" "nodeadkeys"
+	        Option "XkbLayout" "${LAYOUTS}"
+	        Option "XkbVariant" "${VARIANTS}"
+	        Option "XkbOptions" "grp:caps_toggle"
 	EndSection
 EOF
 sudo tee /etc/X11/xorg.conf.d/90-default.conf <<-EOF
