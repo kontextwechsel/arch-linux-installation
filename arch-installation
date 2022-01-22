@@ -140,8 +140,8 @@ PACKAGES=(
 pacstrap /mnt "${PACKAGES[@]}"
 genfstab -U /mnt | tee /mnt/etc/fstab
 
-arch-chroot /mnt sed -i -r s/"#(de_DE.UTF-8 UTF-8)"/"\1"/g /etc/locale.gen
-arch-chroot /mnt sed -i -r s/"#(en_US.UTF-8 UTF-8)"/"\1"/g /etc/locale.gen
+arch-chroot /mnt sed -i -r "s/#(de_DE.UTF-8 UTF-8)/\1/g" /etc/locale.gen
+arch-chroot /mnt sed -i -r "s/#(en_US.UTF-8 UTF-8)/\1/g" /etc/locale.gen
 arch-chroot /mnt locale-gen
 arch-chroot /mnt tee /etc/locale.conf <<-EOF
 	LANG=en_US.UTF-8

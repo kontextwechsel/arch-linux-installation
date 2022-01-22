@@ -367,5 +367,5 @@ sudo pacman -Syu "${PACKAGES[@]}"
 sudo systemctl enable libvirtd.service
 sudo usermod -a -G libvirt "${USER}"
 
-awk -i inplace -v APPLICATION='virt-manager' -v EXECUTABLE='/usr/bin/virt-manager' 'BEGIN { FS = "=" } { if ( !flag && $1 >= APPLICATION ) { printf "%s=%s\n", APPLICATION, EXECUTABLE; flag = 1 } if ( $1 != APPLICATION ) { printf "%s=%s\n", $1, $2 } }' "${HOME}/.config/application-launcher/config"
+application-launcher --add "virt-manager" "/usr/bin/virt-manager"
 ```

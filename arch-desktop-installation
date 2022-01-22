@@ -260,17 +260,51 @@ mkdir -p "${HOME}/.local/bin"
 tee "${HOME}/.local/bin/application-launcher" <<-EOF
 	#!/bin/bash
 
-	declare -A BUFFER
-	while IFS="=" read -r APPLICATION EXECUTABLE; do
-	    BUFFER+=(["\${APPLICATION}"]="\${EXECUTABLE}")
-	done < "\${HOME}/.config/application-launcher/config"
-	while IFS="=" read -r APPLICATION EXECUTABLE; do
-	    BUFFER+=(["\${APPLICATION}"]="\${EXECUTABLE}")
-	done <<< "\$(flatpak list --app | awk 'BEGIN { FS="\t" } { printf "%s=/usr/bin/flatpak run %s\n", tolower(\$1), \$2 }')"
+	FILE="\${HOME}/.config/application-launcher/config"
 
-	SELECTION="\$(dmenu -i -sb "#6f6f6f" <<< \$(printf "%s\n" "\${!BUFFER[@]}" | sort))"
-	if [[ -n "\${SELECTION}" ]]; then
-	    i3-msg "exec --no-startup-id \${BUFFER[\${SELECTION}]}"
+	if [[ "\${#}" -gt 0 ]]; then
+	    case "\${1}" in
+	        -a | --add)
+	            if [[ ! "\${2}" =~ ^[a-z0-9\ -]+\$ ]]; then
+	                printf "Invalid application name\n"
+	                exit 1
+	            fi
+	            if [[ ! -x "\${3}" ]]; then
+	                printf "File not executable\n"
+	                exit 1
+	            fi
+	            TEMP="\$(mktemp)"
+	            awk -v APPLICATION="\${2}" -F= '\$1 != APPLICATION' "\${FILE}" > "\${TEMP}"
+	            printf "%s=%s\n" "\${2}" "\${3}" >> "\${TEMP}"
+	            sort "\${TEMP}" > "\${FILE}"
+	            rm "\${TEMP}"
+	            ;;
+	        -r | --remove)
+	            TEMP="\$(mktemp)"
+	            awk -v APPLICATION="\${2}" -F= '\$1 != APPLICATION' "\${FILE}" > "\${TEMP}"
+	            mv "\${TEMP}" "\${FILE}"
+	            ;;
+	        -l | --list)
+	            column -t -s= "\${FILE}"
+	            ;;
+	        *)
+	            printf "Usage: application-launcher [--add|--remove|--list] [APPLICATION] [EXECUTABLE]\n"
+	            exit 1
+	            ;;
+	    esac
+	else
+	    declare -A BUFFER
+	    while IFS="=" read -r APPLICATION EXECUTABLE; do
+	        BUFFER+=(["\${APPLICATION}"]="\${EXECUTABLE}")
+	    done < "\${FILE}"
+	    while IFS="=" read -r APPLICATION EXECUTABLE; do
+	        BUFFER+=(["\${APPLICATION}"]="\${EXECUTABLE}")
+	    done <<< "\$(flatpak list --app | awk 'BEGIN { FS="\t" } { printf "%s=/usr/bin/flatpak run %s\n", tolower(\$1), \$2 }')"
+
+	    SELECTION="\$(dmenu -i -sb "#6f6f6f" <<< "\$(printf "%s\n" "\${!BUFFER[@]}" | sort)")"
+	    if [[ -n "\${SELECTION}" ]]; then
+	        i3-msg "exec --no-startup-id \${BUFFER[\${SELECTION}]}"
+	    fi
 	fi
 EOF
 chmod +x "${HOME}/.local/bin/application-launcher"
@@ -407,7 +441,7 @@ tee "${HOME}/.bashrc" <<-EOF
 	        HISTTIMEFORMAT="%Y-%m-%d %H:%M:%S "
 
 	        function history:disable {
-	            echo -e "\e[93mDISABLE BASH HISTORY\e[0m"
+	            printf "\e[93mDISABLE BASH HISTORY\e[0m\n"
 	            unset HISTFILE
 	        }
 	        bind -x '"\eh":"history:disable"'
