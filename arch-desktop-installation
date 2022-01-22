@@ -253,19 +253,16 @@ tee "${HOME}/.local/bin/application-launcher" <<-EOF
 	#!/bin/bash
 
 	declare -A BUFFER
-	while IFS="=" read -r APPLICATION EXECUTABLE
-	    do
-	        BUFFER+=(["\${APPLICATION}"]="\${EXECUTABLE}")
-	    done < "\${HOME}/.config/application-launcher/config"
-	while IFS="=" read -r APPLICATION EXECUTABLE
-	    do
-	        BUFFER+=(["\${APPLICATION}"]="\${EXECUTABLE}")
-	    done <<< "\$(flatpak list --app | awk 'BEGIN { FS="\t" } { printf "%s=/usr/bin/flatpak run %s\n", tolower(\$1), \$2 }')"
+	while IFS="=" read -r APPLICATION EXECUTABLE; do
+	    BUFFER+=(["\${APPLICATION}"]="\${EXECUTABLE}")
+	done < "\${HOME}/.config/application-launcher/config"
+	while IFS="=" read -r APPLICATION EXECUTABLE; do
+	    BUFFER+=(["\${APPLICATION}"]="\${EXECUTABLE}")
+	done <<< "\$(flatpak list --app | awk 'BEGIN { FS="\t" } { printf "%s=/usr/bin/flatpak run %s\n", tolower(\$1), \$2 }')"
 
 	SELECTION="\$(dmenu -i -sb "#6f6f6f" <<< \$(printf "%s\n" "\${!BUFFER[@]}" | sort))"
-	if [[ -n "\${SELECTION}" ]]
-	    then
-	        i3-msg "exec --no-startup-id \${BUFFER[\${SELECTION}]}"
+	if [[ -n "\${SELECTION}" ]]; then
+	    i3-msg "exec --no-startup-id \${BUFFER[\${SELECTION}]}"
 	fi
 EOF
 chmod +x "${HOME}/.local/bin/application-launcher"
@@ -273,16 +270,14 @@ chmod +x "${HOME}/.local/bin/application-launcher"
 tee "${HOME}/.local/bin/display-configuration" <<-EOF
 	#!/bin/bash
 
-	for MONITOR in "\$(xrandr | awk '\$2 == "connected" { print \$1 }')"
-	    do
-	        xrandr --output "\${MONITOR}" --auto
-	    done
+	while IFS= read -r MONITOR; do
+	    xrandr --output "\${MONITOR}" --auto
+	done <<< "\$(xrandr | awk '\$2 == "connected" { print \$1 }')"
 
-	if [[ -d "\${HOME}/.local/share/backgrounds" ]]
-	    then
-	        feh --bg-fill --no-fehbg --randomize "\${HOME}/.local/share/backgrounds"
-	    else
-	        xsetroot -grey
+	if [[ -d "\${HOME}/.local/share/backgrounds" ]]; then
+	    feh --bg-fill --no-fehbg --randomize "\${HOME}/.local/share/backgrounds"
+	else
+	    xsetroot -grey
 	fi
 EOF
 chmod +x "${HOME}/.local/bin/display-configuration"
@@ -292,20 +287,22 @@ tee "${HOME}/.local/bin/screenshot" <<-EOF
 
 	FILE="%Y-%m-%d-%H-%M-%S.png"
 	ARGS=("--overwrite")
-	while [[ "\${#}" > 0 ]]
-	    do
-	        case "\${1}" in
-	            -s|--select)
-	                ARGS+=("--select")
-	                shift
-	                ;;
-	            -c|--clipboard)
-	                FILE="\$(mktemp --suffix=".png")"
-	                trap "{ xclip -selection clipboard -target image/png -in \${FILE}; rm -rf \${FILE}; }" EXIT
-	                shift
-	                ;;
-	        esac
-	    done
+	while [[ "\${#}" > 0 ]]; do
+	    case "\${1}" in
+	        -s | --select)
+	            ARGS+=("--select")
+	            shift
+	            ;;
+	        -c | --clipboard)
+	            FILE="\$(mktemp --suffix=".png")"
+	            trap "{ xclip -selection clipboard -target image/png -in \${FILE}; rm -rf \${FILE}; }" EXIT
+	            shift
+	            ;;
+	        *)
+	            printf "Usage: screenshot [-s|--select] [-c|--clipboard]"
+	            exit 1
+	    esac
+	done
 	scrot "\${ARGS[@]}" "\${FILE}"
 EOF
 chmod +x "${HOME}/.local/bin/screenshot"
@@ -372,28 +369,24 @@ EOF
 
 tee "${HOME}/.bash_profile" <<-EOF
 	umask g-rwx,o-rwx
-	if [[ -n "\${BASH_VERSION}" && -f "\${HOME}/.bashrc" ]]
-	    then
-	        source "\${HOME}/.bashrc"
+	if [[ -n "\${BASH_VERSION}" && -f "\${HOME}/.bashrc" ]]; then
+	    source "\${HOME}/.bashrc"
 	fi
-	if [[ -d "\${HOME}/.local/bin" ]]
-	    then
-	        PATH="\${HOME}/.local/bin:\${PATH}"
+	if [[ -d "\${HOME}/.local/bin" ]]; then
+	    PATH="\${HOME}/.local/bin:\${PATH}"
 	fi
-	if [[ ! "\${DISPLAY}" && "\${XDG_VTNR}" -eq 1 ]]
-	    then
-	        exec startx
+	if [[ ! "\${DISPLAY}" && "\${XDG_VTNR}" -eq 1 ]]; then
+	    exec startx
 	fi
 EOF
 
 tee "${HOME}/.bashrc" <<-EOF
 	case \$- in
 	    *i*)
-	        if [[ -z "\${SSH_CLIENT:+SUBSTITUTION}" ]]
-	            then
-	                PS1="\[\e[32m\]\u@\h\[\e[m\]:\[\e[34m\]\w\[\e[m\]\\$ "
-	            else
-	                PS1="\[\e[31m\]\u@\h\[\e[m\]:\[\e[34m\]\w\[\e[m\]\\$ "
+	        if [[ -z "\${SSH_CLIENT:+SUBSTITUTION}" ]]; then
+	            PS1="\[\e[32m\]\u@\h\[\e[m\]:\[\e[34m\]\w\[\e[m\]\\$ "
+	        else
+	            PS1="\[\e[31m\]\u@\h\[\e[m\]:\[\e[34m\]\w\[\e[m\]\\$ "
 	        fi
 
 	        export EDITOR="vim"
@@ -421,13 +414,12 @@ tee "${HOME}/.bashrc" <<-EOF
 
 	        function ssh-agent:init {
 	            pgrep -u "\${USER}" ssh-agent
-	            if [[ "\${?}" -ne 0 ]]
-	                then
-	                    ssh-agent -s > "\${HOME}/.sshrc"
-	                    source "\${HOME}/.sshrc"
-	                    ssh-add "\${HOME}/.ssh/id_rsa"
-	                else
-	                    source "\${HOME}/.sshrc"
+	            if [[ "\${?}" -ne 0 ]]; then
+	                ssh-agent -s > "\${HOME}/.sshrc"
+	                source "\${HOME}/.sshrc"
+	                ssh-add "\${HOME}/.ssh/id_rsa"
+	            else
+	                source "\${HOME}/.sshrc"
 	            fi
 	        }
 	        ssh-agent:init > /dev/null
@@ -441,10 +433,9 @@ tee "${HOME}/.bashrc" <<-EOF
 	        alias bc="/usr/bin/bc --mathlib"
 	        alias cal="/usr/bin/cal --months 9 --span"
 
-	        for COMMAND in poweroff reboot suspend hibernate
-	            do
-	                alias "\${COMMAND}"="/usr/bin/systemctl \${COMMAND}"
-	            done
+	        for COMMAND in poweroff reboot suspend hibernate; do
+	            alias "\${COMMAND}"="/usr/bin/systemctl \${COMMAND}"
+	        done
 
 	        function git:pretty {
 	            PARAMETERS=("\${@}")
@@ -462,17 +453,14 @@ tee "${HOME}/.bashrc" <<-EOF
 	        }
 	        alias git="git:pretty"
 
-	        if [[ -f "\${HOME}/.bash_aliases" ]]
-	            then
-	                source "\${HOME}/.bash_aliases"
+	        if [[ -f "\${HOME}/.bash_aliases" ]]; then
+	            source "\${HOME}/.bash_aliases"
 	        fi
 
-	        if [[ -d "\${HOME}/.bash/" ]]
-	            then
-	                for FILE in \$(find "\${HOME}/.bash/" -maxdepth 1 -type f -executable)
-	                do
-	                    alias "\$(basename "\${FILE}")"="\${FILE}"
-	                done
+	        if [[ -d "\${HOME}/.bash/" ]]; then
+	            while IFS= read -r FILE; do
+	                alias "\$(basename "\${FILE}")"="\${FILE}"
+	            done <<< "\$(find "\${HOME}/.bash/" -maxdepth 1 -type f -executable)"
 	        fi
 	        ;;
 	esac
@@ -659,23 +647,22 @@ tee "${HOME}/.config/i3status.d/30-disk" <<-EOF
 	}
 EOF
 NIC="$(ip --brief link show | awk '$2 == "UP" { print $1; exit }')"
-if [[ "${NIC}" = w* ]]
-	then
-		tee "${HOME}/.config/i3status.d/60-wlan" <<-EOF
-			order += "wireless ${NIC}"
-			wireless ${NIC} {
-			    format_up = "%essid"
-			    format_down = "🖧"
-			}
-		EOF
-	else
-		tee "${HOME}/.config/i3status.d/70-ethernet" <<-EOF
-			order += "ethernet ${NIC}"
-			ethernet ${NIC} {
-			    format_up = "%ip"
-			    format_down = "🖧"
-			}
-		EOF
+if [[ "${NIC}" = w* ]]; then
+	tee "${HOME}/.config/i3status.d/60-wlan" <<-EOF
+		order += "wireless ${NIC}"
+		wireless ${NIC} {
+			format_up = "%essid"
+			format_down = "🖧"
+		}
+	EOF
+else
+	tee "${HOME}/.config/i3status.d/70-ethernet" <<-EOF
+		order += "ethernet ${NIC}"
+		ethernet ${NIC} {
+			format_up = "%ip"
+			format_down = "🖧"
+		}
+	EOF
 fi
 tee "${HOME}/.config/i3status.d/90-time" <<-EOF
 	order += "tztime local"
@@ -912,10 +899,9 @@ EOF
 
 chmod -R go= "${HOME}/"
 
-if [[ "$(</sys/devices/virtual/dmi/id/sys_vendor)" = QEMU ]]
-	then
-		sudo pacman --noconfirm -S spice-vdagent
-		tee "${HOME}/.config/i3.d/21-spice" <<-EOF
-			exec --no-startup-id spice-vdagent
-		EOF
+if [[ "$(</sys/devices/virtual/dmi/id/sys_vendor)" = "QEMU" ]]; then
+	sudo pacman --noconfirm -S spice-vdagent
+	tee "${HOME}/.config/i3.d/21-spice" <<-EOF
+		exec --no-startup-id spice-vdagent
+	EOF
 fi
