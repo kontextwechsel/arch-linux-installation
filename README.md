@@ -24,35 +24,39 @@ tee "${HOME}/.local/bin/backlight" <<EOF
 #!/bin/bash
 
 BRIGHTNESS="\$(xbacklight -get)"
-while [[ "\${#}" > 0 ]]
-    do
-        case "\${1}" in
-            -i|--increment)
-                BRIGHTNESS="\$(("\${BRIGHTNESS}" > 90 ? 100 : "\${BRIGHTNESS}" + 10))"
-                shift
-                ;;
-            -d|--decrement)
-                BRIGHTNESS="\$(("\${BRIGHTNESS}" < 10 ? 0 : "\${BRIGHTNESS}" - 10))"
-                shift
-                ;;
-            -r|--reset)
-                if [[ -f "\${HOME}/.brightness" ]]
-                    then
-                        BRIGHTNESS="\$(< "\${HOME}/.brightness")"
-                fi
-                shift
-                ;;
-        esac
-    done
+while [[ "\${#}" -gt 0 ]]; do
+    case "\${1}" in
+        -i | --increment)
+            BRIGHTNESS="\$(("\${BRIGHTNESS}" > 90 ? 100 : "\${BRIGHTNESS}" + 10))"
+            shift
+            ;;
+        -d | --decrement)
+            BRIGHTNESS="\$(("\${BRIGHTNESS}" < 10 ? 0 : "\${BRIGHTNESS}" - 10))"
+            shift
+            ;;
+        -r | --reset)
+            if [[ -f "\${HOME}/.brightness" ]]; then
+                BRIGHTNESS="\$(< "\${HOME}/.brightness")"
+            fi
+            shift
+            ;;
+        *)
+            printf "Usage: backlight [--increment|--decrement|--reset]"
+            exit 1
+    esac
+done
 
-if [[ "\${BRIGHTNESS}" != "\$(xbacklight -get)" ]]
-    then
-        xbacklight -set "\${BRIGHTNESS}"
-        echo "\${BRIGHTNESS}" > "\${HOME}/.brightness"
-        killall -USR1 i3status
+if [[ "\${BRIGHTNESS}" != "\$(xbacklight -get)" ]]; then
+    xbacklight -set "\${BRIGHTNESS}"
+    printf "%s\n" "\${BRIGHTNESS}" > "\${HOME}/.brightness"
+    killall -USR1 i3status
 fi
 EOF
 chmod +x "${HOME}/.local/bin/backlight"
+
+tee "${HOME}/.brightness" <<EOF
+"$(xbacklight -get)"
+EOF
 
 tee "${HOME}/.config/i3.d/41-backlight" <<EOF
 bindsym XF86MonBrightnessUp exec --no-startup-id backlight --increment
@@ -114,7 +118,7 @@ sudo systemctl enable bluetooth.service
 #### Swap
 
 ```bash
-sudo dd if=/dev/zero of=/swapfile bs=1K count="$(free -k | awk 'BEGIN { FS=":[[:space:]]*" } $1 == "Mem" { print $2 }' | awk '{ print $1 }')" status=progress
+sudo dd if=/dev/zero of=/swapfile bs=1K count="$(free -k | awk '$1 == "Mem:" { print $2 }')" status=progress
 sudo chmod u=rw,go= /swapfile
 sudo mkswap /swapfile
 sudo swapon /swapfile
@@ -129,46 +133,36 @@ EOF
 
 ```bash
 BUFFER=()
-while IFS="=" read -r K V
-	do
-		IFS=" " read -r -a A <<< "$(sed -r "s/\((.*)\)/\1/g" <<< ${V})"
-		if [[ "${K}" = HOOKS ]]
-			then
-				T=()
-				for E in "${A[@]}"
-					do
-						T+=("${E}")
-						if [[ "${E}" = filesystems ]]
-							then
-								T+=("resume")
-						fi
-					done
-				BUFFER+=("${K}=(${T[*]})")
-			else
-				BUFFER+=("${K}=(${A[*]})")
-		fi
-	done < /etc/mkinitcpio.conf
-IFS=$'\n'
-sudo tee /etc/mkinitcpio.conf <<< "${BUFFER[*]}"
-unset IFS
+while IFS="=" read -r K V; do
+	IFS=" " read -r -a A <<< "$(sed -r "s/\((.*)\)/\1/g" <<< ${V})"
+	if [[ "${K}" = "HOOKS" ]]; then
+		T=()
+		for E in "${A[@]}"; do
+			T+=("${E}")
+			if [[ "${E}" = "filesystems" ]]; then
+				T+=("resume")
+			fi
+		done
+		BUFFER+=("${K}=(${T[*]})")
+	else
+		BUFFER+=("${K}=(${A[*]})")
+	fi
+done < /etc/mkinitcpio.conf
+printf "%s\n" "${BUFFER[@]}" | sudo tee /etc/mkinitcpio.conf
 sudo mkinitcpio -p linux
 
 BUFFER=()
-while IFS=" " read -r K V
-	do
-		if [[ "${K}" = options ]]
-			then
-				IFS=" " read -r -a A <<< "${V}"
-				A+=("resume=$(awk '$2 == "/" { print $1 }' /etc/fstab)")
-				A+=("resume_offset=$(sudo filefrag -v /swapfile | awk 'BEGIN { FS="[[:space:].:]+" } $2 == "0" { print $5 }')")
-				BUFFER+=("${K} ${A[*]}")
-			else
-				BUFFER+=("${K} ${V}")
-		fi
-	done < /boot/loader/entries/default.conf
-IFS=$'\n'
-sudo tee /boot/loader/entries/default.conf <<< "${BUFFER[*]}"
-unset IFS
+while IFS=" " read -r K V; do
+	if [[ "${K}" = "options" ]]; then
+		IFS=" " read -r -a A <<< "${V}"
+		A+=("resume=$(awk '$2 == "/" { print $1 }' /etc/fstab)")
+		A+=("resume_offset=$(sudo filefrag -v /swapfile | awk 'BEGIN { FS="[[:space:].:]+" } $2 == "0" { print $5 }')")
+		BUFFER+=("${K} ${A[*]}")
+	else
+		BUFFER+=("${K} ${V}")
+	fi
+done < /boot/loader/entries/default.conf
+printf "%s\n" "${BUFFER[@]}" | sudo tee /boot/loader/entries/default.conf
 ```
 
 #### Battery
@@ -287,7 +281,7 @@ sudo dropbearkey -t rsa -f /etc/dropbear/dropbear_rsa_host_key
 sudo dropbearkey -t ecdsa -f /etc/dropbear/dropbear_ecdsa_host_key
 sudo dropbearkey -t ed25519 -f /etc/dropbear/dropbear_ed25519_host_key
 
-sudo sed -i -r s/"(copy_openssh_keys \|\| generate_keys)"/"#\1"/g /usr/lib/initcpio/install/dropbear
+sudo sed -i -r "s/(copy_openssh_keys \|\| generate_keys)/#\1/g" /usr/lib/initcpio/install/dropbear
 sudo tee /etc/pacman.d/hooks/40-mkinitcpio-dropbear.hook <<-EOF
 	[Trigger]
 	Type = Package
@@ -296,59 +290,48 @@ sudo tee /etc/pacman.d/hooks/40-mkinitcpio-dropbear.hook <<-EOF
 
 	[Action]
 	When = PostTransaction
-	Exec = /usr/bin/sed -i -r s/"(copy_openssh_keys \|\| generate_keys)"/"#\1"/g /usr/lib/initcpio/install/dropbear
+	Exec = /usr/bin/sed -i -r "s/(copy_openssh_keys \|\| generate_keys)/#\1/g" /usr/lib/initcpio/install/dropbear
 EOF
 
 BUFFER=()
-while IFS="=" read -r K V
-	do
-		IFS=" " read -r -a A <<< "$(sed -r "s/\((.*)\)/\1/g" <<< "${V}")"
-		if [[ "${K}" = HOOKS ]]
-			then
-				T=()
-				for E in "${A[@]}"
-					do
-						if [[ "${E}" = encrypt ]]
-							then
-								T+=("netconf")
-								T+=("dropbear")
-								T+=("encryptssh")
-							else
-								T+=("${E}")
-						fi
-					done
-				BUFFER+=("${K}=(${T[*]})")
+while IFS="=" read -r K V; do
+	IFS=" " read -r -a A <<< "$(sed -r "s/\((.*)\)/\1/g" <<< "${V}")"
+	if [[ "${K}" = "HOOKS" ]]; then
+		T=()
+		for E in "${A[@]}"; do
+			if [[ "${E}" = "encrypt" ]]; then
+				T+=("netconf")
+				T+=("dropbear")
+				T+=("encryptssh")
 			else
-				BUFFER+=("${K}=(${A[*]})")
-		fi
-	done < /etc/mkinitcpio.conf
-IFS=$'\n'
-sudo tee /etc/mkinitcpio.conf <<< "${BUFFER[*]}"
-unset IFS
+				T+=("${E}")
+			fi
+		done
+		BUFFER+=("${K}=(${T[*]})")
+	else
+		BUFFER+=("${K}=(${A[*]})")
+	fi
+done < /etc/mkinitcpio.conf
+printf "%s\n" "${BUFFER[@]}" | sudo tee /etc/mkinitcpio.conf
 sudo mkinitcpio -p linux
 
 NIC="$(ip --brief link show | awk '$2 == "UP" { print $1; exit }')"
 KERNEL_NIC="$(sudo dmesg | grep -oP "(?<=${NIC}: renamed from )(.+)(?=$)")"
-if [[ -n "${KERNEL_NIC}:+SUBSTITUTION" ]]
-	then
-		NIC="${KERNEL_NIC}"
+if [[ -n "${KERNEL_NIC}:+SUBSTITUTION" ]]; then
+	NIC="${KERNEL_NIC}"
 fi
 
 BUFFER=()
-while IFS=" " read -r K V
-	do
-		if [[ "${K}" = options ]]
-			then
-				IFS=" " read -r -a A <<< "${V}"
-				A+=("ip=:::::${NIC}:dhcp")
-				BUFFER+=("${K} ${A[*]}")
-			else
-				BUFFER+=("${K} ${V}")
-		fi
-	done < /boot/loader/entries/default.conf
-IFS=$'\n'
-sudo tee /boot/loader/entries/default.conf <<< "${BUFFER[*]}"
-unset IFS
+while IFS=" " read -r K V; do
+	if [[ "${K}" = "options" ]]; then
+		IFS=" " read -r -a A <<< "${V}"
+		A+=("ip=:::::${NIC}:dhcp")
+		BUFFER+=("${K} ${A[*]}")
+	else
+		BUFFER+=("${K} ${V}")
+	fi
+done < /boot/loader/entries/default.conf
+printf "%s\n" "${BUFFER[@]}" | sudo tee /boot/loader/entries/default.conf
 ```
 
 ## KVM/QEMU
