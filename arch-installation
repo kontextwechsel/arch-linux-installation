@@ -78,7 +78,7 @@ if [[ -z "${TZ}" ]]; then
 fi
 
 BUFFER=(
-	"de-latin1-nodeadkeys" "German" "ON"
+	"de" "German" "ON"
 	"us" "English (US)" "OFF"
 )
 LENGTH="$(("${#BUFFER[@]}" / 3))"
@@ -150,8 +150,29 @@ arch-chroot /mnt ln -sf "/usr/share/zoneinfo/${TZ}" /etc/localtime
 arch-chroot /mnt tee /etc/timezone <<-EOF
 	${TZ}
 EOF
+
+arch-chroot /mnt mkdir -p /usr/local/share/kbd/keymaps
+arch-chroot /mnt tee /usr/local/share/kbd/keymaps/de.map <<-EOF
+	include "/usr/share/kbd/keymaps/i386/qwertz/de.map.gz"
+	keycode 12 = ssharp question backslash
+	keycode 13 = apostrophe grave
+	keycode 26 = +udiaeresis +Udiaeresis
+	keycode 27 = plus asterisk asciitilde
+	keycode 39 = +odiaeresis +Odiaeresis
+	keycode 40 = +adiaeresis +Adiaeresis
+	keycode 41 = asciicircum degree
+EOF
+arch-chroot /mnt tee /usr/local/share/kbd/keymaps/us.map <<-EOF
+include "/usr/share/kbd/keymaps/i386/qwerty/us.map.gz"
+	keymaps 0-3
+	keycode 18 = e E euro
+	keycode 22 = u U +udiaeresis +Udiaeresis
+	keycode 24 = o O +odiaeresis +Odiaeresis
+	keycode 30 = a A +adiaeresis +Adiaeresis
+	keycode 31 = s S ssharp
+EOF
 arch-chroot /mnt tee /etc/vconsole.conf <<-EOF
-	KEYMAP=${KEYMAP}
+	KEYMAP=/usr/local/share/kbd/keymaps/${KEYMAP}.map
 EOF
 
 arch-chroot /mnt tee /etc/hostname <<-EOF
