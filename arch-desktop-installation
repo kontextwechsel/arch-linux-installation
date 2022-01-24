@@ -761,12 +761,13 @@ tee "${HOME}/.config/alacritty/alacritty.yml" <<-EOF
 	  TERM: xterm
 
 	window:
-	  decorations: full
 	  title: Terminal
 	  dynamic_title: true
 	  class:
 	    instance: Terminal
 	    general: Auf zum Atem!
+	  decorations: full
+	  opacity: 1.0
 
 	colors:
 	  primary:
@@ -813,7 +814,6 @@ tee "${HOME}/.config/alacritty/alacritty.yml" <<-EOF
 	    end:
 	      foreground: '#f92472'
 	      background: '#f7f7f7'
-	background_opacity: 1.0
 
 	font:
 	  normal:

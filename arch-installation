@@ -1,6 +1,6 @@
 #!/bin/bash
 
-sudo /bin/true || exit 1
+sudo true || exit 1
 
 PROCESS_ID="$$"
 trap "exit 1" USR1
@@ -163,7 +163,7 @@ arch-chroot /mnt tee /usr/local/share/kbd/keymaps/de.map <<-EOF
 	keycode 41 = asciicircum degree
 EOF
 arch-chroot /mnt tee /usr/local/share/kbd/keymaps/us.map <<-EOF
-include "/usr/share/kbd/keymaps/i386/qwerty/us.map.gz"
+	include "/usr/share/kbd/keymaps/i386/qwerty/us.map.gz"
 	keymaps 0-3
 	keycode 18 = e E euro
 	keycode 22 = u U +udiaeresis +Udiaeresis
