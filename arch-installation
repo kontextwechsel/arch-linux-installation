@@ -78,8 +78,8 @@ if [[ -z "${TZ}" ]]; then
 fi
 
 BUFFER=(
-	"de" "German" "ON"
-	"us" "English (US)" "OFF"
+	"de" "German (ISO)" "ON"
+	"us" "English (ANSI)" "OFF"
 )
 LENGTH="$(("${#BUFFER[@]}" / 3))"
 HEIGHT="$(("${LENGTH}" + 7))"
@@ -209,8 +209,13 @@ arch-chroot /mnt tee /etc/systemd/timesyncd.conf <<-EOF
 EOF
 arch-chroot /mnt systemctl enable systemd-timesyncd.service
 
-arch-chroot /mnt ln -sf /var/run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+arch-chroot /mnt tee /etc/systemd/resolved.conf <<-EOF
+	[Resolve]
+	DNS=
+	FallbackDNS=
+EOF
 arch-chroot /mnt systemctl enable systemd-resolved.service
+chroot /mnt ln -s -f /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 
 arch-chroot /mnt systemctl enable fstrim.timer
 
