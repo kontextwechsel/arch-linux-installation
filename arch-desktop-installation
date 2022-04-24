@@ -367,7 +367,7 @@ tee "${HOME}/.config/application-launcher/config" <<-EOF
 	libreoffice=/usr/bin/libreoffice
 	pavucontrol=/usr/bin/pavucontrol
 	pcmanfm=/usr/bin/pcmanfm
-	sublime-text=/usr/bin/subl
+	sublime-text=/usr/bin/subl -n
 	thunderbird=/usr/bin/thunderbird
 EOF
 
