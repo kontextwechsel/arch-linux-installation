@@ -184,6 +184,11 @@ arch-chroot /mnt tee /etc/hosts <<-EOF
 	127.0.1.1 ${HOSTNAME}
 EOF
 
+arch-chroot /mnt tee /etc/systemd/system.conf <<-EOF
+	[Manager]
+	RebootWatchdogSec=off
+EOF
+
 arch-chroot /mnt tee /etc/systemd/logind.conf <<-EOF
 	[Login]
 	HandlePowerKey=ignore
