@@ -176,8 +176,12 @@ printf "%s\n" "${BUFFER[@]}" | sudo tee /boot/loader/entries/default.conf
 sudo tee /etc/udev/rules.d/90-battery.rules <<EOF
 SUBSYSTEM=="power_supply", ATTR{status}=="Discharging", ATTR{capacity}=="[0-5]", RUN+="/usr/bin/systemctl hibernate"
 EOF
+```
 
-# Workaround for ACPI not reporting battery status
+
+##### Workaround for ACPI not reporting battery status
+
+```bash
 sudo tee /usr/lib/systemd/system/power-trigger.service <<EOF
 [Unit]
 Description=Power Trigger
@@ -189,6 +193,7 @@ ExecStart=udevadm trigger --subsystem-match=power_supply --action=change --attr-
 [Install]
 WantedBy=default.target
 EOF
+
 sudo tee /usr/lib/systemd/system/power-trigger.timer <<EOF
 [Unit]
 Description=Power Trigger
@@ -201,15 +206,6 @@ Unit=power-trigger.service
 WantedBy=default.target
 EOF
 sudo systemctl enable power-trigger.timer
-```
-
-### JetBrains
-
-```bash
-tee "${HOME}/.config/i3.d/70-window" <<EOF
-for_window [class="jetbrains"] floating disable
-for_window [class="jetbrains" title="win"] floating enable
-EOF
 ```
 
 ### Scroll wheel
@@ -232,14 +228,6 @@ exec --no-startup-id imwheel -b 45
 EOF
 ```
 
-### Sound
-
-Required by _Dell XPS 9310_.
-
-```
-sudo pacman -Syu sof-firmware
-```
-
 ### Touchpad
 
 ```bash
@@ -257,6 +245,8 @@ EndSection
 EOF
 ```
 
+## Driver
+
 ### Nvidia
 
 ```bash
@@ -266,14 +256,6 @@ mkdir -p "${HOME}/.config/mpv"
 tee "${HOME}/.config/mpv/mpv.conf" <<EOF
 hwdec=nvdec
 EOF
-```
-
-## Docker
-
-```bash
-sudo pacman -Syu docker docker-compose
-sudo systemctl enable docker.service
-sudo usermod -a -G docker "${USER}"
 ```
 
 ## Dropbear
@@ -339,7 +321,17 @@ done < /boot/loader/entries/default.conf
 printf "%s\n" "${BUFFER[@]}" | sudo tee /boot/loader/entries/default.conf
 ```
 
-## KVM/QEMU
+## Virtualization
+
+### Docker
+
+```bash
+sudo pacman -Syu docker docker-compose
+sudo systemctl enable docker.service
+sudo usermod -a -G docker "${USER}"
+```
+
+### KVM/QEMU
 
 ```bash
 PACKAGES=(
