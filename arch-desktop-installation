@@ -1,114 +1,120 @@
 #!/bin/bash
 
-sudo true || exit 1
+# Installation script for i3 desktop environment.
 
-COLOR_DARK_GRAY="#464646"
-COLOR_MEDIUM_GRAY="#6f6f6f"
-COLOR_PINK="#f92472"
-COLOR_GREEN="#a6e22c"
-COLOR_WHITE="#f7f7f7"
+# TODO: Check return values (https://google.github.io/styleguide/shellguide.html#s8.1-checking-return-values)!
+
+if ! sudo true; then
+  exit 1
+fi
+
+readonly COLOR_DARK_GRAY="#464646"
+readonly COLOR_MEDIUM_GRAY="#6f6f6f"
+readonly COLOR_PINK="#f92472"
+readonly COLOR_GREEN="#a6e22c"
+readonly COLOR_WHITE="#f7f7f7"
 
 set -x
 
-sudo sed -i "s/^#Color/Color/g" /etc/pacman.conf
+sudo sed --in-place "s/^#Color/Color/g" /etc/pacman.conf
 
-curl -O https://download.sublimetext.com/sublimehq-pub.gpg
+curl --remote-name "https://download.sublimetext.com/sublimehq-pub.gpg"
 sudo pacman-key --add sublimehq-pub.gpg
 sudo pacman-key --lsign-key 8A8F901A
-sudo tee -a /etc/pacman.conf <<-EOF
+sudo tee --append /etc/pacman.conf <<- EOF
 
 	[sublime-text]
 	Server = https://download.sublimetext.com/arch/stable/x86_64
 EOF
 rm sublimehq-pub.gpg
 
-PACKAGES=(
-	adobe-source-code-pro-fonts
-	adobe-source-sans-pro-fonts
-	adobe-source-serif-pro-fonts
-	alacritty
-	arc-gtk-theme
-	arc-icon-theme
-	bash-completion
-	bc
-	bind
-	dmenu
-	dmidecode
-	dunst
-	feh
-	firefox
-	flatpak
-	gimp
-	git
-	gnome-themes-extra # Arc theme dependency
-	gpicview
-	gtk-engine-murrine # Arc theme dependency
-	gvfs
-	gvfs-mtp
-	gvfs-nfs
-	gvfs-smb
-	htop
-	i3-wm
-	i3status
-	jq
-	libnewt
-	libnotify
-	libreoffice-fresh
-	lsof
-	man
-	mkvtoolnix-cli
-	mpv
-	nmap
-	numlockx
-	openssh
-	p7zip
-	pass
-	pavucontrol
-	pcmanfm
-	pipewire
-	pipewire-pulse
-	polkit
-	pwgen
-	python
-	python-virtualenv
-	ripgrep
-	rsync
-	scrot
-	slock
-	sshfs
-	sublime-text
-	tcpdump
-	testdisk
-	thunderbird
-	ttf-liberation
-	ufw
-	unrar
-	unzip
-	wget
-	wireplumber
-	xclip
-	xcursor-vanilla-dmz
-	xdg-desktop-portal # Flapak dependency
-	xdg-desktop-portal-gtk # Flapak dependency
-	xorg-server
-	xorg-xinit
-	xorg-xrandr
-	xorg-xsetroot
-	xss-lock
-	xterm
-	zip
+readonly packages=(
+  adobe-source-code-pro-fonts
+  adobe-source-sans-pro-fonts
+  adobe-source-serif-pro-fonts
+  alacritty
+  arc-gtk-theme
+  arc-icon-theme
+  bash-completion
+  bc
+  bind
+  dmenu
+  dmidecode
+  dunst
+  feh
+  firefox
+  flatpak
+  gimp
+  git
+  gnome-themes-extra # Arc theme dependency
+  gpicview
+  gtk-engine-murrine # Arc theme dependency
+  gvfs
+  gvfs-mtp
+  gvfs-nfs
+  gvfs-smb
+  htop
+  i3-wm
+  i3status
+  jq
+  libnewt
+  libnotify
+  libreoffice-fresh
+  lsof
+  man
+  mkvtoolnix-cli
+  mpv
+  nmap
+  numlockx
+  openssh
+  p7zip
+  pass
+  pavucontrol
+  pcmanfm
+  pipewire
+  pipewire-pulse
+  polkit
+  pwgen
+  python
+  python-virtualenv
+  ripgrep
+  rsync
+  scrot
+  slock
+  sshfs
+  sublime-text
+  tcpdump
+  testdisk
+  thunderbird
+  ttf-liberation
+  ufw
+  unrar
+  unzip
+  wget
+  wireplumber
+  xclip
+  xcursor-vanilla-dmz
+  xdg-desktop-portal # Flatpak dependency
+  xdg-desktop-portal-gtk # Flatpak dependency
+  xorg-server
+  xorg-xinit
+  xorg-xrandr
+  xorg-xsetroot
+  xss-lock
+  xterm
+  zip
 )
-sudo pacman --noconfirm -Sy "${PACKAGES[@]}"
+sudo pacman --noconfirm --sync --refresh "${packages[@]}"
 
 flatpak remote-add --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 
-curl -O https://dn-works.com/wp-content/uploads/2020/UFAS-Fonts/Symbola.zip
-sudo mkdir -p /usr/share/fonts/ancient-scripts
+curl --remote-name "https://dn-works.com/wp-content/uploads/2020/UFAS-Fonts/Symbola.zip"
+sudo mkdir --parents /usr/share/fonts/ancient-scripts/
 sudo unzip -d /usr/share/fonts/ancient-scripts Symbola.zip Symbola.otf
 rm Symbola.zip
 
-sudo perl -pi -e "s/#CC3333/${COLOR_MEDIUM_GRAY^^}/g;" -e "s/#005577/${COLOR_GREEN^^}/g;" /usr/bin/slock
-sudo tee /etc/pacman.d/hooks/20-slock.hook <<-EOF
+sudo perl -i -e "s/#CC3333/${COLOR_MEDIUM_GRAY^^}/g;" -e "s/#005577/${COLOR_GREEN^^}/g;" /usr/bin/slock
+sudo tee /etc/pacman.d/hooks/20-slock.hook <<- EOF
 	[Trigger]
 	Type = Package
 	Operation = Upgrade
@@ -116,7 +122,7 @@ sudo tee /etc/pacman.d/hooks/20-slock.hook <<-EOF
 
 	[Action]
 	When = PostTransaction
-	Exec = /usr/bin/perl -pi -e "s/#CC3333/${COLOR_MEDIUM_GRAY^^}/g;" -e "s/#005577/${COLOR_GREEN^^}/g;" /usr/bin/slock
+	Exec = /usr/bin/perl -i -e "s/#CC3333/${COLOR_MEDIUM_GRAY^^}/g;" -e "s/#005577/${COLOR_GREEN^^}/g;" /usr/bin/slock
 EOF
 
 sudo systemctl enable ufw.service
@@ -125,7 +131,7 @@ sudo ufw default allow outgoing
 sudo ufw allow proto tcp to 0.0.0.0/0 port 22
 sudo ufw enable
 
-sudo tee /etc/ssh/ssh_config <<-EOF
+sudo tee /etc/ssh/ssh_config <<- EOF
 	HostKeyAlgorithms ssh-ed25519
 
 	KexAlgorithms curve25519-sha256@libssh.org
@@ -136,7 +142,7 @@ sudo tee /etc/ssh/ssh_config <<-EOF
 	ServerAliveInterval 10
 	StrictHostKeyChecking yes
 EOF
-sudo tee /etc/ssh/sshd_config <<-EOF
+sudo tee /etc/ssh/sshd_config <<- EOF
 	HostKey /etc/ssh/ssh_host_ed25519_key
 
 	KexAlgorithms curve25519-sha256@libssh.org
@@ -176,47 +182,48 @@ sudo tee /usr/share/X11/xkb/symbols/default <<-EOF
 	    key <DOWN> {[ Down, Down, U2193 ]};
 	};
 EOF
-if [[ "$(basename "$(awk -F= '{ $1 == "KEYMAP"; print $2 }' /etc/vconsole.conf)" ".map")" = "de" ]]; then
-	VARIANTS="de,us"
+if [[ "$(basename "$(awk --field-separator "=" '{ $1 == "KEYMAP"; print $2 }' /etc/vconsole.conf)" ".map")" == "de" ]]; then
+  variants="de,us"
 else
-	VARIANTS="us,de"
+  variants="us,de"
 fi
-sudo tee /etc/X11/xorg.conf.d/10-keyboard.conf <<-EOF
+readonly variants
+sudo tee /etc/X11/xorg.conf.d/10-keyboard.conf <<- EOF
 	Section "InputClass"
 	        Identifier "Keyboard configuration"
 	        MatchIsKeyboard "on"
 	        Option "XkbLayout" "default,default"
-	        Option "XkbVariant" "${VARIANTS}"
+	        Option "XkbVariant" "${variants}"
 	        Option "XkbOptions" "grp:caps_toggle"
 	EndSection
 EOF
-sudo tee /etc/X11/xorg.conf.d/90-default.conf <<-EOF
+sudo tee /etc/X11/xorg.conf.d/90-default.conf <<- EOF
 	Section "ServerFlags"
-	    Option "DontVTSwitch"
-	    Option "DontZap"
+	        Option "DontVTSwitch"
+	        Option "DontZap"
 	EndSection
 
 	Section "ServerLayout"
-	    Identifier "Display control"
-	    Option "StandbyTime" "0"
-	    Option "SuspendTime" "0"
-	    Option "OffTime" "10"
-	    Option "BlankTime" "5"
+	        Identifier "Display control"
+	        Option "StandbyTime" "0"
+	        Option "SuspendTime" "0"
+	        Option "OffTime" "10"
+	        Option "BlankTime" "5"
 	EndSection
 EOF
 
-sudo mkdir -p /usr/share/icons/default
-sudo tee /usr/share/icons/default/index.theme <<-EOF
+sudo mkdir --parents /usr/share/icons/default/
+sudo tee /usr/share/icons/default/index.theme <<- EOF
 	[Icon Theme]
 	Inherits=Vanilla-DMZ
 EOF
 
-sudo mkdir -p /etc/gtk-2.0
-sudo tee /etc/gtk-2.0/gtkrc <<-EOF
+sudo mkdir --parents /etc/gtk-2.0/
+sudo tee /etc/gtk-2.0/gtkrc <<- EOF
 	gtk-theme-name = "Arc-Lighter"
 	gtk-icon-theme-name = "Arc"
 	gtk-cursor-theme-name = "Vanilla-DMZ"
-	gtk-font-name = "Source Sans Pro 12"
+	gtk-font-name = "Source Sans 3 12"
 	gtk-button-images = 1
 	gtk-cursor-theme-size = 0
 	gtk-enable-event-sounds = 1
@@ -230,13 +237,13 @@ sudo tee /etc/gtk-2.0/gtkrc <<-EOF
 	gtk-xft-rgba = "rgb"
 EOF
 
-sudo mkdir -p /etc/gtk-3.0
-sudo tee /etc/gtk-3.0/settings.ini <<-EOF
+sudo mkdir --parents /etc/gtk-3.0/
+sudo tee /etc/gtk-3.0/settings.ini <<- EOF
 	[Settings]
 	gtk-theme-name = Arc-Lighter
 	gtk-icon-theme-name = Arc
 	gtk-cursor-theme-name = Vanilla-DMZ
-	gtk-font-name = Source Sans Pro 12
+	gtk-font-name = Source Sans 3 12
 	gtk-button-images = 1
 	gtk-cursor-theme-size = 0
 	gtk-decoration-layout = menu:
@@ -251,8 +258,8 @@ sudo tee /etc/gtk-3.0/settings.ini <<-EOF
 	gtk-xft-rgba = rgb
 EOF
 
-sudo mkdir -p /etc/xdg
-sudo tee /etc/xdg/mimeapps.list <<-EOF
+sudo mkdir --parents /etc/xdg/
+sudo tee /etc/xdg/mimeapps.list <<- EOF
 	[Default Applications]
 	application/javascript=sublime_text.desktop
 	application/json=sublime_text.desktop
@@ -275,101 +282,112 @@ sudo tee /etc/xdg/mimeapps.list <<-EOF
 	text/x-java=sublime_text.desktop
 EOF
 
-mkdir -p "${HOME}/.local/bin"
-tee "${HOME}/.local/bin/application-launcher" <<-EOF
+mkdir --parents "${HOME}/.local/bin/"
+tee "${HOME}/.local/bin/application-launcher" <<- EOF
 	#!/bin/bash
 
-	FILE="\${HOME}/.config/application-launcher/config"
+	readonly CONFIGURATION_FILE="\${HOME}/.config/application-launcher/config"
+	readonly BACKGROUND_COLOR="#6f6f6f"
 
-	if [[ "\${#}" -gt 0 ]]; then
-	    case "\${1}" in
-	        -a | --add)
-	            if [[ ! "\${2}" =~ ^[a-z0-9\ -]+\$ ]]; then
-	                printf "Invalid application name\n"
-	                exit 1
-	            fi
-	            if [[ ! -x "\${3}" ]]; then
-	                printf "File not executable\n"
-	                exit 1
-	            fi
-	            TEMP="\$(mktemp)"
-	            awk -v APPLICATION="\${2}" -F= '\$1 != APPLICATION' "\${FILE}" > "\${TEMP}"
-	            printf "%s=%s\n" "\${2}" "\${3}" >> "\${TEMP}"
-	            sort "\${TEMP}" > "\${FILE}"
-	            rm "\${TEMP}"
-	            ;;
-	        -r | --remove)
-	            TEMP="\$(mktemp)"
-	            awk -v APPLICATION="\${2}" -F= '\$1 != APPLICATION' "\${FILE}" > "\${TEMP}"
-	            mv "\${TEMP}" "\${FILE}"
-	            ;;
-	        -l | --list)
-	            column -t -s= "\${FILE}"
-	            ;;
-	        *)
-	            printf "Usage: application-launcher [--add|--remove|--list] [APPLICATION] [EXECUTABLE]\n"
-	            exit 1
-	            ;;
-	    esac
+	if [[ "\$#" -gt 0 ]]; then
+	  case "\$1" in
+	    -a | --add)
+	      if [[ ! "\$2" =~ ^[a-z0-9\ -]+\$ ]]; then
+	        printf "Invalid application\n"
+	        exit 1
+	      fi
+	      if [[ ! -f "\$3" || ! -x "\$3" ]]; then
+	        printf "Invalid executable\n"
+	        exit 1
+	      fi
+	      readonly temporary_file="\$(mktemp)"
+	      awk --assign="application=\$2" --field-separator="=" '\$1 != application' "\${CONFIGURATION_FILE}" > "\${temporary_file}"
+	      readonly executable="\$(realpath "\$(dirname "\$3")" | sed "s/^\/home\/\${USER}\//~\//g")/\$(basename "\$3")"
+	      readonly args="\${*:4}"
+	      if [[ -n "\${args}" ]]; then
+	          printf "%s=%s %s\n" "\$2" "\${executable}" "\${args}" >> "\${temporary_file}"
+	      else
+	          printf "%s=%s\n" "\$2" "\${executable}" >> "\${temporary_file}"
+	      fi
+	      sort "\${temporary_file}" > "\${CONFIGURATION_FILE}"
+	      rm "\${temporary_file}"
+	      ;;
+	    -r | --remove)
+	      readonly temporary_file="\$(mktemp)"
+	      awk --assign="application=\$2" --field-separator="=" '\$1 != application' "\${CONFIGURATION_FILE}" > "\${temporary_file}"
+	      mv "\${temporary_file}" "\${CONFIGURATION_FILE}"
+	      ;;
+	    -l | --list)
+	      column --table --separator "=" "\${CONFIGURATION_FILE}"
+	      ;;
+	    *)
+	      printf "Usage: application-launcher [--add|--remove|--list] [APPLICATION] [EXECUTABLE] [ARGUMENTS...]\n"
+	      exit 1
+	      ;;
+	  esac
 	else
-	    declare -A BUFFER
-	    while IFS="=" read -r APPLICATION EXECUTABLE; do
-	        BUFFER+=(["\${APPLICATION}"]="\${EXECUTABLE}")
-	    done < "\${FILE}"
-	    while IFS="=" read -r APPLICATION EXECUTABLE; do
-	        BUFFER+=(["\${APPLICATION}"]="\${EXECUTABLE}")
-	    done <<< "\$(flatpak list --app | awk 'BEGIN { FS="\t" } { printf "%s=/usr/bin/flatpak run %s\n", tolower(\$1), \$2 }')"
+	  declare -A buffer
+	  while IFS="=" read -r application executable; do
+	    buffer+=(["\${application}"]="\${executable}")
+	  done < "\${CONFIGURATION_FILE}"
+	  while IFS="=" read -r application executable; do
+	    buffer+=(["\${application}"]="\${executable}")
+	  done < <(flatpak list --app | awk --field-separator="\t" '{ printf "%s=/usr/bin/flatpak run %s\n", tolower(\$1), \$2 }')
+	  readonly buffer
 
-	    SELECTION="\$(dmenu -i -sb "#6f6f6f" <<< "\$(printf "%s\n" "\${!BUFFER[@]}" | sort)")"
-	    if [[ -n "\${SELECTION}" ]]; then
-	        i3-msg "exec --no-startup-id \${BUFFER[\${SELECTION}]}"
-	    fi
+	  readonly selection="\$(dmenu -i -sb "\${BACKGROUND_COLOR}" <<< "\$(printf "%s\n" "\${!buffer[@]}" | sort)")"
+	  if [[ -n "\${selection}" ]]; then
+	    i3-msg "exec --no-startup-id \${buffer[\${selection}]}"
+	  fi
 	fi
 EOF
 chmod +x "${HOME}/.local/bin/application-launcher"
 
-tee "${HOME}/.local/bin/display-configuration" <<-EOF
+tee "${HOME}/.local/bin/display-configuration" <<- EOF
 	#!/bin/bash
 
-	while IFS= read -r MONITOR; do
-	    xrandr --output "\${MONITOR}" --auto
-	done <<< "\$(xrandr | awk '\$2 == "connected" { print \$1 }')"
+	while IFS= read -r screen; do
+	  xrandr --output "\${screen}" --auto
+	done < <(xrandr | awk '\$2 == "connected" { print \$1 }')
 
 	if [[ -d "\${HOME}/.local/share/backgrounds" ]]; then
-	    feh --bg-fill --no-fehbg --randomize "\${HOME}/.local/share/backgrounds"
+	  feh --bg-fill --no-fehbg --randomize "\${HOME}/.local/share/backgrounds"
 	else
-	    xsetroot -grey
+	  xsetroot -grey
 	fi
 EOF
 chmod +x "${HOME}/.local/bin/display-configuration"
 
-tee "${HOME}/.local/bin/screenshot" <<-EOF
+tee "${HOME}/.local/bin/screenshot" <<- EOF
 	#!/bin/bash
 
-	FILE="%Y-%m-%d-%H-%M-%S.png"
-	ARGS=("--overwrite")
-	while [[ "\${#}" > 0 ]]; do
-	    case "\${1}" in
-	        -s | --select)
-	            ARGS+=("--select")
-	            shift
-	            ;;
-	        -c | --clipboard)
-	            FILE="\$(mktemp --suffix=".png")"
-	            trap "{ xclip -selection clipboard -target image/png -in \${FILE}; rm -rf \${FILE}; }" EXIT
-	            shift
-	            ;;
-	        *)
-	            printf "Usage: screenshot [-s|--select] [-c|--clipboard]"
-	            exit 1
-	    esac
+	FILENAME="%Y-%m-%d-%H-%M-%S.png"
+
+	args=("--overwrite")
+	while [[ "\$#" -gt 0 ]]; do
+	  case "\$1" in
+	    -s | --select)
+	      args+=("--select")
+	      shift
+	      ;;
+	    -c | --clipboard)
+	      FILENAME="\$(mktemp --suffix=".png")"
+	      trap "{ xclip -selection clipboard -target image/png -in \${FILENAME}; rm -rf \${FILENAME}; }" EXIT
+	      shift
+	      ;;
+	    *)
+	      printf "Usage: screenshot [-s|--select] [-c|--clipboard]"
+	      exit 1
+	  esac
 	done
-	scrot "\${ARGS[@]}" "\${FILE}"
+	readonly args
+
+	scrot "\${args[@]}" "\${FILENAME}"
 EOF
 chmod +x "${HOME}/.local/bin/screenshot"
 
-mkdir -p "${HOME}/.config/application-launcher"
-tee "${HOME}/.config/application-launcher/config" <<-EOF
+mkdir --parents "${HOME}/.config/application-launcher/"
+tee "${HOME}/.config/application-launcher/config" <<- EOF
 	alacritty=/usr/bin/alacritty
 	firefox=/usr/bin/firefox
 	gimp=/usr/bin/gimp
@@ -381,17 +399,17 @@ tee "${HOME}/.config/application-launcher/config" <<-EOF
 	thunderbird=/usr/bin/thunderbird
 EOF
 
-tee "${HOME}/.xinitrc" <<-EOF
+tee "${HOME}/.xinitrc" <<- EOF
 	dbus-update-activation-environment --systemd DBUS_SESSION_BUS_ADDRESS DISPLAY XAUTHORITY
 	xrdb -merge "\${HOME}/.Xresources"
-	mkdir -p "/run/user/\${UID}/i3"
-	mkdir -p "/run/user/\${UID}/i3status"
-	awk 'NR!=1 && FNR==1 { printf "\n" } { print }' "\${HOME}/.config/i3.d/"* > "/run/user/\${UID}/i3/config"
-	awk 'NR!=1 && FNR==1 { printf "\n" } { print }' "\${HOME}/.config/i3status.d/"* > "/run/user/\${UID}/i3status/config"
+	mkdir --parents "/run/user/\${UID}/i3/"
+	mkdir --parents "/run/user/\${UID}/i3status/"
+	awk 'NR != 1 && FNR == 1 { printf "\n" } { print }' "\${HOME}/.config/i3.d/"* > "/run/user/\${UID}/i3/config"
+	awk 'NR != 1 && FNR == 1 { printf "\n" } { print }' "\${HOME}/.config/i3status.d/"* > "/run/user/\${UID}/i3status/config"
 	exec /usr/bin/i3 -c "/run/user/\${UID}/i3/config"  > /dev/null 2>&1
 EOF
 
-tee "${HOME}/.Xresources" <<-EOF
+tee "${HOME}/.Xresources" <<- EOF
 	Xft.dpi: 96
 	XTerm.termName: xterm
 	XTerm.title: Terminal
@@ -428,12 +446,12 @@ tee "${HOME}/.Xresources" <<-EOF
 	    Shift Ctrl <Key> v: insert-selection(CLIPBOARD)
 EOF
 
-mkdir -p "${HOME}/.gnupg"
-tee "${HOME}/.gnupg/gpg-agent.conf" <<-EOF
+mkdir --parents "${HOME}/.gnupg/"
+tee "${HOME}/.gnupg/gpg-agent.conf" <<- EOF
 	pinentry-program /usr/bin/pinentry-curses
 EOF
 
-tee "${HOME}/.bash_profile" <<-EOF
+tee "${HOME}/.bash_profile" <<- EOF
 	umask g-rwx,o-rwx
 	if [[ -n "\${BASH_VERSION}" && -f "\${HOME}/.bashrc" ]]; then
 	    source "\${HOME}/.bashrc"
@@ -441,107 +459,105 @@ tee "${HOME}/.bash_profile" <<-EOF
 	if [[ -d "\${HOME}/.local/bin" ]]; then
 	    PATH="\${HOME}/.local/bin:\${PATH}"
 	fi
-	if [[ ! "\${DISPLAY}" && "\${XDG_VTNR}" -eq 1 ]]; then
+	if [[ -z "\${DISPLAY}" && "\${XDG_VTNR}" -eq 1 ]]; then
 	    exec startx
 	fi
 EOF
 
-tee "${HOME}/.bashrc" <<-EOF
-	case \$- in
-	    *i*)
-	        if [[ -z "\${SSH_CLIENT:+SUBSTITUTION}" ]]; then
-	            PS1="\[\e[32m\]\u@\h\[\e[m\]:\[\e[34m\]\w\[\e[m\]\\$ "
-	        else
-	            PS1="\[\e[31m\]\u@\h\[\e[m\]:\[\e[34m\]\w\[\e[m\]\\$ "
-	        fi
+tee "${HOME}/.bashrc" <<- EOF
+	if [[ "\$-" = *i* ]]; then
+	  if [[ -z "\${SSH_CLIENT:+substitution}" ]]; then
+	    PS1="\[\e[32m\]\u@\h\[\e[m\]:\[\e[34m\]\w\[\e[m\]\\\$ "
+	  else
+	    PS1="\[\e[31m\]\u@\h\[\e[m\]:\[\e[34m\]\w\[\e[m\]\\\$ "
+	  fi
 
-	        export EDITOR="vim"
-	        export PAGER="less"
-	        export SYSTEMD_PAGER="less"
+	  export EDITOR="vim"
+	  export PAGER="less"
+	  export SYSTEMD_PAGER="cat"
 
-	        HISTCONTROL="ignoreboth"
-	        HISTFILESIZE="-1"
-	        HISTSIZE="-1"
-	        HISTTIMEFORMAT="%Y-%m-%d %H:%M:%S "
+	  alias sudo="sudo --preserve-env=EDITOR,PAGER,SYSTEMD_PAGER"
 
-	        function history:disable {
-	            printf "\e[93mDISABLE BASH HISTORY\e[0m\n"
-	            unset HISTFILE
-	        }
-	        bind -x '"\eh":"history:disable"'
+	  HISTCONTROL="ignoreboth"
+	  HISTFILE="\${HOME}/.bash_history"
+	  HISTFILESIZE="-1"
+	  HISTSIZE="-1"
+	  HISTTIMEFORMAT="%Y-%m-%d %H:%M:%S "
 
-	        shopt -s autocd
-	        shopt -s checkwinsize
-	        shopt -s globstar
-	        shopt -s histappend
-	        tabs 4
+	  shopt -s autocd
+	  shopt -s checkwinsize
+	  shopt -s globstar
+	  shopt -s histappend
+	  tabs 4
 
-	        eval \$(dircolors -b)
+	  eval "\$(dircolors -b)"
 
-	        function ssh-agent:init {
-	            pgrep -u "\${USER}" ssh-agent
-	            if [[ "\${?}" -ne 0 ]]; then
-	                ssh-agent -s > "\${HOME}/.sshrc"
-	                source "\${HOME}/.sshrc"
-	                if [[ -f "\${HOME}/.ssh/id_ed25519" ]]; then
-	                    ssh-add "\${HOME}/.ssh/id_ed25519"
-	                fi
-	            else
-	                source "\${HOME}/.sshrc"
-	            fi
-	        }
-	        ssh-agent:init > /dev/null
+	  pgrep -u "\${USER}" ssh-agent > /dev/null
+	  if [[ "\$?" -ne 0 ]]; then
+	    ssh-agent -s > "\${HOME}/.sshrc"
+	  fi
+	  source "\${HOME}/.sshrc" > /dev/null
 
-	        alias diff="/usr/bin/diff --color=auto"
-	        alias grep="/usr/bin/grep --color=auto"
-	        alias ip="/usr/bin/ip -color=auto"
-	        alias less="/usr/bin/less --ignore-case"
-	        alias ls="/usr/bin/ls --color=auto --group-directories-first"
+	  alias diff="/usr/bin/diff --color=auto"
+	  alias grep="/usr/bin/grep --color=auto"
+	  alias ip="/usr/bin/ip -color=auto"
+	  alias less="/usr/bin/less --ignore-case"
+	  alias ls="/usr/bin/ls --color=auto --group-directories-first"
 
-	        alias bc="/usr/bin/bc --mathlib"
-	        alias cal="/usr/bin/cal --months 9 --span"
+	  alias bc="/usr/bin/bc --mathlib"
+	  alias cal="/usr/bin/cal --months 9 --span"
 
-	        for COMMAND in poweroff reboot suspend hibernate; do
-	            alias "\${COMMAND}"="/usr/bin/systemctl \${COMMAND}"
-	        done
+	  for command in poweroff reboot suspend hibernate; do
+	    alias "\${command}"="/usr/bin/systemctl \${command}"
+	  done
 
-	        function git:pretty {
-	            PARAMETERS=("\${@}")
-	            case "\${1}" in
-	                log)
-	                    /usr/bin/git --no-pager log --reverse "\${PARAMETERS[@]:1}"
-	                    ;;
-	                graph)
-	                    /usr/bin/git --no-pager log --color=always --graph "\${PARAMETERS[@]:1}" | less -r
-	                    ;;
-	                *)
-	                    /usr/bin/git --no-pager "\${PARAMETERS[@]}"
-	                    ;;
-	            esac
-	        }
-	        alias git="git:pretty"
+	  function toogle_history() {
+	    if [[ -z "\${HISTFILE:+substitution}" ]]; then
+	      HISTFILE="\${HOME}/.bash_history"
+	      printf "\e[30mHistory enabled\e[0m\n"
+	    else
+	      unset HISTFILE
+	      printf "\e[30mHistory disabled\e[0m\n"
+	    fi
+	  }
+	  bind -x '"\eh": toogle_history'
 
-	        if [[ -f "\${HOME}/.bash_aliases" ]]; then
-	            source "\${HOME}/.bash_aliases"
-	        fi
-
-	        if [[ -d "\${HOME}/.bash/" ]]; then
-	            while IFS= read -r FILE; do
-	                alias "\$(basename "\${FILE}")"="\${FILE}"
-	            done <<< "\$(find "\${HOME}/.bash/" -maxdepth 1 -type f -executable)"
-	        fi
+	  function prettify_git() {
+	    args=("\$@")
+	    case "\$1" in
+	      log)
+	        /usr/bin/git --no-pager log --reverse "\${args[@]:1}"
 	        ;;
-	esac
+	      graph)
+	        /usr/bin/git --no-pager log --color=always --graph "\${args[@]:1}" | less -r
+	        ;;
+	      *)
+	        /usr/bin/git --no-pager "\${args[@]}"
+	        ;;
+	    esac
+	  }
+	  alias git="prettify_git"
+
+	  if [[ -f "\${HOME}/.bash_aliases" ]]; then
+	    source "\${HOME}/.bash_aliases"
+	  fi
+
+	  if [[ -d "\${HOME}/.bash_scripts/" ]]; then
+	    while IFS= read -r file; do
+	      alias "\$(basename "\${file}")"="\${file}"
+	    done < <(find "\${HOME}/.bash_scripts/" -maxdepth 1 -type f -executable)
+	  fi
+	fi
 EOF
 
-tee "${HOME}/.bash_logout" <<-EOF
+tee "${HOME}/.bash_logout" <<- EOF
 EOF
 
-tee "${HOME}/.hushlogin" <<-EOF
+tee "${HOME}/.hushlogin" <<- EOF
 EOF
 
-mkdir -p "${HOME}/.config/i3.d"
-tee "${HOME}/.config/i3.d/10-default" <<-EOF
+mkdir --parents "${HOME}/.config/i3.d/"
+tee "${HOME}/.config/i3.d/10-default" <<- EOF
 	set \$mod Mod4
 	floating_modifier \$mod
 
@@ -641,11 +657,11 @@ tee "${HOME}/.config/i3.d/10-default" <<-EOF
 	    bindsym Escape mode default
 	}
 EOF
-tee "${HOME}/.config/i3.d/20-display" <<-EOF
+tee "${HOME}/.config/i3.d/20-display" <<- EOF
 	exec --no-startup-id display-configuration
 	bindsym \$mod+Shift+d exec --no-startup-id display-configuration
 EOF
-tee "${HOME}/.config/i3.d/30-status" <<-EOF
+tee "${HOME}/.config/i3.d/30-status" <<- EOF
 	bar {
 	    status_command i3status -c "/run/user/\${UID}/i3status/config"
 	    position bottom
@@ -662,7 +678,7 @@ tee "${HOME}/.config/i3.d/30-status" <<-EOF
 	    }
 	}
 EOF
-tee "${HOME}/.config/i3.d/40-volume" <<-EOF
+tee "${HOME}/.config/i3.d/40-volume" <<- EOF
 	bindsym XF86AudioLowerVolume exec --no-startup-id pactl set-sink-volume @DEFAULT_SINK@ -1%
 	bindcode \$mod+59 exec --no-startup-id pactl set-sink-volume @DEFAULT_SINK@ -1%
 	bindcode \$mod+Shift+59 exec --no-startup-id pactl set-sink-volume @DEFAULT_SINK@ -10%
@@ -672,24 +688,24 @@ tee "${HOME}/.config/i3.d/40-volume" <<-EOF
 	bindsym XF86AudioMute exec --no-startup-id pactl set-sink-mute @DEFAULT_SINK@ toggle
 	bindcode \$mod+61 exec --no-startup-id pactl set-sink-mute @DEFAULT_SINK@ toggle
 EOF
-tee "${HOME}/.config/i3.d/60-slock" <<-EOF
+tee "${HOME}/.config/i3.d/60-slock" <<- EOF
 	exec --no-startup-id xss-lock slock
 	bindsym --release \$mod+l exec --no-startup-id loginctl lock-session
 EOF
-tee "${HOME}/.config/i3.d/61-numlockx" <<-EOF
+tee "${HOME}/.config/i3.d/61-numlockx" <<- EOF
 	exec --no-startup-id numlockx on
 EOF
-tee "${HOME}/.config/i3.d/62-screenshot" <<-EOF
+tee "${HOME}/.config/i3.d/62-screenshot" <<- EOF
 	bindsym Print exec --no-startup-id screenshot
 	bindsym --release Shift+Print exec --no-startup-id screenshot --select --clipboard
 EOF
-tee "${HOME}/.config/i3.d/63-dunst" <<-EOF
+tee "${HOME}/.config/i3.d/63-dunst" <<- EOF
 	exec --no-startup-id dunst
 	bindsym \$mod+j exec --no-startup-id dunstctl history-pop
 EOF
 
-mkdir -p "${HOME}/.config/i3status.d"
-tee "${HOME}/.config/i3status.d/10-default" <<-EOF
+mkdir --parents "${HOME}/.config/i3status.d/"
+tee "${HOME}/.config/i3status.d/10-default" <<- EOF
 	general {
 	    colors = true
 	    color_good = "${COLOR_GREEN}"
@@ -698,7 +714,7 @@ tee "${HOME}/.config/i3status.d/10-default" <<-EOF
 	    interval = 5
 	}
 EOF
-tee "${HOME}/.config/i3status.d/20-volume" <<-EOF
+tee "${HOME}/.config/i3status.d/20-volume" <<- EOF
 	order += "volume pulse"
 	volume pulse {
 	    format = "🔊 %volume"
@@ -706,39 +722,39 @@ tee "${HOME}/.config/i3status.d/20-volume" <<-EOF
 	    device = "pulse"
 	}
 EOF
-tee "${HOME}/.config/i3status.d/30-disk" <<-EOF
+tee "${HOME}/.config/i3status.d/30-disk" <<- EOF
 	order += "disk /"
 	disk / {
 	    format = "%free"
 	}
 EOF
-NIC="$(ip --brief link show | awk '$2 == "UP" { print $1; exit }')"
-if [[ "${NIC}" = w* ]]; then
-	tee "${HOME}/.config/i3status.d/60-wlan" <<-EOF
-		order += "wireless ${NIC}"
-		wireless ${NIC} {
-			format_up = "%essid"
-			format_down = "🖧"
+readonly interface="$(ip --brief link show | awk '$2 == "UP" { print $1; exit }')"
+if [[ "${interface}" = w* ]]; then
+  tee "${HOME}/.config/i3status.d/60-wlan" <<- EOF
+		order += "wireless ${interface}"
+		wireless ${interface} {
+		    format_up = "%essid"
+		    format_down = "🖧"
 		}
 	EOF
 else
-	tee "${HOME}/.config/i3status.d/70-ethernet" <<-EOF
-		order += "ethernet ${NIC}"
-		ethernet ${NIC} {
-			format_up = "%ip"
-			format_down = "🖧"
+  tee "${HOME}/.config/i3status.d/70-ethernet" <<- EOF
+		order += "ethernet ${interface}"
+		ethernet ${interface} {
+		    format_up = "%ip"
+		    format_down = "🖧"
 		}
 	EOF
 fi
-tee "${HOME}/.config/i3status.d/90-time" <<-EOF
+tee "${HOME}/.config/i3status.d/90-time" <<- EOF
 	order += "tztime local"
 	tztime local {
 	    format = "%Y-%m-%d %H:%M"
 	}
 EOF
 
-mkdir -p "${HOME}/.config/dunst"
-tee "${HOME}/.config/dunst/dunstrc" <<-EOF
+mkdir --parents "${HOME}/.config/dunst/"
+tee "${HOME}/.config/dunst/dunstrc" <<- EOF
 	[global]
 	    geometry="300x1-10-35"
 	    padding = 10
@@ -770,8 +786,8 @@ tee "${HOME}/.config/dunst/dunstrc" <<-EOF
 	    timeout = 0
 EOF
 
-mkdir -p "${HOME}/.config/alacritty"
-tee "${HOME}/.config/alacritty/alacritty.yml" <<-EOF
+mkdir --parents "${HOME}/.config/alacritty/"
+tee "${HOME}/.config/alacritty/alacritty.yml" <<- EOF
 	env:
 	  TERM: xterm
 
@@ -786,49 +802,49 @@ tee "${HOME}/.config/alacritty/alacritty.yml" <<-EOF
 
 	colors:
 	  primary:
-	    background: '#282828'
-	    foreground: '#f7f7f7'
+	    background: "#282828"
+	    foreground: "#f7f7f7"
 	  normal:
-	    black:   '#6f6f6f'
-	    red:     '#f92472'
-	    green:   '#a6e22c'
-	    yellow:  '#e7db74'
-	    blue:    '#67d8ef'
-	    magenta: '#ac80ff'
-	    cyan:    '#2aa198'
-	    white:   '#f8f8f8'
+	    black:   "#6f6f6f"
+	    red:     "#f92472"
+	    green:   "#a6e22c"
+	    yellow:  "#e7db74"
+	    blue:    "#67d8ef"
+	    magenta: "#ac80ff"
+	    cyan:    "#2aa198"
+	    white:   "#f8f8f8"
 	  bright:
-	    black:   '#282828'
-	    red:     '#f92472'
-	    green:   '#a6e22c'
-	    yellow:  '#e7db74'
-	    blue:    '#67d8ef'
-	    magenta: '#ac80ff'
-	    cyan:    '#2aa198'
-	    white:   '#f7f7f7'
+	    black:   "#282828"
+	    red:     "#f92472"
+	    green:   "#a6e22c"
+	    yellow:  "#e7db74"
+	    blue:    "#67d8ef"
+	    magenta: "#ac80ff"
+	    cyan:    "#2aa198"
+	    white:   "#f7f7f7"
 	  selection:
-	   text: '#282828'
-	   background: '#f7f7f7'
+	   text: "#282828"
+	   background: "#f7f7f7"
 	  line_indicator:
-	    foreground: '#282828'
-	    background: '#f7f7f7'
+	    foreground: "#282828"
+	    background: "#f7f7f7"
 	  search:
 	    matches:
-	      foreground: '#282828'
-	      background: '#f7f7f7'
+	      foreground: "#282828"
+	      background: "#f7f7f7"
 	    focused_match:
-	      foreground: '#f7f7f7'
-	      background: '#2aa198'
+	      foreground: "#f7f7f7"
+	      background: "#2aa198"
 	    bar:
-	      foreground: '#282828'
-	      background: '#f7f7f7'
+	      foreground: "#282828"
+	      background: "#f7f7f7"
 	  hints:
 	    start:
-	      foreground: '#f7f7f7'
-	      background: '#f92472'
+	      foreground: "#f7f7f7"
+	      background: "#f92472"
 	    end:
-	      foreground: '#f92472'
-	      background: '#f7f7f7'
+	      foreground: "#f92472"
+	      background: "#f7f7f7"
 
 	font:
 	  normal:
@@ -840,7 +856,7 @@ tee "${HOME}/.config/alacritty/alacritty.yml" <<-EOF
 	    style: Regular
 	  bold_italic:
 	    style: Regular
-	  size: 14.0
+	  size: 16.0
 	draw_bold_text_with_bright_colors: false
 
 	cursor:
@@ -868,13 +884,13 @@ tee "${HOME}/.config/alacritty/alacritty.yml" <<-EOF
 	bell:
 	  animation: Linear
 	  duration: 0
-	  color: '#f7f7f7'
+	  color: "#f7f7f7"
 
 	alt_send_esc: true
 
 	shell:
 	  program: /bin/bash
-	  args: [ '--login' ]
+	  args: [ "--login" ]
 	working_directory: None
 
 	hints:
@@ -892,8 +908,8 @@ tee "${HOME}/.config/alacritty/alacritty.yml" <<-EOF
 	live_config_reload: false
 EOF
 
-mkdir -p "${HOME}/.config/pcmanfm/default"
-tee "${HOME}/.config/pcmanfm/default/pcmanfm.conf" <<-EOF
+mkdir --parents "${HOME}/.config/pcmanfm/default/"
+tee "${HOME}/.config/pcmanfm/default/pcmanfm.conf" <<- EOF
 	[volume]
 	autorun=0
 	mount_on_startup=0
@@ -902,8 +918,8 @@ tee "${HOME}/.config/pcmanfm/default/pcmanfm.conf" <<-EOF
 	[ui]
 	view_mode=compact
 EOF
-mkdir -p "${HOME}/.config/libfm"
-tee "${HOME}/.config/libfm/libfm.conf" <<-EOF
+mkdir --parents "${HOME}/.config/libfm/"
+tee "${HOME}/.config/libfm/libfm.conf" <<- EOF
 	[config]
 	terminal=alacritty
 
@@ -918,21 +934,21 @@ tee "${HOME}/.config/libfm/libfm.conf" <<-EOF
 	places_unmounted=1
 EOF
 
-mkdir -p "${HOME}/.config/sublime-text-3/Packages/User"
-unzip -p "/opt/sublime_text/Packages/Color Scheme - Default.sublime-package" Monokai.sublime-color-scheme \
-| sed -r "s/\"(name)\"(\s*):(\s*)\"Monokai\"/\"\1\"\2:\3\"Auf zum Atem\!\"/g" \
-| sed -r "s/\"(author)\"(\s*):(\s*)\".*?\"/\"\1\"\2:\3\"Me\"/g" \
-| sed -r "s/\"(black2)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(32, 32, 32)\"/g" \
-| sed -r "s/\"(black3)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(40, 40, 40)\"/g" \
-| sed -r "s/\"(grey)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(70, 70, 70)\"/g" \
-| sed -r "s/\"(white)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(247, 247, 247)\"/g" \
-| sed -r "s/\"(white2)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(248, 248, 248)\"/g" \
-| sed -r "s/\"(white3)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(247, 247, 247)\"/g" \
-| sed -r "s/\"(yellow3)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(206, 206, 206)\"/g" \
-| sed -r "s/\"(yellow4)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(60, 60, 60)\"/g" \
-| sed -r "s/\"(yellow5)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(111, 111, 111)\"/g" \
-| tee "${HOME}/.config/sublime-text-3/Packages/User/Auf zum Atem"'!'".sublime-color-scheme"
-tee "${HOME}/.config/sublime-text-3/Packages/User/Preferences.sublime-settings" <<-EOF
+mkdir --parents "${HOME}/.config/sublime-text-3/Packages/User/"
+unzip -p "/opt/sublime_text/Packages/Color Scheme - Default.sublime-package" Monokai.sublime-color-scheme |
+  sed -E "s/\"(name)\"(\s*):(\s*)\"Monokai\"/\"\1\"\2:\3\"Auf zum Atem\!\"/g" |
+  sed -E "s/\"(author)\"(\s*):(\s*)\".*?\"/\"\1\"\2:\3\"Me\"/g" |
+  sed -E "s/\"(black2)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(32, 32, 32)\"/g" |
+  sed -E "s/\"(black3)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(40, 40, 40)\"/g" |
+  sed -E "s/\"(grey)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(70, 70, 70)\"/g" |
+  sed -E "s/\"(white)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(247, 247, 247)\"/g" |
+  sed -E "s/\"(white2)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(248, 248, 248)\"/g" |
+  sed -E "s/\"(white3)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(247, 247, 247)\"/g" |
+  sed -E "s/\"(yellow3)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(206, 206, 206)\"/g" |
+  sed -E "s/\"(yellow4)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(60, 60, 60)\"/g" |
+  sed -E "s/\"(yellow5)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(111, 111, 111)\"/g" |
+  tee "${HOME}/.config/sublime-text-3/Packages/User/Auf zum Atem"'!'".sublime-color-scheme"
+tee "${HOME}/.config/sublime-text-3/Packages/User/Preferences.sublime-settings" <<- EOF
 	{
 	    "color_scheme": "Packages/User/Auf zum Atem!.sublime-color-scheme",
 	    "draw_white_space": "all",
@@ -952,22 +968,19 @@ tee "${HOME}/.config/sublime-text-3/Packages/User/Preferences.sublime-settings" 
 	    "trim_trailing_white_space_on_save": true
 	}
 EOF
-tee "${HOME}/.config/sublime-text-3/Packages/User/Default (Linux).sublime-keymap" <<-EOF
-	[
-	    { "keys": ["ctrl+7"], "command": "toggle_comment", "args": { "block": false } },
-	    { "keys": ["ctrl+shift+7"], "command": "toggle_comment", "args": { "block": true } }
-	]
+tee "${HOME}/.config/sublime-text-3/Packages/User/Default (Linux).sublime-keymap" <<- EOF
+	[]
 EOF
-mkdir -p "${HOME}/.config/sublime-text-3/Local"
-tee "${HOME}/.config/sublime-text-3/Local/Session.sublime_session" <<-EOF
-	{"windows":[{"menu_visible": false}]}
+mkdir --parents "${HOME}/.config/sublime-text-3/Local/"
+tee "${HOME}/.config/sublime-text-3/Local/Session.sublime_session" <<- EOF
+	{"windows":[{"menu_visible":false}]}
 EOF
 
-chmod -R go= "${HOME}/"
+chmod --recursive go= "${HOME}/"
 
-if [[ "$(</sys/devices/virtual/dmi/id/sys_vendor)" = "QEMU" ]]; then
-	sudo pacman --noconfirm -S spice-vdagent
-	tee "${HOME}/.config/i3.d/21-spice" <<-EOF
+if [[ "$(< /sys/devices/virtual/dmi/id/sys_vendor)" = "QEMU" ]]; then
+  sudo pacman --noconfirm --sync --refresh spice-vdagent
+  tee "${HOME}/.config/i3.d/21-spice" <<- EOF
 		exec --no-startup-id spice-vdagent
 	EOF
 fi

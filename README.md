@@ -12,7 +12,7 @@ Arch Linux installation scripts for base system and desktop environment with i3 
 Generates uniform Monokai color scheme for Sublime Text and xterm. Colors with less standard deviation in Sublime Text theme are converted to gray scale and simliar colors in xterm theme are replaced.
 
 ```bash
-pacman -Syu python python-numpy
+pacman --sync --refresh python python-numpy
 python color_scheme.py
 ```
 
@@ -21,40 +21,40 @@ python color_scheme.py
 ### Backlight
 
 ```bash
-sudo pacman -Syu acpilight
-sudo usermod -a -G video "${USER}"
+sudo pacman --sync --refresh acpilight
+sudo usermod --append --groups video "${USER}"
 
-mkdir -p "${HOME}/.local/bin"
+mkdir --parents "${HOME}/.local/bin/"
 tee "${HOME}/.local/bin/backlight" <<EOF
 #!/bin/bash
 
-BRIGHTNESS="\$(xbacklight -get)"
-while [[ "\${#}" -gt 0 ]]; do
-    case "\${1}" in
-        -i | --increment)
-            BRIGHTNESS="\$(("\${BRIGHTNESS}" > 90 ? 100 : "\${BRIGHTNESS}" + 10))"
-            shift
-            ;;
-        -d | --decrement)
-            BRIGHTNESS="\$(("\${BRIGHTNESS}" < 10 ? 0 : "\${BRIGHTNESS}" - 10))"
-            shift
-            ;;
-        -r | --reset)
-            if [[ -f "\${HOME}/.brightness" ]]; then
-                BRIGHTNESS="\$(< "\${HOME}/.brightness")"
-            fi
-            shift
-            ;;
-        *)
-            printf "Usage: backlight [--increment|--decrement|--reset]"
-            exit 1
-    esac
+brightness="\$(xbacklight -get)"
+while [[ "\$#" -gt 0 ]]; do
+  case "\$1" in
+    -i | --increment)
+      brightness="\$(("\${brightness}" > 90 ? 100 : "\${brightness}" + 10))"
+      shift
+      ;;
+    -d | --decrement)
+      brightness="\$(("\${brightness}" < 10 ? 0 : "\${brightness}" - 10))"
+      shift
+      ;;
+    -r | --reset)
+      if [[ -f "\${HOME}/.brightness" ]]; then
+        brightness="\$(< "\${HOME}/.brightness")"
+      fi
+      shift
+      ;;
+    *)
+      printf "Usage: backlight [--increment|--decrement|--reset]\n"
+      exit 1
+  esac
 done
 
-if [[ "\${BRIGHTNESS}" != "\$(xbacklight -get)" ]]; then
-    xbacklight -set "\${BRIGHTNESS}"
-    printf "%s\n" "\${BRIGHTNESS}" > "\${HOME}/.brightness"
-    killall -USR1 i3status
+if [[ "\${brightness}" != "\$(xbacklight -get)" ]]; then
+  xbacklight -set "\${brightness}"
+  printf "%s\n" "\${brightness}" > "\${HOME}/.brightness"
+  killall -USR1 i3status
 fi
 EOF
 chmod +x "${HOME}/.local/bin/backlight"
@@ -83,13 +83,13 @@ sudo systemctl mask systemd-backlight@.service
 ### Battery
 
 ```bash
-sudo pacman -Syu tlp
+sudo pacman --sync --refresh tlp
 sudo systemctl enable tlp.service
 
 sudo systemctl mask systemd-rfkill.service
 sudo systemctl mask systemd-rfkill.socket
 
-sudo tee -a /etc/systemd/logind.conf <<EOF
+sudo tee --append /etc/systemd/logind.conf <<EOF
 HandleLidSwitch=suspend
 HandleLidSwitchDocked=suspend
 EOF
@@ -114,7 +114,7 @@ EOF
 ### Bluetooth
 
 ```bash
-sudo pacman -Syu bluez bluez-utils
+sudo pacman --sync --refresh bluez bluez-utils
 sudo systemctl enable bluetooth.service
 ```
 
@@ -127,7 +127,7 @@ sudo dd if=/dev/zero of=/swapfile bs=1K count="$(free -k | awk '$1 == "Mem:" { p
 sudo chmod u=rw,go= /swapfile
 sudo mkswap /swapfile
 sudo swapon /swapfile
-sudo tee -a /etc/fstab <<EOF
+sudo tee --append /etc/fstab <<EOF
 
 # /swapfile
 /swapfile none swap defaults 0 0
@@ -137,37 +137,37 @@ EOF
 #### Resume
 
 ```bash
-BUFFER=()
-while IFS="=" read -r K V; do
-	IFS=" " read -r -a A <<< "$(sed -r "s/\((.*)\)/\1/g" <<< ${V})"
-	if [[ "${K}" = "HOOKS" ]]; then
-		T=()
-		for E in "${A[@]}"; do
-			T+=("${E}")
-			if [[ "${E}" = "filesystems" ]]; then
-				T+=("resume")
-			fi
-		done
-		BUFFER+=("${K}=(${T[*]})")
-	else
-		BUFFER+=("${K}=(${A[*]})")
-	fi
+buffer=()
+while IFS="=" read -r key value; do
+  IFS=" " read -r -a array <<< "$(sed -r "s/\((.*)\)/\1/g" <<< ${value})"
+  if [[ "${key}" = "HOOKS" ]]; then
+    hooks=()
+    for hook in "${array[@]}"; do
+      hooks+=("${hook}")
+      if [[ "${hook}" = "filesystems" ]]; then
+        hooks+=("resume")
+      fi
+    done
+    buffer+=("${key}=(${hooks[*]})")
+  else
+    buffer+=("${key}=(${array[*]})")
+  fi
 done < /etc/mkinitcpio.conf
-printf "%s\n" "${BUFFER[@]}" | sudo tee /etc/mkinitcpio.conf
-sudo mkinitcpio -p linux
+printf "%s\n" "${buffer[@]}" | sudo tee /etc/mkinitcpio.conf
+sudo mkinitcpio --preset linux
 
-BUFFER=()
-while IFS=" " read -r K V; do
-	if [[ "${K}" = "options" ]]; then
-		IFS=" " read -r -a A <<< "${V}"
-		A+=("resume=$(awk '$2 == "/" { print $1 }' /etc/fstab)")
-		A+=("resume_offset=$(sudo filefrag -v /swapfile | awk 'BEGIN { FS="[[:space:].:]+" } $2 == "0" { print $5 }')")
-		BUFFER+=("${K} ${A[*]}")
-	else
-		BUFFER+=("${K} ${V}")
-	fi
+buffer=()
+while IFS=" " read -r key value; do
+  if [[ "${key}" = "options" ]]; then
+    IFS=" " read -r -a array <<< "${value}"
+    array+=("resume=$(awk '$2 == "/" { print $1 }' /etc/fstab)")
+    array+=("resume_offset=$(sudo filefrag -v /swapfile | awk 'BEGIN { FS="[[:space:].:]+" } $2 == "0" { print $5 }')")
+    buffer+=("${key} ${array[*]}")
+  else
+    buffer+=("${key} ${value}")
+  fi
 done < /boot/loader/entries/default.conf
-printf "%s\n" "${BUFFER[@]}" | sudo tee /boot/loader/entries/default.conf
+printf "%s\n" "${buffer[@]}" | sudo tee /boot/loader/entries/default.conf
 ```
 
 #### Battery
@@ -177,7 +177,6 @@ sudo tee /etc/udev/rules.d/90-battery.rules <<EOF
 SUBSYSTEM=="power_supply", ATTR{status}=="Discharging", ATTR{capacity}=="[0-5]", RUN+="/usr/bin/systemctl hibernate"
 EOF
 ```
-
 
 ##### Workaround for ACPI not reporting battery status
 
@@ -193,7 +192,6 @@ ExecStart=udevadm trigger --subsystem-match=power_supply --action=change --attr-
 [Install]
 WantedBy=default.target
 EOF
-
 sudo tee /usr/lib/systemd/system/power-trigger.timer <<EOF
 [Unit]
 Description=Power Trigger
@@ -211,7 +209,7 @@ sudo systemctl enable power-trigger.timer
 ### Scroll wheel
 
 ```bash
-sudo pacman -Syu imwheel
+sudo --sync --refresh imwheel
 
 tee "${HOME}/.imwheelrc" <<EOF
 ".*"
@@ -231,7 +229,7 @@ EOF
 ### Touchpad
 
 ```bash
-sudo tee -a /etc/X11/xorg.conf.d/90-default.conf <<EOF
+sudo tee --append /etc/X11/xorg.conf.d/90-default.conf <<EOF
 
 Section "InputClass"
     Identifier "Touchpad control"
@@ -245,80 +243,67 @@ EndSection
 EOF
 ```
 
-## Driver
-
-### Nvidia
-
-```bash
-sudo pacman -Syu nvidia
-
-mkdir -p "${HOME}/.config/mpv"
-tee "${HOME}/.config/mpv/mpv.conf" <<EOF
-hwdec=nvdec
-EOF
-```
-
 ## Dropbear
 
 ```bash
-sudo pacman -Syu dropbear mkinitcpio-dropbear mkinitcpio-netconf mkinitcpio-utils
+sudo pacman --sync --refresh dropbear mkinitcpio-dropbear mkinitcpio-netconf mkinitcpio-utils
 
 sudo cp "${HOME}/.ssh/authorized_keys" /etc/dropbear/root_key
 sudo dropbearkey -t rsa -f /etc/dropbear/dropbear_rsa_host_key
 sudo dropbearkey -t ecdsa -f /etc/dropbear/dropbear_ecdsa_host_key
 sudo dropbearkey -t ed25519 -f /etc/dropbear/dropbear_ed25519_host_key
 
-sudo sed -i -r "s/(copy_openssh_keys \|\| generate_keys)/#\1/g" /usr/lib/initcpio/install/dropbear
-sudo tee /etc/pacman.d/hooks/40-mkinitcpio-dropbear.hook <<-EOF
-	[Trigger]
-	Type = Package
-	Operation = Upgrade
-	Target = mkinitcpio-dropbear
+sudo sed --in-place -E "s/(copy_openssh_keys \|\| generate_keys)/#\1/g" /usr/lib/initcpio/install/dropbear
+sudo tee /etc/pacman.d/hooks/40-mkinitcpio-dropbear.hook <<EOF
+[Trigger]
+Type = Package
+Operation = Upgrade
+Target = mkinitcpio-dropbear
 
-	[Action]
-	When = PostTransaction
-	Exec = /usr/bin/sed -i -r "s/(copy_openssh_keys \|\| generate_keys)/#\1/g" /usr/lib/initcpio/install/dropbear
+[Action]
+When = PostTransaction
+Exec = /usr/bin/sed --in-place -E "s/(copy_openssh_keys \|\| generate_keys)/#\1/g" /usr/lib/initcpio/install/dropbear
 EOF
 
-BUFFER=()
-while IFS="=" read -r K V; do
-	IFS=" " read -r -a A <<< "$(sed -r "s/\((.*)\)/\1/g" <<< "${V}")"
-	if [[ "${K}" = "HOOKS" ]]; then
-		T=()
-		for E in "${A[@]}"; do
-			if [[ "${E}" = "encrypt" ]]; then
-				T+=("netconf")
-				T+=("dropbear")
-				T+=("encryptssh")
-			else
-				T+=("${E}")
-			fi
-		done
-		BUFFER+=("${K}=(${T[*]})")
-	else
-		BUFFER+=("${K}=(${A[*]})")
-	fi
+buffer=()
+while IFS="=" read -r key value; do
+  IFS=" " read -r -a array <<< "$(sed -r "s/\((.*)\)/\1/g" <<< "${value}")"
+  if [[ "${key}" = "HOOKS" ]]; then
+    hooks=()
+    for hook in "${array[@]}"; do
+      if [[ "${hook}" = "encrypt" ]]; then
+        hooks+=("netconf")
+        hooks+=("dropbear")
+        hooks+=("encryptssh")
+      else
+        hooks+=("${E}")
+      fi
+    done
+    buffer+=("${key}=(${hooks[*]})")
+  else
+    buffer+=("${key}=(${array[*]})")
+  fi
 done < /etc/mkinitcpio.conf
-printf "%s\n" "${BUFFER[@]}" | sudo tee /etc/mkinitcpio.conf
-sudo mkinitcpio -p linux
+printf "%s\n" "${buffer[@]}" | sudo tee /etc/mkinitcpio.conf
+sudo mkinitcpio --preset linux
 
-NIC="$(ip --brief link show | awk '$2 == "UP" { print $1; exit }')"
-KERNEL_NIC="$(sudo dmesg | grep -oP "(?<=${NIC}: renamed from )(.+)(?=$)")"
-if [[ -n "${KERNEL_NIC}:+SUBSTITUTION" ]]; then
-	NIC="${KERNEL_NIC}"
+network_interface="$(ip --brief link show | awk '$2 == "UP" { print $1; exit }')"
+kernel_network_interface="$(sudo dmesg | grep -oP "(?<=${network_interface}: renamed from )(.+)(?=$)")"
+if [[ -n "${kernel_network_interface}:+substitution" ]]; then
+  network_interface="${kernel_network_interface}"
 fi
 
-BUFFER=()
-while IFS=" " read -r K V; do
-	if [[ "${K}" = "options" ]]; then
-		IFS=" " read -r -a A <<< "${V}"
-		A+=("ip=:::::${NIC}:dhcp")
-		BUFFER+=("${K} ${A[*]}")
-	else
-		BUFFER+=("${K} ${V}")
-	fi
+buffer=()
+while IFS=" " read -r key value; do
+  if [[ "${key}" = "options" ]]; then
+    IFS=" " read -r -a array <<< "${value}"
+    array+=("ip=:::::${network_interface}:dhcp")
+    buffer+=("${key} ${array[*]}")
+  else
+    buffer+=("${key} ${value}")
+  fi
 done < /boot/loader/entries/default.conf
-printf "%s\n" "${BUFFER[@]}" | sudo tee /boot/loader/entries/default.conf
+printf "%s\n" "${buffer[@]}" | sudo tee /boot/loader/entries/default.conf
 ```
 
 ## Virtualization
@@ -326,26 +311,26 @@ printf "%s\n" "${BUFFER[@]}" | sudo tee /boot/loader/entries/default.conf
 ### Docker
 
 ```bash
-sudo pacman -Syu docker docker-compose
+sudo pacman --sync --refresh docker docker-compose
 sudo systemctl enable docker.service
-sudo usermod -a -G docker "${USER}"
+sudo usermod --append --groups docker "${USER}"
 ```
 
 ### KVM/QEMU
 
 ```bash
 PACKAGES=(
-	dnsmasq
-	ebtables
-	edk2-ovmf
-	libvirt
-	openbsd-netcat
-	qemu
-	virt-manager
+  dnsmasq
+  ebtables
+  edk2-ovmf
+  libvirt
+  openbsd-netcat
+  qemu
+  virt-manager
 )
-sudo pacman -Syu "${PACKAGES[@]}"
+sudo pacman --sync --refresh "${PACKAGES[@]}"
 sudo systemctl enable libvirtd.service
-sudo usermod -a -G libvirt "${USER}"
+sudo usermod --append --groups libvirt "${USER}"
 
 application-launcher --add "virt-manager" "/usr/bin/virt-manager"
 ```

@@ -1,158 +1,163 @@
 #!/bin/bash
 
-sudo true || exit 1
+# Installation script for Arch Linux system.
 
-PROCESS_ID="$$"
-trap "exit 1" USR1
+# TODO: Check return values (https://google.github.io/styleguide/shellguide.html#s8.1-checking-return-values)!
 
-DEFAULT_HEIGHT="8"
-DEFAULT_WIDTH="74"
-
-BUFFER=()
-while IFS= read -r DISK; do
-	BUFFER+=("${DISK}")
-	if [[ "${#BUFFER[@]}" -gt 2 ]]; then
-		BUFFER+=("OFF")
-	else
-		BUFFER+=("ON")
-	fi
-done <<< "$(sudo parted --list --machine --script | awk 'BEGIN { RS = "\n\n" ; FS = "\n" } { print $2 }' | awk 'BEGIN { FS=":" } { print $1 }' | sort)"
-if [[ "${#BUFFER[@]}" -eq 0 ]]; then
-	whiptail --title "Arch Linux" --msgbox "No installation disk" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
-	exit 1
-fi
-LENGTH="$(("${#BUFFER[@]}" / 2))"
-HEIGHT="$(("${LENGTH}" + 7))"
-DISK="$(whiptail --title "Arch Linux" --radiolist --noitem "Installation disk" "${HEIGHT}" "${DEFAULT_WIDTH}" "${LENGTH}" "${BUFFER[@]}" 3>&1 1>&2 2>&3 || kill -USR1 "${PROCESS_ID}")"
-
-BUFFER=()
-while IFS= read -r NIC; do
-	if [[ -e "/sys/class/net/${NIC}" ]]; then
-		unset ID_NET_NAME_FROM_DATABASE ID_NET_NAME_ONBOARD ID_NET_NAME_SLOT ID_NET_NAME_PATH ID_NET_NAME_MAC
-		source <(udevadm info --query=property --export "/sys/class/net/${NIC}")
-		for NAME in ID_NET_NAME_FROM_DATABASE ID_NET_NAME_ONBOARD ID_NET_NAME_SLOT ID_NET_NAME_PATH ID_NET_NAME_MAC; do
-			eval PROPERTY=\$"${NAME}"
-			if [[ -n "${PROPERTY:+SUBSTITUTION}" ]]; then
-				BUFFER+=("${PROPERTY}")
-				if [[ "${#BUFFER[@]}" -gt 2 ]]; then
-					BUFFER+=("OFF")
-				else
-					BUFFER+=("ON")
-				fi
-				break
-			fi
-		done
-	fi
-done <<< "$(ip --brief link show | awk '{ print $1 }' | sort)"
-if [[ "${#BUFFER[@]}" -eq 0 ]]; then
-	whiptail --title "Arch Linux" --msgbox "No network interface" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
-	exit 1
-fi
-LENGTH="$(("${#BUFFER[@]}" / 2))"
-HEIGHT="$(("${LENGTH}" + 7))"
-NIC="$(whiptail --title "Arch Linux" --radiolist --noitem "Network interface" "${HEIGHT}" "${DEFAULT_WIDTH}" "${LENGTH}" "${BUFFER[@]}" 3>&1 1>&2 2>&3 || kill -USR1 "${PROCESS_ID}")"
-
-HOSTNAME="$(whiptail --title "Arch Linux" --inputbox "Hostname" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -USR1 "${PROCESS_ID}")"
-if [[ ! "${HOSTNAME}" =~ ^[a-zA-Z0-9._-]+$ ]]; then
-	whiptail --title "Arch Linux" --msgbox "Invalid hostname" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
-	exit 1
+if [[ "${UID}" != 0 ]]; then
+  exit 1
 fi
 
-USER="$(whiptail --title "Arch Linux" --inputbox "User" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -USR1 "${PROCESS_ID}")"
-if [[ ! "${USER}" =~ ^[a-z0-9_-]{1,30}$ ]]; then
-	whiptail --title "Arch Linux" --msgbox "Invalid user" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
-	exit 1
+readonly PROCESS_ID="$$"
+trap "exit 1" SIGUSR1
+
+readonly DEFAULT_HEIGHT=8
+readonly DEFAULT_WIDTH=74
+
+buffer=()
+while IFS= read -r disk; do
+  buffer+=("${disk}")
+  if (("${#buffer[@]}" > 2)); then
+    buffer+=("OFF")
+  else
+    buffer+=("ON")
+  fi
+done < <(parted --list --machine --script | awk 'BEGIN { RS = "\n\n" ; FS = "\n" } { print $2 }' | awk 'BEGIN { FS=":" } { print $1 }' | sort)
+if (("${#buffer[@]}" == 0)); then
+  whiptail --title "Arch Linux" --msgbox "No installation disk" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
+  exit 1
+fi
+size="$(("${#buffer[@]}" / 2))"
+readonly disk="$(whiptail --title "Arch Linux" --radiolist --noitem "Installation disk" "$(("${size}" + 7))" "${DEFAULT_WIDTH}" "${size}" "${buffer[@]}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
+
+buffer=()
+while IFS= read -r interface; do
+  if [[ -e "/sys/class/net/${interface}" ]]; then
+    unset ID_NET_NAME_FROM_DATABASE ID_NET_NAME_ONBOARD ID_NET_NAME_SLOT ID_NET_NAME_PATH ID_NET_NAME_MAC
+    source <(udevadm info --query=property --export "/sys/class/net/${interface}")
+    for name in ID_NET_NAME_FROM_DATABASE ID_NET_NAME_ONBOARD ID_NET_NAME_SLOT ID_NET_NAME_PATH ID_NET_NAME_MAC; do
+      property="${!name}"
+      if [[ -n "${property:+substitution}" ]]; then
+        buffer+=("${property}")
+        if (("${#buffer[@]}" > 2)); then
+          buffer+=("OFF")
+        else
+          buffer+=("ON")
+        fi
+        break
+      fi
+    done
+  fi
+done < <(ip --brief link show | awk '{ print $1 }' | sort)
+if (("${#buffer[@]}" == 0)); then
+  whiptail --title "Arch Linux" --msgbox "No network interface" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
+  exit 1
+fi
+size="$(("${#buffer[@]}" / 2))"
+readonly interface="$(whiptail --title "Arch Linux" --radiolist --noitem "Network interface" "$(("${size}" + 7))" "${DEFAULT_WIDTH}" "${size}" "${buffer[@]}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
+
+readonly hostname="$(whiptail --title "Arch Linux" --inputbox "Hostname" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
+if [[ ! "${hostname}" =~ ^[a-zA-Z0-9._-]+$ ]]; then
+  whiptail --title "Arch Linux" --msgbox "Invalid hostname" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
+  exit 1
 fi
 
-PASSWORD="$(whiptail --title "Arch Linux" --passwordbox "Password" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -USR1 "${PROCESS_ID}")"
-if [[ ! "${PASSWORD}" =~ ^.{6,}$ ]]; then
-	whiptail --title "Arch Linux" --msgbox "Invalid password" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
-	exit 1
+readonly user="$(whiptail --title "Arch Linux" --inputbox "User" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
+if [[ ! "${user}" =~ ^[a-z0-9_-]{1,30}$ ]]; then
+  whiptail --title "Arch Linux" --msgbox "Invalid user" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
+  exit 1
 fi
 
-TZ="$(whiptail --title "Arch Linux" --inputbox "Time zone" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" "Europe/Berlin" 3>&1 1>&2 2>&3 || kill -USR1 "${PROCESS_ID}")"
-TZ="$(timedatectl list-timezones | grep -iP "^${TZ}$")"
-if [[ -z "${TZ}" ]]; then
-	whiptail --title "Arch Linux" --msgbox "Invalid time zone" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
-	exit 1
+readonly password="$(whiptail --title "Arch Linux" --passwordbox "Password" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
+if [[ ! "${password}" =~ ^.{6,}$ ]]; then
+  whiptail --title "Arch Linux" --msgbox "Invalid password" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
+  exit 1
 fi
 
-BUFFER=(
-	"de" "German (ISO)" "ON"
-	"us" "English (ANSI)" "OFF"
+tz="$(whiptail --title "Arch Linux" --inputbox "Time zone" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" "Europe/Berlin" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
+readonly tz="$(timedatectl list-timezones | grep --ignore-case "^${tz}$")"
+if [[ -z "${tz}" ]]; then
+  whiptail --title "Arch Linux" --msgbox "Invalid time zone" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
+  exit 1
+fi
+
+buffer=(
+  "de" "German (ISO)" "ON"
+  "us" "English (ANSI)" "OFF"
 )
-LENGTH="$(("${#BUFFER[@]}" / 3))"
-HEIGHT="$(("${LENGTH}" + 7))"
-KEYMAP="$(whiptail --title "Arch Linux" --radiolist --notags "Keyboard layout" "${HEIGHT}" "${DEFAULT_WIDTH}" "${LENGTH}" "${BUFFER[@]}" 3>&1 1>&2 2>&3 || kill -USR1 "${PROCESS_ID}")"
+size="$(("${#buffer[@]}" / 3))"
+readonly keymap="$(whiptail --title "Arch Linux" --radiolist --notags "Keyboard layout" "$(("${size}" + 7))" "${DEFAULT_WIDTH}" "${size}" "${buffer[@]}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
 
 set -x
 
-if [[ "${DISK}" = *nvm* ]]; then
-	BOOT_PARTITION="${DISK}p1"
-	SYSTEM_PARTITION="${DISK}p2"
+if [[ "${disk}" == *nvm* ]]; then
+  boot_partition="${disk}p1"
+  system_partition="${disk}p2"
 else
-	BOOT_PARTITION="${DISK}1"
-	SYSTEM_PARTITION="${DISK}2"
+  boot_partition="${disk}1"
+  system_partition="${disk}2"
 fi
+readonly boot_partition
+readonly system_partition
 
 if [[ -d /sys/firmware/efi/efivars ]]; then
-	parted --script "${DISK}" mklabel gpt
-	parted --script "${DISK}" mkpart EFI 4MiB 516MiB
-	parted --script "${DISK}" mkpart LINUX 516MiB 100%
-	parted --script "${DISK}" set 1 esp on
-	partprobe "${DISK}"
-	mkfs.fat -F32 "${BOOT_PARTITION}"
+  parted --script "${disk}" mklabel gpt
+  parted --script "${disk}" mkpart EFI 4MiB 516MiB
+  parted --script "${disk}" mkpart LINUX 516MiB 100%
+  parted --script "${disk}" set 1 esp on
+  partprobe "${disk}"
+  mkfs.fat -F32 "${boot_partition}"
 else
-	parted --script "${DISK}" mklabel msdos
-	parted --script "${DISK}" mkpart primary 4MiB 516MiB
-	parted --script "${DISK}" mkpart primary 516MiB 100%
-	parted --script "${DISK}" set 1 boot on
-	partprobe "${DISK}"
-	mkfs.ext4 "${BOOT_PARTITION}"
+  parted --script "${disk}" mklabel msdos
+  parted --script "${disk}" mkpart primary 4MiB 516MiB
+  parted --script "${disk}" mkpart primary 516MiB 100%
+  parted --script "${disk}" set 1 boot on
+  partprobe "${disk}"
+  mkfs.ext4 "${boot_partition}"
 fi
-cryptsetup --batch-mode luksFormat "${SYSTEM_PARTITION}" <<-EOF
-	${PASSWORD}
-	${PASSWORD}
+cryptsetup --batch-mode luksFormat "${system_partition}" <<- EOF
+	${password}
+	${password}
 EOF
-CRYPT_PARTITION_ID="$(uuidgen)"
-cryptsetup open "${SYSTEM_PARTITION}" "${CRYPT_PARTITION_ID}" <<-EOF
-	${PASSWORD}
+readonly crypt_partition_id="$(uuidgen)"
+cryptsetup open "${system_partition}" "${crypt_partition_id}" <<- EOF
+	${password}
 EOF
-mkfs.ext4 "/dev/mapper/${CRYPT_PARTITION_ID}"
-mount "/dev/mapper/${CRYPT_PARTITION_ID}" /mnt
-mkdir /mnt/boot
-mount "${BOOT_PARTITION}" /mnt/boot
+mkfs.ext4 "/dev/mapper/${crypt_partition_id}"
+mount "/dev/mapper/${crypt_partition_id}" /mnt
+mkdir --parents /mnt/boot/
+mount "${boot_partition}" /mnt/boot
 
-tee /etc/pacman.d/mirrorlist <<-EOF
+tee /etc/pacman.d/mirrorlist <<- EOF
 	Server = https://mirrors.kernel.org/archlinux/\$repo/os/\$arch
 	Server = https://mirrors.mit.edu/archlinux/\$repo/os/\$arch
 EOF
-pacman -Syy
+pacman --sync --refresh --refresh
 
-PACKAGES=(
-	base
-	base-devel
-	linux
-	linux-firmware
-	sudo
-	vim
+readonly packages=(
+  base
+  base-devel
+  linux
+  linux-firmware
+  sudo
+  vim
 )
-pacstrap /mnt "${PACKAGES[@]}"
-genfstab -U /mnt | tee /mnt/etc/fstab
+pacstrap /mnt "${packages[@]}"
+genfstab -t UUID /mnt | tee /mnt/etc/fstab
 
-arch-chroot /mnt sed -i -r "s/#(de_DE.UTF-8 UTF-8)/\1/g" /etc/locale.gen
-arch-chroot /mnt sed -i -r "s/#(en_US.UTF-8 UTF-8)/\1/g" /etc/locale.gen
+arch-chroot /mnt sed --in-place "s/#\(de_DE.UTF-8 UTF-8\)/\1/g" /etc/locale.gen
+arch-chroot /mnt sed --in-place "s/#\(en_US.UTF-8 UTF-8\)/\1/g" /etc/locale.gen
 arch-chroot /mnt locale-gen
-arch-chroot /mnt tee /etc/locale.conf <<-EOF
+arch-chroot /mnt tee /etc/locale.conf <<- EOF
 	LANG=en_US.UTF-8
 EOF
-arch-chroot /mnt ln -sf "/usr/share/zoneinfo/${TZ}" /etc/localtime
-arch-chroot /mnt tee /etc/timezone <<-EOF
-	${TZ}
+arch-chroot /mnt ln --symbolic --force "/usr/share/zoneinfo/${tz}" /etc/localtime
+arch-chroot /mnt tee /etc/timezone <<- EOF
+	${tz}
 EOF
 
-arch-chroot /mnt mkdir -p /usr/local/share/kbd/keymaps
-arch-chroot /mnt tee /usr/local/share/kbd/keymaps/de.map <<-EOF
+arch-chroot /mnt mkdir --parents /usr/local/share/kbd/keymaps/
+arch-chroot /mnt tee /usr/local/share/kbd/keymaps/de.map <<- EOF
 	include "/usr/share/kbd/keymaps/i386/qwertz/de.map.gz"
 	keycode 12 = ssharp question backslash
 	keycode 13 = apostrophe grave
@@ -162,7 +167,7 @@ arch-chroot /mnt tee /usr/local/share/kbd/keymaps/de.map <<-EOF
 	keycode 40 = +adiaeresis +Adiaeresis
 	keycode 41 = asciicircum degree
 EOF
-arch-chroot /mnt tee /usr/local/share/kbd/keymaps/us.map <<-EOF
+arch-chroot /mnt tee /usr/local/share/kbd/keymaps/us.map <<- EOF
 	include "/usr/share/kbd/keymaps/i386/qwerty/us.map.gz"
 	keymaps 0-3
 	keycode 18 = e E euro
@@ -171,34 +176,34 @@ arch-chroot /mnt tee /usr/local/share/kbd/keymaps/us.map <<-EOF
 	keycode 30 = a A +adiaeresis +Adiaeresis
 	keycode 31 = s S ssharp
 EOF
-arch-chroot /mnt tee /etc/vconsole.conf <<-EOF
-	KEYMAP=/usr/local/share/kbd/keymaps/${KEYMAP}.map
+arch-chroot /mnt tee /etc/vconsole.conf <<- EOF
+	KEYMAP=/usr/local/share/kbd/keymaps/${keymap}.map
 EOF
 
-arch-chroot /mnt tee /etc/hostname <<-EOF
-	${HOSTNAME}
+arch-chroot /mnt tee /etc/hostname <<- EOF
+	${hostname}
 EOF
-arch-chroot /mnt tee /etc/hosts <<-EOF
+arch-chroot /mnt tee /etc/hosts <<- EOF
 	127.0.0.1 localhost
 	::1 localhost
-	127.0.1.1 ${HOSTNAME}
+	127.0.1.1 ${hostname}
 EOF
 
-arch-chroot /mnt tee /etc/systemd/system.conf <<-EOF
+arch-chroot /mnt tee /etc/systemd/system.conf <<- EOF
 	[Manager]
 	RebootWatchdogSec=off
 EOF
 
-arch-chroot /mnt tee /etc/systemd/logind.conf <<-EOF
+arch-chroot /mnt tee /etc/systemd/logind.conf <<- EOF
 	[Login]
 	HandlePowerKey=ignore
 	HandleSuspendKey=ignore
 	HandleHibernateKey=ignore
 EOF
 
-arch-chroot /mnt tee "/etc/systemd/network/10-${NIC}.network" <<-EOF
+arch-chroot /mnt tee "/etc/systemd/network/10-${interface}.network" <<- EOF
 	[Match]
-	Name=${NIC}
+	Name=${interface}
 
 	[Network]
 	DHCP=ipv4
@@ -208,23 +213,23 @@ arch-chroot /mnt tee "/etc/systemd/network/10-${NIC}.network" <<-EOF
 EOF
 arch-chroot /mnt systemctl enable systemd-networkd.service
 
-arch-chroot /mnt tee /etc/systemd/timesyncd.conf <<-EOF
+arch-chroot /mnt tee /etc/systemd/timesyncd.conf <<- EOF
 	[Time]
 	NTP=de.pool.ntp.org
 EOF
 arch-chroot /mnt systemctl enable systemd-timesyncd.service
 
-arch-chroot /mnt tee /etc/systemd/resolved.conf <<-EOF
+arch-chroot /mnt tee /etc/systemd/resolved.conf <<- EOF
 	[Resolve]
 	DNS=
 	FallbackDNS=
 EOF
 arch-chroot /mnt systemctl enable systemd-resolved.service
-chroot /mnt ln -s -f /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+chroot /mnt ln --symbolic --force /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 
 arch-chroot /mnt systemctl enable fstrim.timer
 
-arch-chroot /mnt tee /etc/vimrc <<-EOF
+arch-chroot /mnt tee /etc/vimrc <<- EOF
 	runtime! archlinux.vim
 	let skip_defaults_vim=1
 	set expandtab
@@ -236,74 +241,78 @@ arch-chroot /mnt tee /etc/vimrc <<-EOF
 	syntax on
 EOF
 
-arch-chroot /mnt useradd -m -s /bin/bash "${USER}"
-arch-chroot /mnt passwd "${USER}" <<-EOF
-	${PASSWORD}
-	${PASSWORD}
+arch-chroot /mnt useradd --create-home --shell /bin/bash "${user}"
+arch-chroot /mnt passwd "${user}" <<- EOF
+	${password}
+	${password}
 EOF
-arch-chroot /mnt tee "/etc/sudoers.d/${USER}" <<-EOF
-	${USER} ALL=(ALL) ALL
-	${USER} ALL=(ALL) NOPASSWD: /usr/bin/ip
+arch-chroot /mnt tee "/etc/sudoers.d/${user}" <<- EOF
+	${user} ALL=(ALL) ALL
+	${user} ALL=(ALL) NOPASSWD: /usr/bin/ip
 EOF
-arch-chroot /mnt chmod u=r,go= "/etc/sudoers.d/${USER}"
-arch-chroot /mnt tee /etc/sudoers.d/umask <<-EOF
+arch-chroot /mnt chmod u=r,go= "/etc/sudoers.d/${user}"
+arch-chroot /mnt tee /etc/sudoers.d/umask <<- EOF
 	Defaults umask_override
 EOF
 arch-chroot /mnt chmod u=r,go= /etc/sudoers.d/umask
-arch-chroot /mnt passwd -l root
-arch-chroot /mnt ln -s /dev/null /root/.bash_history
+arch-chroot /mnt passwd --lock root
+arch-chroot /mnt ln --symbolic /dev/null /root/.bash_history
 
-if [[ "${NIC}" = w* ]]; then
-	arch-chroot /mnt pacman --noconfirm -S wpa_supplicant
-	arch-chroot /mnt tee "/etc/wpa_supplicant/wpa_supplicant-${NIC}.conf" <<-EOF
+if [[ "${interface}" == w* ]]; then
+  arch-chroot /mnt pacman --noconfirm --sync wpa_supplicant
+  arch-chroot /mnt tee "/etc/wpa_supplicant/wpa_supplicant-${interface}.conf" <<- EOF
 		ctrl_interface=/run/wpa_supplicant
-		ctrl_interface_group=${USER}
+		ctrl_interface_group=${user}
 		update_config=1
 	EOF
-	arch-chroot /mnt chmod u=rw,go= "/etc/wpa_supplicant/wpa_supplicant-${NIC}.conf"
-	arch-chroot /mnt tee /usr/local/bin/wpa_cli <<-EOF
+  arch-chroot /mnt chmod u=rw,go= "/etc/wpa_supplicant/wpa_supplicant-${interface}.conf"
+  arch-chroot /mnt tee /usr/local/bin/wpa_cli <<- EOF
 		#!/bin/bash
 
-		/usr/bin/wpa_cli -i ${NIC}
+		/usr/bin/wpa_cli -i ${interface}
 	EOF
-	arch-chroot /mnt chmod +x /usr/local/bin/wpa_cli
-	arch-chroot /mnt systemctl enable "wpa_supplicant@${NIC}.service"
+  arch-chroot /mnt chmod +x /usr/local/bin/wpa_cli
+  arch-chroot /mnt systemctl enable "wpa_supplicant@${interface}.service"
 fi
 
-unset MICROCODE_IMAGE
-if [[ "$(</sys/devices/virtual/dmi/id/sys_vendor)" != QEMU ]]; then
-	case "$(lscpu | awk 'BEGIN { FS=":[[:space:]]*" } $1 == "Vendor ID" { print $2 }')" in
-		"AuthenticAMD")
-			arch-chroot /mnt pacman --noconfirm -S amd-ucode
-			MICROCODE_IMAGE="amd-ucode.img"
-			;;
-		"GenuineIntel")
-			arch-chroot /mnt pacman --noconfirm -S intel-ucode
-			MICROCODE_IMAGE="intel-ucode.img"
-			;;
-	esac
+unset microcode_image
+if [[ "$(< /sys/devices/virtual/dmi/id/sys_vendor)" != "QEMU" ]]; then
+  case "$(lscpu | awk 'BEGIN { FS=":[[:space:]]*" } $1 == "Vendor ID" { print $2 }')" in
+  "AuthenticAMD")
+    arch-chroot /mnt pacman --noconfirm --sync amd-ucode
+    microcode_image="amd-ucode.img"
+    ;;
+  "GenuineIntel")
+    arch-chroot /mnt pacman --noconfirm --sync intel-ucode
+    microcode_image="intel-ucode.img"
+    ;;
+  esac
 fi
+readonly microcode_image
 
-arch-chroot /mnt tee /etc/mkinitcpio.conf <<-EOF
+arch-chroot /mnt tee /etc/mkinitcpio.conf <<- EOF
 	MODULES=()
 	BINARIES=()
 	FILES=()
 	HOOKS=(base udev autodetect modconf block keyboard keymap encrypt filesystems fsck)
 EOF
-arch-chroot /mnt mkinitcpio -p linux
+arch-chroot /mnt mkinitcpio --preset linux
 
-while IFS= read -r ENTRY; do
-	if [[ "$(readlink -f "/dev/disk/by-uuid/${ENTRY}")" = "${SYSTEM_PARTITION}" ]]; then
-		SYSTEM_PARTITION_UUID="${ENTRY}"
-	fi
-	if [[ "$(readlink -f "/dev/disk/by-uuid/${ENTRY}")" = "$(readlink -f "/dev/mapper/${CRYPT_PARTITION_ID}")" ]]; then
-		CRYPT_PARTITION_UUID="${ENTRY}"
-	fi
-done <<< "$(ls /dev/disk/by-uuid)"
+while IFS= read -r partition; do
+  if [[ "$(readlink --canonicalize "/dev/disk/by-uuid/${partition}")" == "${system_partition}" ]]; then
+    system_partition_id="${partition}"
+  fi
+  if [[ "$(readlink --canonicalize "/dev/disk/by-uuid/${partition}")" == "$(readlink --canonicalize "/dev/mapper/${crypt_partition_id}")" ]]; then
+    crypt_partition_id="${partition}"
+  fi
+done < <(find /dev/disk/by-uuid/ -type l)
+readonly system_partition_id
+readonly crypt_partition_id
+
 if [[ -d /sys/firmware/efi/efivars ]]; then
-	arch-chroot /mnt pacman --noconfirm -S efibootmgr
-	arch-chroot /mnt bootctl install
-	arch-chroot /mnt tee /boot/loader/loader.conf <<-EOF
+  arch-chroot /mnt pacman --noconfirm --sync efibootmgr
+  arch-chroot /mnt bootctl install
+  arch-chroot /mnt tee /boot/loader/loader.conf <<- EOF
 		default default.conf
 		console-mode max
 		timeout 0
@@ -311,21 +320,21 @@ if [[ -d /sys/firmware/efi/efivars ]]; then
 		auto-firmware true
 		editor false
 	EOF
-	arch-chroot /mnt tee /boot/loader/entries/default.conf <<-EOF
+  arch-chroot /mnt tee /boot/loader/entries/default.conf <<- EOF
 		title Arch Linux
 		linux /vmlinuz-linux
 	EOF
-	if [[ -n "${MICROCODE_IMAGE:+SUBSTITUTION}" ]]; then
-		arch-chroot /mnt tee -a /boot/loader/entries/default.conf <<-EOF
-			initrd /${MICROCODE_IMAGE}
+  if [[ -n "${microcode_image:+substitution}" ]]; then
+    arch-chroot /mnt tee --append /boot/loader/entries/default.conf <<- EOF
+			initrd /${microcode_image}
 		EOF
-	fi
-	arch-chroot /mnt tee -a /boot/loader/entries/default.conf <<-EOF
+  fi
+  arch-chroot /mnt tee --append /boot/loader/entries/default.conf <<- EOF
 		initrd /initramfs-linux.img
-		options cryptdevice=UUID=${SYSTEM_PARTITION_UUID}:${CRYPT_PARTITION_ID}:allow-discards root=UUID=${CRYPT_PARTITION_UUID} rw quiet
+		options cryptdevice=UUID=${system_partition_id}:${crypt_partition_id}:allow-discards root=UUID=${crypt_partition_id} rw quiet
 	EOF
-	arch-chroot /mnt mkdir /etc/pacman.d/hooks
-	arch-chroot /mnt tee /etc/pacman.d/hooks/10-systemd-boot.hook <<-EOF
+  arch-chroot /mnt mkdir --parents /etc/pacman.d/hooks/
+  arch-chroot /mnt tee /etc/pacman.d/hooks/10-systemd-boot.hook <<- EOF
 		[Trigger]
 		Type = Package
 		Operation = Upgrade
@@ -336,16 +345,16 @@ if [[ -d /sys/firmware/efi/efivars ]]; then
 		Exec = /usr/bin/bootctl update
 	EOF
 else
-	arch-chroot /mnt pacman --noconfirm -S grub
-	arch-chroot /mnt tee /etc/default/grub <<-EOF
+  arch-chroot /mnt pacman --noconfirm --sync grub
+  arch-chroot /mnt tee /etc/default/grub <<- EOF
 		GRUB_DISTRIBUTOR="Arch"
 		GRUB_DEFAULT=0
 		GRUB_TIMEOUT=0
 		GRUB_TIMEOUT_STYLE=hidden
 		GRUB_DISABLE_RECOVERY=true
-		GRUB_CMDLINE_LINUX="cryptdevice=UUID=${SYSTEM_PARTITION_UUID}:${CRYPT_PARTITION_ID}:allow-discards"
+		GRUB_CMDLINE_LINUX="cryptdevice=UUID=${system_partition_id}:${crypt_partition_id}:allow-discards"
 		GRUB_CMDLINE_LINUX_DEFAULT="quiet"
 	EOF
-	arch-chroot /mnt grub-install "${DISK}"
-	arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
+  arch-chroot /mnt grub-install "${disk}"
+  arch-chroot /mnt grub-mkconfig --output=/boot/grub/grub.cfg
 fi
