@@ -1,0 +1,177 @@
+#!/bin/bash
+
+if ! sudo true; then
+  exit 1
+fi
+
+sudo pacman --noconfirm --sync --refresh efitools sbsigntools
+
+readonly GUID="$(uuidgen --random)"
+readonly MICROSOFT_GUID="77fa9abd-0359-4d32-bd60-28f4e78f784b"
+
+function create_certificate() {
+  local name="$1"
+  local certificate="$2"
+  local key="$3"
+
+  openssl req -newkey rsa:4096 -nodes -keyout "${key}" -new -x509 -sha256 -days 3650 -subj "/CN=${name}" -out "${certificate}" 2>/dev/null
+}
+
+temporary_files=()
+trap "{ rm \${temporary_files[@]}; }" EXIT
+
+readonly platform_certificate="$(mktemp)" && temporary_files+=("${platform_certificate}")
+readonly platform_key="$(mktemp)" && temporary_files+=("${platform_key}")
+readonly platform_signature="$(mktemp)" && temporary_files+=("${platform_signature}")
+readonly platform_signature_signed="$(mktemp)" && temporary_files+=("${platform_signature_signed}")
+create_certificate "Arch Linux Platform Key" "${platform_certificate}" "${platform_key}"
+cert-to-efi-sig-list -g "${GUID}" "${platform_certificate}" "${platform_signature}"
+sign-efi-sig-list -g "${GUID}" -k "${platform_key}" -c "${platform_certificate}" PK "${platform_signature}" "${platform_signature_signed}"
+
+if ! sudo efi-updatevar -f "${platform_signature_signed}" PK; then
+  printf "Failed to update platform key\n"
+  exit 1
+fi
+
+readonly kernel_certificate="$(mktemp)" && temporary_files+=("${kernel_certificate}")
+readonly kernel_key="$(mktemp)" && temporary_files+=("${kernel_key}")
+readonly kernel_signature="$(mktemp)" && temporary_files+=("${kernel_signature}")
+create_certificate "Arch Linux Signature Key" "${kernel_certificate}" "${kernel_key}"
+cert-to-efi-sig-list -g "${GUID}" "${kernel_certificate}" "${kernel_signature}"
+
+signatures=("${kernel_signature}")
+
+read -r -p "Add Microsoft Windows Production signature? [Y/n] "
+if [[ "${REPLY}" =~ ^[Yy]$ ]]; then
+  readonly microsoft_production_certificate_binary="$(mktemp)" && temporary_files+=("${microsoft_production_certificate_binary}")
+  readonly microsoft_production_certificate="$(mktemp)" && temporary_files+=("${microsoft_production_certificate}")
+  readonly microsoft_production_signature="$(mktemp)" && temporary_files+=("${microsoft_production_signature}")
+  if ! curl -f -L -s "https://go.microsoft.com/fwlink/p/?linkid=321192" >"${microsoft_production_certificate_binary}"; then
+    printf "Failed to download Microsoft Windows Production certificate\n"
+    exit 1
+  fi
+  openssl x509 -in "${microsoft_production_certificate_binary}" -inform DER -out "${microsoft_production_certificate}" -outform PEM
+  cert-to-efi-sig-list -g "${MICROSOFT_GUID}" "${microsoft_production_certificate}" "${microsoft_production_signature}"
+  signatures+=("${microsoft_production_signature}")
+fi
+
+read -r -p "Add Microsoft Microsoft UEFI signature? [Y/n] "
+if [[ "${REPLY}" =~ ^[Yy]$ ]]; then
+  readonly microsoft_uefi_certificate_binary="$(mktemp)" && temporary_files+=("${microsoft_uefi_certificate_binary}")
+  readonly microsoft_uefi_certificate="$(mktemp)" && temporary_files+=("${microsoft_uefi_certificate}")
+  readonly micrososft_uefi_signature="$(mktemp)" && temporary_files+=("${micrososft_uefi_signature}")
+  if ! curl -f -L -s https://go.microsoft.com/fwlink/p/?linkid=321194 >"${microsoft_uefi_certificate_binary}"; then
+    printf "Failed to download Microsoft UEFI certificate\n"
+    exit 1
+  fi
+  openssl x509 -in "${microsoft_uefi_certificate_binary}" -inform DER -out "${microsoft_uefi_certificate}" -outform PEM
+  cert-to-efi-sig-list -g "${MICROSOFT_GUID}" "${microsoft_uefi_certificate}" "${micrososft_uefi_signature}"
+  signatures+=("${micrososft_uefi_signature}")
+fi
+
+readonly all_signatures="$(mktemp)" && temporary_files+=("${all_signatures}")
+readonly all_signatures_signed="$(mktemp)" && temporary_files+=("${all_signatures_signed}")
+cat "${signatures[@]}" >"${all_signatures}"
+sign-efi-sig-list -g "${GUID}" -k "${platform_key}" -c "${platform_certificate}" db "${all_signatures}" "${all_signatures_signed}"
+
+if ! sudo efi-updatevar -f "${all_signatures_signed}" db; then
+  printf "Failed to update signature database\n"
+  exit 1
+fi
+
+sudo mkdir --parents /etc/secure-boot/
+sudo cp "${kernel_certificate}" /etc/secure-boot/db.crt
+sudo cp "${kernel_key}" /etc/secure-boot/db.key
+sudo chmod u=r,go= /etc/secure-boot/db.crt /etc/secure-boot/db.key
+
+sudo mkdir --parents /etc/kernel/
+IFS=" " read -r -a ns </proc/cmdline
+buffer=()
+for n in "${ns[@]}"; do
+  if [[ "${n}" != initrd* ]]; then
+    buffer+=("${n}")
+  fi
+done
+sudo tee /etc/kernel/cmdline <<<"${buffer[*]}"
+
+microcodes=()
+if pacman -Q amd-ucode 2>/dev/null; then
+  microcodes+=("/boot/amd-ucode.img")
+fi
+if pacman -Q intel-ucode 2>/dev/null; then
+  microcodes+=("/boot/intel-ucode.img")
+fi
+
+sudo tee /etc/mkinitcpio.d/linux.preset <<-EOF
+  ALL_config="/etc/mkinitcpio.conf"
+  ALL_kver="/boot/vmlinuz-linux"
+  ALL_microcode="${microcodes[*]}"
+
+  PRESETS=("default" "fallback")
+
+  default_image="/boot/initramfs-linux.img"
+  default_efi_image="/boot/EFI/Linux/archlinux-linux.efi"
+
+  fallback_image="/boot/initramfs-linux-fallback.img"
+  fallback_options="-S autodetect"
+  fallback_efi_image="/boot/EFI/Linux/archlinux-linux-fallback.efi"
+EOF
+sudo mkinitcpio -p linux
+
+sudo sbsign --cert /etc/secure-boot/db.crt --key /etc/secure-boot/db.key --output /boot/EFI/Linux/archlinux-linux.efi /boot/EFI/Linux/archlinux-linux.efi
+sudo sbsign --cert /etc/secure-boot/db.crt --key /etc/secure-boot/db.key --output /boot/EFI/Linux/archlinux-linux-fallback.efi /boot/EFI/Linux/archlinux-linux-fallback.efi
+
+sudo mkdir -p "/etc/pacman.d/hooks/"
+sudo tee /etc/pacman.d/hooks/91-linux.hook <<-EOF
+[Trigger]
+Type = Path
+Operation = Install
+Operation = Upgrade
+Target = usr/lib/modules/*/vmlinuz
+Target = usr/lib/initcpio/*
+
+[Action]
+When = PostTransaction
+Exec = /usr/bin/sbsign --cert /etc/secure-boot/db.crt --key /etc/secure-boot/db.key --output /boot/EFI/Linux/archlinux-linux.efi /boot/EFI/Linux/archlinux-linux.efi
+EOF
+sudo tee /etc/pacman.d/hooks/92-linux-fallback.hook <<-EOF
+[Trigger]
+Type = Path
+Operation = Install
+Operation = Upgrade
+Target = usr/lib/modules/*/vmlinuz
+Target = usr/lib/initcpio/*
+
+[Action]
+When = PostTransaction
+Exec = /usr/bin/sbsign --cert /etc/secure-boot/db.crt --key /etc/secure-boot/db.key --output /boot/EFI/Linux/archlinux-linux-fallback.efi /boot/EFI/Linux/archlinux-linux-fallback.efi
+EOF
+
+while read -r n; do
+  sudo efibootmgr --bootnum "${n}" --delete-bootnum
+done < <(efibootmgr | awk 'match($1, /^Boot([0-9A-F]{4})\*?$/, groups) { print groups[1] }')
+readonly path="$(readlink --canonicalize "/dev/disk/by-uuid/$(awk --field-separator="\\\s+" '$2 == "/boot" { split($1, r, "="); print r[2] }' /etc/fstab)")"
+if [[ "${path}" == *nvm* ]]; then
+  readonly disk="${path:0:-2}"
+else
+  readonly disk="${path:0:-1}"
+fi
+readonly part="${path: -1}"
+sudo efibootmgr --disk "${disk}" --part "${part}" --create --label "Arch Linux" --loader EFI/Linux/archlinux-linux.efi --create-only
+sudo efibootmgr --disk "${disk}" --part "${part}" --create --label "Arch Linux Fallback" --loader EFI/Linux/archlinux-linux-fallback.efi --create-only
+sudo efibootmgr -o "0000,0001"
+
+if [[ -f /boot/EFI/BOOT/BOOTX64.EFI ]]; then
+  read -r -p "Delete boot manager? [Y/n] "
+  if [[ "${REPLY}" =~ ^[Yy]$ ]]; then
+    sudo bootctl remove
+    if [[ -d /boot/loader ]]; then
+      sudo rm -r /boot/loader
+    fi
+    if [[ -f /etc/pacman.d/hooks/10-systemd-boot.hook ]]; then
+      sudo rm /etc/pacman.d/hooks/10-systemd-boot.hook
+    fi
+  else
+    sudo efibootmgr --disk "${disk}" --part "${part}" --create --label "Linux Boot Manager" --loader EFI/BOOT/BOOTX64.EFI --create-only
+  fi
+fi
