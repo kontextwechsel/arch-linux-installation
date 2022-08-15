@@ -25,6 +25,7 @@ sudo pacman --sync --refresh acpilight
 sudo usermod --append --groups video "${USER}"
 
 mkdir --parents "${HOME}/.local/bin/"
+mkdir --parents "${HOME}/.local/share/bash-completion/completions/"
 tee "${HOME}/.local/bin/backlight" <<EOF
 #!/bin/bash
 
@@ -56,6 +57,12 @@ if [[ "\${brightness}" != "\$(xbacklight -get)" ]]; then
   printf "%s\n" "\${brightness}" > "\${HOME}/.brightness"
   killall -USR1 i3status
 fi
+EOF
+tee "${HOME}/.local/share/bash-completion/completions/backlight" <<EOF
+function _backlight() {
+  readarray -t COMPREPLY < <(compgen -W "--increment --decrement --reset" -- "\${COMP_WORDS[\${COMP_CWORD}]}")
+}
+complete -F _backlight backlight
 EOF
 chmod +x "${HOME}/.local/bin/backlight"
 

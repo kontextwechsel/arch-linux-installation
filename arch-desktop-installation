@@ -283,6 +283,7 @@ sudo tee /etc/xdg/mimeapps.list <<- EOF
 EOF
 
 mkdir --parents "${HOME}/.local/bin/"
+mkdir --parents "${HOME}/.local/share/bash-completion/completions/"
 tee "${HOME}/.local/bin/application-launcher" <<- EOF
 	#!/bin/bash
 
@@ -341,6 +342,42 @@ tee "${HOME}/.local/bin/application-launcher" <<- EOF
 	  fi
 	fi
 EOF
+tee "${HOME}/.local/share/bash-completion/completions/application-launcher" <<-EOF
+	function _application-launcher() {
+	  if [[ "\${COMP_CWORD}" -eq 1 ]]; then
+	    for option in \$(compgen -W "--add --remove --list" -- "\${COMP_WORDS[\${COMP_CWORD}]}"); do
+	      COMPREPLY+=("\${option} ")
+	    done
+	  else
+	    if [[ "\${COMP_WORDS[1]}" = "--add" ]]; then
+	      if [[ "\${COMP_CWORD}" -eq 2 ]]; then
+	        if [[ -n "\${COMP_WORDS[2]}" ]]; then
+	          COMPREPLY=("\${COMP_WORDS[2]} ")
+	        fi
+	      elif [[ "\${COMP_CWORD}" -eq 3 ]]; then
+	        for file in \$(compgen -f -- "\${COMP_WORDS[\${COMP_CWORD}]}"); do
+	          if [[ -d "\${file}" ]]; then
+	            COMPREPLY+=("\${file}/")
+	          elif [[ -x "\${file}" ]]; then
+	            COMPREPLY+=("\${file} ")
+	          fi
+	        done
+	      else
+	        if [[ -n "\${COMP_WORDS[\${COMP_CWORD}]}" ]]; then
+	          COMPREPLY=("\${COMP_WORDS[\${COMP_CWORD}]} ")
+	        fi
+	      fi
+	    elif [[ "\${COMP_WORDS[1]}" = "--remove" ]]; then
+	      if [[ "\${COMP_CWORD}" -eq 2 ]]; then
+	        for application in \$(compgen -W "\$(application-launcher --list | awk '{ print \$1 }')" -- "\${COMP_WORDS[\${COMP_CWORD}]}"); do
+	          COMPREPLY+=("\${application} ")
+	        done
+	      fi
+	    fi
+	  fi
+	}
+	complete -o nospace -F _application-launcher application-launcher
+EOF
 chmod +x "${HOME}/.local/bin/application-launcher"
 
 tee "${HOME}/.local/bin/display-configuration" <<- EOF
@@ -355,6 +392,9 @@ tee "${HOME}/.local/bin/display-configuration" <<- EOF
 	else
 	  xsetroot -grey
 	fi
+EOF
+tee "${HOME}/.local/share/bash-completion/completions/display-configuration" <<-EOF
+	complete display-configuration
 EOF
 chmod +x "${HOME}/.local/bin/display-configuration"
 
@@ -384,6 +424,12 @@ tee "${HOME}/.local/bin/screenshot" <<- EOF
 
 	scrot "\${args[@]}" "\${FILENAME}"
 EOF
+tee "${HOME}/.local/share/bash-completion/completions/screenshot" <<-EOF
+	function _screenshot() {
+	  readarray -t COMPREPLY < <(compgen -W "--clipboard --select" -- "\${COMP_WORDS[\${COMP_CWORD}]}")
+	}
+	complete -F _screenshot screenshot
+EOF
 chmod +x "${HOME}/.local/bin/screenshot"
 
 mkdir --parents "${HOME}/.config/application-launcher/"
@@ -404,8 +450,8 @@ tee "${HOME}/.xinitrc" <<- EOF
 	xrdb -merge "\${HOME}/.Xresources"
 	mkdir --parents "/run/user/\${UID}/i3/"
 	mkdir --parents "/run/user/\${UID}/i3status/"
-	awk 'NR != 1 && FNR == 1 { printf "\n" } { print }' "\${HOME}/.config/i3.d/"* > "/run/user/\${UID}/i3/config"
-	awk 'NR != 1 && FNR == 1 { printf "\n" } { print }' "\${HOME}/.config/i3status.d/"* > "/run/user/\${UID}/i3status/config"
+	awk 'NR!=1 && FNR==1 { printf "\n" } { print }' "\${HOME}/.config/i3.d/"* > "/run/user/\${UID}/i3/config"
+	awk 'NR!=1 && FNR==1 { printf "\n" } { print }' "\${HOME}/.config/i3status.d/"* > "/run/user/\${UID}/i3status/config"
 	exec /usr/bin/i3 -c "/run/user/\${UID}/i3/config"  > /dev/null 2>&1
 EOF
 
