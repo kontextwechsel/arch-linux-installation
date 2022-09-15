@@ -298,16 +298,16 @@ arch-chroot /mnt tee /etc/mkinitcpio.conf <<- EOF
 EOF
 arch-chroot /mnt mkinitcpio --preset linux
 
-while IFS= read -r partition; do
-  if [[ "$(readlink --canonicalize "/dev/disk/by-uuid/${partition}")" == "${system_partition}" ]]; then
-    system_partition_id="${partition}"
+while IFS= read -r uuid; do
+  if [[ "$(readlink --canonicalize "/dev/disk/by-uuid/${uuid}")" == "${system_partition}" ]]; then
+    system_partition_id="${uuid}"
   fi
-  if [[ "$(readlink --canonicalize "/dev/disk/by-uuid/${partition}")" == "$(readlink --canonicalize "/dev/mapper/${crypt_partition_id}")" ]]; then
-    crypt_partition_id="${partition}"
+  if [[ "$(readlink --canonicalize "/dev/disk/by-uuid/${uuid}")" == "$(readlink --canonicalize "/dev/mapper/${crypt_partition_id}")" ]]; then
+    device_mapper_id="${uuid}"
   fi
-done < <(find /dev/disk/by-uuid/ -type l)
+done < <(ls -1 /dev/disk/by-uuid/)
 readonly system_partition_id
-readonly crypt_partition_id
+readonly device_mapper_id
 
 if [[ -d /sys/firmware/efi/efivars ]]; then
   arch-chroot /mnt pacman --noconfirm --sync efibootmgr
@@ -331,7 +331,7 @@ if [[ -d /sys/firmware/efi/efivars ]]; then
   fi
   arch-chroot /mnt tee --append /boot/loader/entries/default.conf <<- EOF
 		initrd /initramfs-linux.img
-		options cryptdevice=UUID=${system_partition_id}:${crypt_partition_id}:allow-discards root=UUID=${crypt_partition_id} rw quiet
+		options cryptdevice=UUID=${system_partition_id}:${crypt_partition_id}:allow-discards root=UUID=${device_mapper_id} rw quiet
 	EOF
   arch-chroot /mnt mkdir --parents /etc/pacman.d/hooks/
   arch-chroot /mnt tee /etc/pacman.d/hooks/10-systemd-boot.hook <<- EOF
