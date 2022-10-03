@@ -110,16 +110,16 @@ sudo tee /etc/mkinitcpio.d/linux.preset <<-EOF
   PRESETS=("default" "fallback")
 
   default_image="/boot/initramfs-linux.img"
-  default_efi_image="/boot/EFI/Linux/archlinux-linux.efi"
+  default_efi_image="/boot/EFI/Linux/arch-linux.efi"
 
   fallback_image="/boot/initramfs-linux-fallback.img"
   fallback_options="-S autodetect"
-  fallback_efi_image="/boot/EFI/Linux/archlinux-linux-fallback.efi"
+  fallback_efi_image="/boot/EFI/Linux/arch-linux-fallback.efi"
 EOF
 sudo mkinitcpio -p linux
 
-sudo sbsign --cert /etc/secure-boot/db.crt --key /etc/secure-boot/db.key --output /boot/EFI/Linux/archlinux-linux.efi /boot/EFI/Linux/archlinux-linux.efi
-sudo sbsign --cert /etc/secure-boot/db.crt --key /etc/secure-boot/db.key --output /boot/EFI/Linux/archlinux-linux-fallback.efi /boot/EFI/Linux/archlinux-linux-fallback.efi
+sudo sbsign --cert /etc/secure-boot/db.crt --key /etc/secure-boot/db.key --output /boot/EFI/Linux/arch-linux.efi /boot/EFI/Linux/arch-linux.efi
+sudo sbsign --cert /etc/secure-boot/db.crt --key /etc/secure-boot/db.key --output /boot/EFI/Linux/arch-linux-fallback.efi /boot/EFI/Linux/arch-linux-fallback.efi
 
 sudo mkdir -p "/etc/pacman.d/hooks/"
 sudo tee /etc/pacman.d/hooks/91-linux.hook <<-EOF
@@ -132,7 +132,7 @@ Target = usr/lib/initcpio/*
 
 [Action]
 When = PostTransaction
-Exec = /usr/bin/sbsign --cert /etc/secure-boot/db.crt --key /etc/secure-boot/db.key --output /boot/EFI/Linux/archlinux-linux.efi /boot/EFI/Linux/archlinux-linux.efi
+Exec = /usr/bin/sbsign --cert /etc/secure-boot/db.crt --key /etc/secure-boot/db.key --output /boot/EFI/Linux/arch-linux.efi /boot/EFI/Linux/arch-linux.efi
 EOF
 sudo tee /etc/pacman.d/hooks/92-linux-fallback.hook <<-EOF
 [Trigger]
@@ -144,7 +144,7 @@ Target = usr/lib/initcpio/*
 
 [Action]
 When = PostTransaction
-Exec = /usr/bin/sbsign --cert /etc/secure-boot/db.crt --key /etc/secure-boot/db.key --output /boot/EFI/Linux/archlinux-linux-fallback.efi /boot/EFI/Linux/archlinux-linux-fallback.efi
+Exec = /usr/bin/sbsign --cert /etc/secure-boot/db.crt --key /etc/secure-boot/db.key --output /boot/EFI/Linux/arch-linux-fallback.efi /boot/EFI/Linux/arch-linux-fallback.efi
 EOF
 
 while read -r n; do
@@ -157,8 +157,8 @@ else
   readonly disk="${path:0:-1}"
 fi
 readonly part="${path: -1}"
-sudo efibootmgr --disk "${disk}" --part "${part}" --create --label "Arch Linux" --loader EFI/Linux/archlinux-linux.efi --create-only
-sudo efibootmgr --disk "${disk}" --part "${part}" --create --label "Arch Linux Fallback" --loader EFI/Linux/archlinux-linux-fallback.efi --create-only
+sudo efibootmgr --disk "${disk}" --part "${part}" --create --label "Arch Linux" --loader EFI/Linux/arch-linux.efi --create-only
+sudo efibootmgr --disk "${disk}" --part "${part}" --create --label "Arch Linux Fallback" --loader EFI/Linux/arch-linux-fallback.efi --create-only
 sudo efibootmgr -o "0000,0001"
 
 if [[ -f /boot/EFI/BOOT/BOOTX64.EFI ]]; then
