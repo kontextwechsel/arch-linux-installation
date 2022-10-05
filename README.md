@@ -37,38 +37,50 @@ mkdir --parents "${HOME}/.local/share/bash-completion/completions/"
 tee "${HOME}/.local/bin/backlight" <<EOF
 #!/bin/bash
 
-brightness="\$(xbacklight -get)"
-while [[ "\$#" -gt 0 ]]; do
-  case "\$1" in
-        -i | --increment)
-            brightness="\$(("\${brightness}" > 90 ? 100 : "\${brightness}" + 10))"
-            shift
-            ;;
-        -d | --decrement)
-            brightness="\$(("\${brightness}" < 10 ? 0 : "\${brightness}" - 10))"
-            shift
-            ;;
-        -r | --reset)
-            if [[ -f "\${HOME}/.brightness" ]]; then
-                brightness="\$(< "\${HOME}/.brightness")"
-            fi
-            shift
-            ;;
-        *)
-      printf "Usage: backlight [--increment|--decrement|--reset]\n"
-            exit 1
-    esac
-done
+readonly brightness="\$(xbacklight -get)"
 
-if [[ "\${brightness}" != "\$(xbacklight -get)" ]]; then
-    xbacklight -set "\${brightness}"
-    printf "%s\n" "\${brightness}" > "\${HOME}/.brightness"
-    killall -USR1 i3status
+function set_brightness() {
+  xbacklight -set "\$1"
+  printf "%s\n" "\$1" > "\${HOME}/.brightness"
+  killall -USR1 i3status
+}
+
+if [[ "\$#" -eq 1 ]]; then
+  case "\$1" in
+    -i | --increment)
+      set_brightness "\$(("\${brightness}" > 90 ? 100 : "\${brightness}" + 10))"
+      exit
+      ;;
+    -d | --decrement)
+      set_brightness "\$(("\${brightness}" < 10 ? 0 : "\${brightness}" - 10))"
+      exit
+      ;;
+    -r | --reset)
+      set -x
+      if [[ -f "\${HOME}/.brightness" ]]; then
+        value="\$(< "\${HOME}/.brightness")"
+      else
+        value="\${brightness}"
+      fi
+      if [[ "\${value}" =~ ^([1-9]?[0-9]|100)\$ ]]; then
+        set_brightness "\${value}"
+      else
+        set_brightness "\${brightness}"
+      fi
+      set +x
+      exit
+      ;;
+  esac
 fi
+
+printf "Usage: backlight [--increment|--decrement|--reset]\n"
+exit 1
 EOF
 tee "${HOME}/.local/share/bash-completion/completions/backlight" <<EOF
 function _backlight() {
-  readarray -t COMPREPLY < <(compgen -W "--increment --decrement --reset" -- "\${COMP_WORDS[\${COMP_CWORD}]}")
+  if [[ "${COMP_CWORD}" -eq 1 ]]; then
+    readarray -t COMPREPLY < <(compgen -W "--increment --decrement --reset" -- "\${COMP_WORDS[\${COMP_CWORD}]}")
+  fi
 }
 complete -F _backlight backlight
 EOF
