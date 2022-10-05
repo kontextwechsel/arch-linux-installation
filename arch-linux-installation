@@ -82,8 +82,8 @@ if [[ -z "${tz}" ]]; then
 fi
 
 buffer=(
-  "de" "German (ISO)" "ON"
-  "us" "English (ANSI)" "OFF"
+  "us" "English (ANSI)" "ON"
+  "de" "German (ISO)" "OFF"
 )
 size="$(("${#buffer[@]}" / 3))"
 readonly keymap="$(whiptail --title "Arch Linux" --radiolist --notags "Keyboard layout" "$(("${size}" + 7))" "${DEFAULT_WIDTH}" "${size}" "${buffer[@]}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
@@ -157,6 +157,15 @@ arch-chroot /mnt tee /etc/timezone <<- EOF
 EOF
 
 arch-chroot /mnt mkdir --parents /usr/local/share/kbd/keymaps/
+arch-chroot /mnt tee /usr/local/share/kbd/keymaps/us.map <<- EOF
+	include "/usr/share/kbd/keymaps/i386/qwerty/us.map.gz"
+	keymaps 0-3
+	keycode 18 = e E euro
+	keycode 22 = u U +udiaeresis +Udiaeresis
+	keycode 24 = o O +odiaeresis +Odiaeresis
+	keycode 30 = a A +adiaeresis +Adiaeresis
+	keycode 31 = s S ssharp
+EOF
 arch-chroot /mnt tee /usr/local/share/kbd/keymaps/de.map <<- EOF
 	include "/usr/share/kbd/keymaps/i386/qwertz/de.map.gz"
 	keycode 12 = ssharp question backslash
@@ -166,15 +175,6 @@ arch-chroot /mnt tee /usr/local/share/kbd/keymaps/de.map <<- EOF
 	keycode 39 = +odiaeresis +Odiaeresis
 	keycode 40 = +adiaeresis +Adiaeresis
 	keycode 41 = asciicircum degree
-EOF
-arch-chroot /mnt tee /usr/local/share/kbd/keymaps/us.map <<- EOF
-	include "/usr/share/kbd/keymaps/i386/qwerty/us.map.gz"
-	keymaps 0-3
-	keycode 18 = e E euro
-	keycode 22 = u U +udiaeresis +Udiaeresis
-	keycode 24 = o O +odiaeresis +Odiaeresis
-	keycode 30 = a A +adiaeresis +Adiaeresis
-	keycode 31 = s S ssharp
 EOF
 arch-chroot /mnt tee /etc/vconsole.conf <<- EOF
 	KEYMAP=/usr/local/share/kbd/keymaps/${keymap}.map

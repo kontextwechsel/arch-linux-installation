@@ -160,11 +160,7 @@ EOF
 sudo systemctl enable sshd.service
 
 sudo tee /usr/share/X11/xkb/symbols/default <<-EOF
-	xkb_symbols "de" {
-	    include "de(nodeadkeys)"
-	    include "kpdl(dot)"
-	    include "default(arrow)"
-	};
+	default partial alphanumeric_keys
 	xkb_symbols "us" {
 	    include "us(basic)"
 	    include "level3(ralt_switch)"
@@ -175,17 +171,26 @@ sudo tee /usr/share/X11/xkb/symbols/default <<-EOF
 	    key <AD09> {[ o, O, odiaeresis, Odiaeresis ]};
 	    include "default(arrow)"
 	};
-	partial xkb_symbols "arrow" {
+
+	partial alphanumeric_keys
+	xkb_symbols "de" {
+	    include "de(nodeadkeys)"
+	    include "kpdl(dot)"
+	    include "default(arrow)"
+	};
+
+	partial
+	xkb_symbols "arrow" {
 	    key <LEFT> {[ Left, Left, U2190 ]};
 	    key <UP> {[ Up, Up, U2191 ]};
 	    key <RGHT> {[ Right, Right, U2192 ]};
 	    key <DOWN> {[ Down, Down, U2193 ]};
 	};
 EOF
-if [[ "$(basename "$(awk --field-separator "=" '{ $1 == "KEYMAP"; print $2 }' /etc/vconsole.conf)" ".map")" == "de" ]]; then
-  variants="de,us"
-else
+if [[ "$(basename "$(awk --field-separator "=" '{ $1 == "KEYMAP"; print $2 }' /etc/vconsole.conf)" ".map")" == "us" ]]; then
   variants="us,de"
+else
+  variants="de,us"
 fi
 readonly variants
 sudo tee /etc/X11/xorg.conf.d/10-keyboard.conf <<- EOF
