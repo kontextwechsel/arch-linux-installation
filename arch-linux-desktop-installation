@@ -886,9 +886,9 @@ tee "${HOME}/.config/alacritty/alacritty.yml" <<- EOF
 	    focused_match:
 	      foreground: "#f7f7f7"
 	      background: "#2aa198"
-	    bar:
-	      foreground: "#282828"
-	      background: "#f7f7f7"
+	  footer_bar:
+	    foreground: "#282828"
+	    background: "#f7f7f7"
 	  hints:
 	    start:
 	      foreground: "#f7f7f7"
