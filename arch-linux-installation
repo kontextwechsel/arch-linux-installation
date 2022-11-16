@@ -70,7 +70,13 @@ fi
 
 readonly password="$(whiptail --title "Arch Linux" --passwordbox "Password" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
 if [[ ! "${password}" =~ ^.{6,}$ ]]; then
-  whiptail --title "Arch Linux" --msgbox "Invalid password" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
+  whiptail --title "Arch Linux" --msgbox "Invalid password: min. length 6 characters" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
+  exit 1
+fi
+
+readonly disk_encryption_password="$(whiptail --title "Arch Linux" --passwordbox "Disk Encryption Password" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
+if [[ ! "${disk_encryption_password}" =~ ^.{6,}$ ]]; then
+  whiptail --title "Arch Linux" --msgbox "Invalid disk encryption password: min. length 6 characters" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
   exit 1
 fi
 
@@ -116,12 +122,12 @@ else
   mkfs.ext4 "${boot_partition}"
 fi
 cryptsetup --batch-mode luksFormat "${system_partition}" <<- EOF
-	${password}
-	${password}
+	${disk_encryption_password}
+	${disk_encryption_password}
 EOF
 readonly crypt_partition_id="$(uuidgen)"
 cryptsetup open "${system_partition}" "${crypt_partition_id}" <<- EOF
-	${password}
+	${disk_encryption_password}
 EOF
 mkfs.ext4 "/dev/mapper/${crypt_partition_id}"
 mount "/dev/mapper/${crypt_partition_id}" /mnt
