@@ -123,8 +123,9 @@ readonly crypt_partition_id="$(uuidgen)"
 cryptsetup open "${system_partition}" "${crypt_partition_id}" <<- EOF
 	${password}
 EOF
-mkfs.ext4 "/dev/mapper/${crypt_partition_id}"
-mount "/dev/mapper/${crypt_partition_id}" /mnt
+readonly device_mapper="/dev/mapper/${crypt_partition_id}"
+mkfs.ext4 "${device_mapper}"
+mount "${device_mapper}" /mnt
 mkdir --parents /mnt/boot/
 mount "${boot_partition}" /mnt/boot
 
@@ -225,6 +226,7 @@ arch-chroot /mnt tee /etc/systemd/resolved.conf <<- EOF
 	FallbackDNS=
 EOF
 arch-chroot /mnt systemctl enable systemd-resolved.service
+# Use plain chroot since arch-chroot mounts resolv.conf of the host system
 chroot /mnt ln --symbolic --force /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 
 arch-chroot /mnt systemctl enable fstrim.timer
@@ -304,16 +306,8 @@ arch-chroot /mnt tee /etc/mkinitcpio.conf <<- EOF
 EOF
 arch-chroot /mnt mkinitcpio --preset linux
 
-while IFS= read -r uuid; do
-  if [[ "$(readlink --canonicalize "/dev/disk/by-uuid/${uuid}")" == "${system_partition}" ]]; then
-    system_partition_id="${uuid}"
-  fi
-  if [[ "$(readlink --canonicalize "/dev/disk/by-uuid/${uuid}")" == "$(readlink --canonicalize "/dev/mapper/${crypt_partition_id}")" ]]; then
-    device_mapper_id="${uuid}"
-  fi
-done < <(ls -1 /dev/disk/by-uuid/)
-readonly system_partition_id
-readonly device_mapper_id
+readonly system_partition_id="$(blkid -s UUID -o value" ${system_partition}")"
+readonly device_mapper_id="$(blkid -s UUID -o value "${device_mapper}")"
 
 if [[ -d /sys/firmware/efi/efivars ]]; then
   arch-chroot /mnt pacman --noconfirm --sync efibootmgr
@@ -337,7 +331,7 @@ if [[ -d /sys/firmware/efi/efivars ]]; then
   fi
   arch-chroot /mnt tee --append /boot/loader/entries/default.conf <<- EOF
 		initrd /initramfs-linux.img
-		options cryptdevice=UUID=${system_partition_id}:${crypt_partition_id}:allow-discards root=UUID=${device_mapper_id} rw quiet
+		options cryptdevice=UUID=${system_partition_id}:${device_mapper_id}:allow-discards root=UUID=${device_mapper_id} rw quiet
 	EOF
   arch-chroot /mnt mkdir --parents /etc/pacman.d/hooks/
   arch-chroot /mnt tee /etc/pacman.d/hooks/10-systemd-boot.hook <<- EOF
