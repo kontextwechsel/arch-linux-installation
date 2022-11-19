@@ -358,3 +358,7 @@ else
   arch-chroot /mnt grub-install "${disk}"
   arch-chroot /mnt grub-mkconfig --output=/boot/grub/grub.cfg
 fi
+
+umount --force --quiet /mnt/boot
+umount --force --quiet /mnt
+cryptsetup close "${device_mapper}"
