@@ -101,14 +101,14 @@ readonly boot_partition
 readonly system_partition
 
 if [[ -d /sys/firmware/efi/efivars ]]; then
-  parted --script "${disk}" mklabel gpt
+  parted --script "${disk}" mklabel gpt || exit 1
   parted --script "${disk}" mkpart EFI 4MiB 516MiB
   parted --script "${disk}" mkpart LINUX 516MiB 100%
   parted --script "${disk}" set 1 esp on
   partprobe "${disk}"
   mkfs.fat -F32 "${boot_partition}"
 else
-  parted --script "${disk}" mklabel msdos
+  parted --script "${disk}" mklabel msdos || exit 1
   parted --script "${disk}" mkpart primary 4MiB 516MiB
   parted --script "${disk}" mkpart primary 516MiB 100%
   parted --script "${disk}" set 1 boot on
@@ -128,6 +128,12 @@ mkfs.ext4 "${virtual_block_device}"
 mount "${virtual_block_device}" /mnt
 mkdir --parents /mnt/boot/
 mount "${boot_partition}" /mnt/boot
+
+function unmount_filesystems() {
+  umount --force --recursive --verbose /mnt
+  cryptsetup close "${crypt_partition_id}"
+}
+trap unmount_filesystems EXIT
 
 tee /etc/pacman.d/mirrorlist <<- EOF
 	Server = https://mirrors.kernel.org/archlinux/\$repo/os/\$arch
