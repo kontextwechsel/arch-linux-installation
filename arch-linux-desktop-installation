@@ -1016,7 +1016,8 @@ tee "${HOME}/.config/sublime-text/Packages/User/Preferences.sublime-settings" <<
 	    "scroll_speed": 0,
 	    "show_encoding": true,
 	    "show_line_endings": true,
-	    "trim_trailing_white_space_on_save": true
+	    "trim_trailing_white_space_on_save": true,
+	    "update_check": false
 	}
 EOF
 tee "${HOME}/.config/sublime-text/Packages/User/Default (Linux).sublime-keymap" <<- EOF
