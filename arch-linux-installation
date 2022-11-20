@@ -123,9 +123,9 @@ readonly crypt_partition_id="$(uuidgen)"
 cryptsetup open "${system_partition}" "${crypt_partition_id}" <<- EOF
 	${password}
 EOF
-readonly device_mapper="/dev/mapper/${crypt_partition_id}"
-mkfs.ext4 "${device_mapper}"
-mount "${device_mapper}" /mnt
+readonly virtual_block_device="/dev/mapper/${crypt_partition_id}"
+mkfs.ext4 "${virtual_block_device}"
+mount "${virtual_block_device}" /mnt
 mkdir --parents /mnt/boot/
 mount "${boot_partition}" /mnt/boot
 
@@ -306,8 +306,8 @@ arch-chroot /mnt tee /etc/mkinitcpio.conf <<- EOF
 EOF
 arch-chroot /mnt mkinitcpio --preset linux
 
-readonly system_partition_id="$(blkid -s UUID -o value" ${system_partition}")"
-readonly device_mapper_id="$(blkid -s UUID -o value "${device_mapper}")"
+readonly system_partition_id="$(blkid -s UUID -o value "${system_partition}")"
+readonly virtual_block_device_id="$(blkid -s UUID -o value "${virtual_block_device}")"
 
 if [[ -d /sys/firmware/efi/efivars ]]; then
   arch-chroot /mnt pacman --noconfirm --sync efibootmgr
@@ -331,7 +331,7 @@ if [[ -d /sys/firmware/efi/efivars ]]; then
   fi
   arch-chroot /mnt tee --append /boot/loader/entries/default.conf <<- EOF
 		initrd /initramfs-linux.img
-		options cryptdevice=UUID=${system_partition_id}:${device_mapper_id}:allow-discards root=UUID=${device_mapper_id} rw quiet
+		options cryptdevice=UUID=${system_partition_id}:${crypt_partition_id}:allow-discards root=UUID=${virtual_block_device_id} rw quiet
 	EOF
   arch-chroot /mnt mkdir --parents /etc/pacman.d/hooks/
   arch-chroot /mnt tee /etc/pacman.d/hooks/10-systemd-boot.hook <<- EOF
