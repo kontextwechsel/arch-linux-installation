@@ -62,23 +62,28 @@ if [[ ! "${hostname}" =~ ^[a-zA-Z0-9._-]+$ ]]; then
   exit 1
 fi
 
-readonly user="$(whiptail --title "Arch Linux" --inputbox "User" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
+readonly user="$(whiptail --title "Arch Linux" --inputbox "Username" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
 if [[ ! "${user}" =~ ^[a-z0-9_-]{1,30}$ ]]; then
   whiptail --title "Arch Linux" --msgbox "Invalid user" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
   exit 1
 fi
 
-readonly password="$(whiptail --title "Arch Linux" --passwordbox "Password" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
-if [[ ! "${password}" =~ ^.{6,}$ ]]; then
-  whiptail --title "Arch Linux" --msgbox "Invalid password: min. length 6 characters" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
+readonly user_password="$(whiptail --title "Arch Linux" --passwordbox "User password" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
+if [[ ! "${user_password}" =~ ^.{8,}$ ]]; then
+  whiptail --title "Arch Linux" --msgbox "Minimum password length is 8 characters" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
   exit 1
 fi
 
-readonly disk_encryption_password="$(whiptail --title "Arch Linux" --passwordbox "Disk Encryption Password" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
-if [[ ! "${disk_encryption_password}" =~ ^.{6,}$ ]]; then
-  whiptail --title "Arch Linux" --msgbox "Invalid disk encryption password: min. length 6 characters" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
-  exit 1
+if whiptail --title "Arch Linux" --yesno "Use password for disk encryption?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3; then
+  disk_encryption_password="${user_password}"
+else
+  disk_encryption_password="$(whiptail --title "Arch Linux" --passwordbox "Disk Encryption Password" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
+  if [[ ! "${disk_encryption_password}" =~ ^.{8,}$ ]]; then
+    whiptail --title "Arch Linux" --msgbox "Minimum password length is 8 characters" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
+    exit 1
+  fi
 fi
+readonly disk_encryption_password
 
 tz="$(whiptail --title "Arch Linux" --inputbox "Time zone" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" "Europe/Berlin" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
 readonly tz="$(timedatectl list-timezones | grep --ignore-case "^${tz}$")"
@@ -263,8 +268,8 @@ EOF
 
 arch-chroot /mnt useradd --create-home --shell /bin/bash "${user}"
 arch-chroot /mnt passwd "${user}" <<- EOF
-	${password}
-	${password}
+	${user_password}
+	${user_password}
 EOF
 arch-chroot /mnt tee "/etc/sudoers.d/${user}" <<- EOF
 	${user} ALL=(ALL) ALL
