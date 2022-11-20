@@ -273,7 +273,6 @@ arch-chroot /mnt passwd "${user}" <<- EOF
 EOF
 arch-chroot /mnt tee "/etc/sudoers.d/${user}" <<- EOF
 	${user} ALL=(ALL) ALL
-	${user} ALL=(ALL) NOPASSWD: /usr/bin/ip
 EOF
 arch-chroot /mnt chmod u=r,go= "/etc/sudoers.d/${user}"
 arch-chroot /mnt tee /etc/sudoers.d/umask <<- EOF
