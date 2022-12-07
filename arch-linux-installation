@@ -150,6 +150,7 @@ tee /etc/pacman.d/mirrorlist <<- EOF
 	Server = https://mirrors.kernel.org/archlinux/\$repo/os/\$arch
 	Server = https://mirrors.mit.edu/archlinux/\$repo/os/\$arch
 EOF
+pacman --sync --noconfirm archlinux-keyring
 pacman --sync --refresh --refresh
 
 readonly packages=(
