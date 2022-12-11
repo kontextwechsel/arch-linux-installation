@@ -61,7 +61,6 @@ readonly packages=(
   libnotify
   libreoffice-fresh
   lsof
-  man
   mkvtoolnix-cli
   mpv
   nmap
