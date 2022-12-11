@@ -3,9 +3,15 @@
 Arch Linux installation scripts for base system and desktop environment with i3 window manager.
 
 1. Boot Arch ISO (https://archlinux.org/download/) and connect to network.
-2. Execute **arch-linux-installation** to install base system and reboot.
-3. Execute **arch-linux-desktop-installation** to install desktop environment and reboot.
+2. Execute `arch-linux-installation` to install base system and reboot.
+3. Execute `arch-linux-desktop-installation` to install desktop environment and reboot.
 4. Press **Super** + **Enter** to open new terminal.
+
+## Applications
+
+Applications in **dmenu** can be maintained with `application-launcher`:
+
+`Usage: application-launcher [--add|--remove|--list] [APPLICATION] [EXECUTABLE] [ARGUMENTS...]`
 
 ## Color scheme
 
