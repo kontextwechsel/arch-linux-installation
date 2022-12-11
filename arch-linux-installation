@@ -161,6 +161,8 @@ readonly packages=(
   linux-firmware
   sudo
   vim
+  man-db
+  man-pages
 )
 pacstrap /mnt "${packages[@]}"
 genfstab -t UUID /mnt | tee /mnt/etc/fstab
