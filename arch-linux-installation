@@ -56,14 +56,6 @@ if (("${#buffer[@]}" == 0)); then
 fi
 size="$(("${#buffer[@]}" / 2))"
 readonly interface="$(whiptail --title "${TITLE}" --radiolist --noitem "Network interface" "$(("${size}" + 7))" "${DEFAULT_WIDTH}" "${size}" "${buffer[@]}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
-if [[ "${interface}" == w* ]]; then
-  readonly network_name="$(whiptail --title "${TITLE}" --inputbox "SSID" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
-  readonly network_password="$(whiptail --title "${TITLE}" --passwordbox "Password" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
-  if [[ ! "${network_password}" =~ ^.{6,}$ ]]; then
-  whiptail --title "${TITLE}" --msgbox "Minimum password length is 6 characters" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
-  exit 1
-  fi
-fi
 
 readonly hostname="$(whiptail --title "${TITLE}" --inputbox "Hostname" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
 if [[ ! "${hostname}" =~ ^[a-zA-Z0-9._-]+$ ]]; then
@@ -307,10 +299,6 @@ if [[ "${interface}" == w* ]]; then
 
 		/usr/bin/wpa_cli -i ${interface}
 	EOF
-  arch-chroot /mnt tee --append "/etc/wpa_supplicant/wpa_supplicant-${interface}.conf" <<- EOF
-		$(wpa_passphrase ${network_name} ${network_password})
-	EOF
-  arch-chroot /mnt sed --in-place "/#psk=*/d" "/etc/wpa_supplicant/wpa_supplicant-${interface}.conf"
   arch-chroot /mnt chmod +x /usr/local/bin/wpa_cli
   arch-chroot /mnt systemctl enable "wpa_supplicant@${interface}.service"
 fi
@@ -389,4 +377,18 @@ else
 	EOF
   arch-chroot /mnt grub-install "${disk}"
   arch-chroot /mnt grub-mkconfig --output=/boot/grub/grub.cfg
+fi
+
+if [[ "${interface}" == w* ]]; then
+  if whiptail --title "${TITLE}" --yesno "Configure default Wi-Fi?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3; then
+    readonly network_name="$(whiptail --title "${TITLE}" --inputbox "SSID" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
+    readonly network_password="$(whiptail --title "${TITLE}" --passwordbox "Password" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
+    if [[ "${network_password}" =~ ^.{8,}$ ]]; then
+      arch-chroot /mnt tee --append "/etc/wpa_supplicant/wpa_supplicant-${interface}.conf" <<- EOF
+				$(wpa_passphrase ${network_name} ${network_password} | grep -v "^\s*#")
+			EOF
+    else
+      whiptail --title "${TITLE}" --msgbox "Minimum password length is 8 characters" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
+    fi
+  fi
 fi
