@@ -125,9 +125,9 @@ sudo tee /etc/pacman.d/hooks/20-slock.hook <<- EOF
 EOF
 
 sudo systemctl enable ufw.service
+sudo systemctl start ufw.service
 sudo ufw default reject incoming
 sudo ufw default allow outgoing
-sudo ufw allow proto tcp to 0.0.0.0/0 port 22
 sudo ufw enable
 
 sudo tee /etc/ssh/ssh_config <<- EOF
@@ -156,7 +156,11 @@ sudo tee /etc/ssh/sshd_config <<- EOF
 
 	LogLevel VERBOSE
 EOF
-sudo systemctl enable sshd.service
+if whiptail --title "${TITLE}" --yesno "Enable SSH daemon?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3; then
+    sudo systemctl enable sshd.service
+    sudo systemctl start sshd.service
+    sudo ufw allow proto tcp to 0.0.0.0/0 port 22
+fi
 
 sudo tee /usr/share/X11/xkb/symbols/default <<-EOF
 	default partial alphanumeric_keys
