@@ -11,6 +11,7 @@ fi
 readonly PROCESS_ID="$$"
 trap "exit 1" SIGUSR1
 
+readonly TITLE="Arch Linux"
 readonly DEFAULT_HEIGHT=8
 readonly DEFAULT_WIDTH=74
 
@@ -24,11 +25,11 @@ while IFS= read -r disk; do
   fi
 done < <(parted --list --machine --script | awk 'BEGIN { RS = "\n\n" ; FS = "\n" } { print $2 }' | awk 'BEGIN { FS=":" } { print $1 }' | sort)
 if (("${#buffer[@]}" == 0)); then
-  whiptail --title "Arch Linux" --msgbox "No installation disk" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
+  whiptail --title "${TITLE}" --msgbox "No installation disk" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
   exit 1
 fi
 size="$(("${#buffer[@]}" / 2))"
-readonly disk="$(whiptail --title "Arch Linux" --radiolist --noitem "Installation disk" "$(("${size}" + 7))" "${DEFAULT_WIDTH}" "${size}" "${buffer[@]}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
+readonly disk="$(whiptail --title "${TITLE}" --radiolist --noitem "Installation disk" "$(("${size}" + 7))" "${DEFAULT_WIDTH}" "${size}" "${buffer[@]}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
 
 buffer=()
 while IFS= read -r interface; do
@@ -50,45 +51,45 @@ while IFS= read -r interface; do
   fi
 done < <(ip --brief link show | awk '{ print $1 }' | sort)
 if (("${#buffer[@]}" == 0)); then
-  whiptail --title "Arch Linux" --msgbox "No network interface" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
+  whiptail --title "${TITLE}" --msgbox "No network interface" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
   exit 1
 fi
 size="$(("${#buffer[@]}" / 2))"
-readonly interface="$(whiptail --title "Arch Linux" --radiolist --noitem "Network interface" "$(("${size}" + 7))" "${DEFAULT_WIDTH}" "${size}" "${buffer[@]}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
+readonly interface="$(whiptail --title "${TITLE}" --radiolist --noitem "Network interface" "$(("${size}" + 7))" "${DEFAULT_WIDTH}" "${size}" "${buffer[@]}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
 
-readonly hostname="$(whiptail --title "Arch Linux" --inputbox "Hostname" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
+readonly hostname="$(whiptail --title "${TITLE}" --inputbox "Hostname" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
 if [[ ! "${hostname}" =~ ^[a-zA-Z0-9._-]+$ ]]; then
-  whiptail --title "Arch Linux" --msgbox "Invalid hostname" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
+  whiptail --title "${TITLE}" --msgbox "Invalid hostname" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
   exit 1
 fi
 
-readonly user="$(whiptail --title "Arch Linux" --inputbox "Username" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
+readonly user="$(whiptail --title "${TITLE}" --inputbox "Username" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
 if [[ ! "${user}" =~ ^[a-z0-9_-]{1,30}$ ]]; then
-  whiptail --title "Arch Linux" --msgbox "Invalid user" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
+  whiptail --title "${TITLE}" --msgbox "Invalid user" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
   exit 1
 fi
 
-readonly user_password="$(whiptail --title "Arch Linux" --passwordbox "User password" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
+readonly user_password="$(whiptail --title "${TITLE}" --passwordbox "User password" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
 if [[ ! "${user_password}" =~ ^.{8,}$ ]]; then
-  whiptail --title "Arch Linux" --msgbox "Minimum password length is 8 characters" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
+  whiptail --title "${TITLE}" --msgbox "Minimum password length is 8 characters" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
   exit 1
 fi
 
-if whiptail --title "Arch Linux" --yesno "Use password for disk encryption?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3; then
+if whiptail --title "${TITLE}" --yesno "Use password for disk encryption?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3; then
   disk_encryption_password="${user_password}"
 else
-  disk_encryption_password="$(whiptail --title "Arch Linux" --passwordbox "Disk Encryption Password" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
+  disk_encryption_password="$(whiptail --title "${TITLE}" --passwordbox "Disk Encryption Password" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
   if [[ ! "${disk_encryption_password}" =~ ^.{8,}$ ]]; then
-    whiptail --title "Arch Linux" --msgbox "Minimum password length is 8 characters" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
+    whiptail --title "${TITLE}" --msgbox "Minimum password length is 8 characters" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
     exit 1
   fi
 fi
 readonly disk_encryption_password
 
-tz="$(whiptail --title "Arch Linux" --inputbox "Time zone" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" "Europe/Berlin" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
+tz="$(whiptail --title "${TITLE}" --inputbox "Time zone" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" "Europe/Berlin" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
 readonly tz="$(timedatectl list-timezones | grep --ignore-case "^${tz}$")"
 if [[ -z "${tz}" ]]; then
-  whiptail --title "Arch Linux" --msgbox "Invalid time zone" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
+  whiptail --title "${TITLE}" --msgbox "Invalid time zone" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
   exit 1
 fi
 
@@ -97,7 +98,7 @@ buffer=(
   "de" "German (ISO)" "OFF"
 )
 size="$(("${#buffer[@]}" / 3))"
-readonly keymap="$(whiptail --title "Arch Linux" --radiolist --notags "Keyboard layout" "$(("${size}" + 7))" "${DEFAULT_WIDTH}" "${size}" "${buffer[@]}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
+readonly keymap="$(whiptail --title "${TITLE}" --radiolist --notags "Keyboard layout" "$(("${size}" + 7))" "${DEFAULT_WIDTH}" "${size}" "${buffer[@]}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
 
 set -x
 
