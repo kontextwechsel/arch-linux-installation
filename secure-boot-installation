@@ -110,11 +110,11 @@ sudo tee /etc/mkinitcpio.d/linux.preset <<-EOF
   PRESETS=("default" "fallback")
 
   default_image="/boot/initramfs-linux.img"
-  default_efi_image="/boot/EFI/Linux/arch-linux.efi"
+  default_uki="/boot/EFI/Linux/arch-linux.efi"
 
   fallback_image="/boot/initramfs-linux-fallback.img"
   fallback_options="-S autodetect"
-  fallback_efi_image="/boot/EFI/Linux/arch-linux-fallback.efi"
+  fallback_uki="/boot/EFI/Linux/arch-linux-fallback.efi"
 EOF
 sudo mkinitcpio -p linux
 
