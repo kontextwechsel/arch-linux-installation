@@ -151,14 +151,15 @@ tee /etc/pacman.d/mirrorlist <<- EOF
 	Server = https://mirrors.kernel.org/archlinux/\$repo/os/\$arch
 	Server = https://mirrors.mit.edu/archlinux/\$repo/os/\$arch
 EOF
-pacman --sync --noconfirm archlinux-keyring
-pacman --sync --refresh --refresh
+pacman --sync --refresh --refresh --noconfirm archlinux-keyring
 
 readonly packages=(
   base
   base-devel
   linux
   linux-firmware
+  nft
+  iptables-nft
   sudo
   vim
   man-db
