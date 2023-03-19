@@ -179,12 +179,12 @@ while IFS="=" read -r key value; do
       hooks+=("${hook}")
       if [[ "${hook}" = "filesystems" ]]; then
         hooks+=("resume")
-			fi
-		done
+      fi
+    done
     buffer+=("${key}=(${hooks[*]})")
-	else
+  else
     buffer+=("${key}=(${array[*]})")
-	fi
+  fi
 done < /etc/mkinitcpio.conf
 printf "%s\n" "${buffer[@]}" | sudo tee /etc/mkinitcpio.conf
 sudo mkinitcpio --preset linux
@@ -196,9 +196,9 @@ while IFS=" " read -r key value; do
     array+=("resume=$(awk '$2 == "/" { print $1 }' /etc/fstab)")
     array+=("resume_offset=$(sudo filefrag -v /swapfile | awk 'BEGIN { FS="[[:space:].:]+" } $2 == "0" { print $5 }')")
     buffer+=("${key} ${array[*]}")
-	else
+  else
     buffer+=("${key} ${value}")
-	fi
+  fi
 done < /boot/loader/entries/default.conf
 printf "%s\n" "${buffer[@]}" | sudo tee /boot/loader/entries/default.conf
 ```
@@ -242,7 +242,7 @@ sudo systemctl enable power-trigger.timer
 ### Scroll wheel
 
 ```bash
-sudo --sync --refresh imwheel
+sudo pacman --sync --refresh imwheel
 
 tee "${HOME}/.imwheelrc" <<EOF
 ".*"
@@ -265,9 +265,9 @@ EOF
 sudo tee --append /etc/X11/xorg.conf.d/90-default.conf <<EOF
 
 Section "InputClass"
-    Identifier "Touchpad control"
-    MatchIsTouchpad "on"
-    Driver "libinput"
+        Identifier "Touchpad control"
+        MatchIsTouchpad "on"
+        Driver "libinput"
         Option "ClickMethod" "clickfinger"
         Option "NoTapping"
         Option "ScrollMethod" "twofinger"
@@ -288,13 +288,13 @@ sudo dropbearkey -t ed25519 -f /etc/dropbear/dropbear_ed25519_host_key
 
 sudo sed --in-place -E "s/(copy_openssh_keys \|\| generate_keys)/#\1/g" /usr/lib/initcpio/install/dropbear
 sudo tee /etc/pacman.d/hooks/40-mkinitcpio-dropbear.hook <<EOF
-	[Trigger]
-	Type = Package
-	Operation = Upgrade
-	Target = mkinitcpio-dropbear
+[Trigger]
+Type = Package
+Operation = Upgrade
+Target = mkinitcpio-dropbear
 
-	[Action]
-	When = PostTransaction
+[Action]
+When = PostTransaction
 Exec = /usr/bin/sed --in-place -E "s/(copy_openssh_keys \|\| generate_keys)/#\1/g" /usr/lib/initcpio/install/dropbear
 EOF
 
@@ -308,14 +308,14 @@ while IFS="=" read -r key value; do
         hooks+=("netconf")
         hooks+=("dropbear")
         hooks+=("encryptssh")
-			else
-        hooks+=("${E}")
-			fi
-		done
+      else
+        hooks+=("${hook}")
+      fi
+    done
     buffer+=("${key}=(${hooks[*]})")
-	else
+  else
     buffer+=("${key}=(${array[*]})")
-	fi
+  fi
 done < /etc/mkinitcpio.conf
 printf "%s\n" "${buffer[@]}" | sudo tee /etc/mkinitcpio.conf
 sudo mkinitcpio --preset linux
@@ -326,17 +326,17 @@ if [[ -n "${kernel_network_interface}:+substitution" ]]; then
   network_interface="${kernel_network_interface}"
 fi
 
-buffer=()
-while IFS=" " read -r key value; do
-  if [[ "${key}" = "options" ]]; then
+  buffer=()
+  while IFS=" " read -r key value; do
+    if [[ "${key}" = "options" ]]; then
     IFS=" " read -r -a array <<< "${value}"
     array+=("ip=:::::${network_interface}:dhcp")
     buffer+=("${key} ${array[*]}")
-	else
-    buffer+=("${key} ${value}")
-	fi
-done < /boot/loader/entries/default.conf
-printf "%s\n" "${buffer[@]}" | sudo tee /boot/loader/entries/default.conf
+    else
+      buffer+=("${key} ${value}")
+    fi
+  done < /boot/loader/entries/default.conf
+  printf "%s\n" "${buffer[@]}" | sudo tee /boot/loader/entries/default.conf
 ```
 
 ## Virtualization
@@ -353,13 +353,11 @@ sudo usermod --append --groups docker "${USER}"
 
 ```bash
 PACKAGES=(
-	dnsmasq
-	ebtables
-	edk2-ovmf
-	libvirt
-	openbsd-netcat
-	qemu
-	virt-manager
+  dnsmasq
+  libvirt
+  openbsd-netcat
+  qemu
+  virt-manager
 )
 sudo pacman --sync --refresh "${PACKAGES[@]}"
 sudo systemctl enable libvirtd.service
