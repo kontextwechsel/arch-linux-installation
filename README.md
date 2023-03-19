@@ -282,9 +282,11 @@ EOF
 sudo pacman --sync --refresh dropbear mkinitcpio-dropbear mkinitcpio-netconf mkinitcpio-utils
 
 sudo cp "${HOME}/.ssh/authorized_keys" /etc/dropbear/root_key
-sudo dropbearkey -t rsa -f /etc/dropbear/dropbear_rsa_host_key
-sudo dropbearkey -t ecdsa -f /etc/dropbear/dropbear_ecdsa_host_key
 sudo dropbearkey -t ed25519 -f /etc/dropbear/dropbear_ed25519_host_key
+# Suppress missing key errors
+sudo ln -s dropbear_ed25519_host_key /etc/dropbear/dropbear_dss_host_key
+sudo ln -s dropbear_ed25519_host_key /etc/dropbear/dropbear_ecdsa_host_key
+sudo ln -s dropbear_ed25519_host_key /etc/dropbear/dropbear_rsa_host_key
 
 sudo sed --in-place -E "s/(copy_openssh_keys \|\| generate_keys)/#\1/g" /usr/lib/initcpio/install/dropbear
 sudo tee /etc/pacman.d/hooks/40-mkinitcpio-dropbear.hook <<EOF
@@ -318,7 +320,6 @@ while IFS="=" read -r key value; do
   fi
 done < /etc/mkinitcpio.conf
 printf "%s\n" "${buffer[@]}" | sudo tee /etc/mkinitcpio.conf
-sudo mkinitcpio --preset linux
 
 network_interface="$(ip --brief link show | awk '$2 == "UP" { print $1; exit }')"
 kernel_network_interface="$(sudo dmesg | grep -oP "(?<=${network_interface}: renamed from )(.+)(?=$)")"
@@ -326,17 +327,31 @@ if [[ -n "${kernel_network_interface}:+substitution" ]]; then
   network_interface="${kernel_network_interface}"
 fi
 
+if [[ -f /boot/loader/entries/default.conf ]]; then
   buffer=()
   while IFS=" " read -r key value; do
     if [[ "${key}" = "options" ]]; then
-    IFS=" " read -r -a array <<< "${value}"
-    array+=("ip=:::::${network_interface}:dhcp")
-    buffer+=("${key} ${array[*]}")
+      IFS=" " read -r -a options <<< "${value}"
+      options+=("ip=:::::${network_interface}:dhcp")
+      buffer+=("${key} ${options[*]}")
     else
       buffer+=("${key} ${value}")
     fi
   done < /boot/loader/entries/default.conf
   printf "%s\n" "${buffer[@]}" | sudo tee /boot/loader/entries/default.conf
+fi
+
+if [[ -f /etc/kernel/cmdline ]]; then
+  IFS=" " read -r -a options < /etc/kernel/cmdline
+  options+=("ip=:::::${network_interface}:dhcp")
+  printf "%s\n" "${options[*]}" | sudo tee /etc/kernel/cmdline
+fi
+
+sudo mkinitcpio --preset linux
+if [[ -d /etc/secure-boot/ ]]; then
+  sudo sbsign --cert /etc/secure-boot/db.crt --key /etc/secure-boot/db.key --output /boot/EFI/Linux/arch-linux.efi /boot/EFI/Linux/arch-linux.efi
+  sudo sbsign --cert /etc/secure-boot/db.crt --key /etc/secure-boot/db.key --output /boot/EFI/Linux/arch-linux-fallback.efi /boot/EFI/Linux/arch-linux-fallback.efi
+fi
 ```
 
 ## Virtualization
