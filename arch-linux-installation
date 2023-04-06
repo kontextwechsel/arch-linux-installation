@@ -166,7 +166,9 @@ readonly packages=(
   man-pages
 )
 pacstrap /mnt "${packages[@]}"
+
 genfstab -t UUID /mnt | tee /mnt/etc/fstab
+arch-chroot /mnt sed --in-place --regexp-extended "s/[ \t]+/ /g" /etc/fstab
 
 arch-chroot /mnt sed --in-place "s/#\(de_DE.UTF-8 UTF-8\)/\1/g" /etc/locale.gen
 arch-chroot /mnt sed --in-place "s/#\(en_US.UTF-8 UTF-8\)/\1/g" /etc/locale.gen
