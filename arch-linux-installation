@@ -162,8 +162,12 @@ readonly packages=(
   iptables-nft
   sudo
   vim
+  bash
+  bash-completion
   man-db
   man-pages
+  openssh
+  ufw
 )
 pacstrap /mnt "${packages[@]}"
 
@@ -306,6 +310,43 @@ if [[ "${interface}" == w* ]]; then
   arch-chroot /mnt systemctl enable "wpa_supplicant@${interface}.service"
 fi
 
+arch-chroot /mnt systemctl enable ufw.service
+arch-chroot /mnt ufw default reject incoming
+arch-chroot /mnt ufw default allow outgoing
+arch-chroot /mnt ufw enable
+
+arch-chroot /mnt tee /etc/ssh/ssh_config <<- EOF
+	HostKeyAlgorithms ssh-ed25519
+
+	KexAlgorithms curve25519-sha256@libssh.org
+	Ciphers aes256-gcm@openssh.com
+	MACs hmac-sha2-512-etm@openssh.com
+
+	HashKnownHosts yes
+	ServerAliveInterval 10
+	StrictHostKeyChecking yes
+EOF
+arch-chroot /mnt tee /etc/ssh/sshd_config <<- EOF
+	HostKey /etc/ssh/ssh_host_ed25519_key
+
+	KexAlgorithms curve25519-sha256@libssh.org
+	Ciphers aes256-gcm@openssh.com
+	MACs hmac-sha2-512-etm@openssh.com
+
+	AllowUsers ${user}
+	AuthenticationMethods publickey
+	LoginGraceTime 10
+	PermitRootLogin no
+	Subsystem sftp /usr/lib/ssh/sftp-server
+
+	LogLevel VERBOSE
+EOF
+
+if whiptail --title "${TITLE}" --yesno "Enable SSH daemon?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3; then
+  arch-chroot /mnt systemctl enable sshd.service
+  arch-chroot /mnt ufw allow proto tcp to any port 22
+fi
+
 unset microcode_image
 if [[ "$(< /sys/devices/virtual/dmi/id/sys_vendor)" != "QEMU" ]]; then
   case "$(lscpu | awk 'BEGIN { FS=":[[:space:]]*" } $1 == "Vendor ID" { print $2 }')" in
@@ -333,8 +374,8 @@ readonly system_partition_id="$(blkid -s UUID -o value "${system_partition}")"
 readonly virtual_block_device_id="$(blkid -s UUID -o value "${virtual_block_device}")"
 kernel_options=("cryptdevice=UUID=${system_partition_id}:${crypt_partition_id}:allow-discards")
 
-if whiptail --title "${TITLE}" --yesno "Disable IPv6?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3; then
-    kernel_options+=("ipv6.disable=1")
+if ! whiptail --title "${TITLE}" --yesno "Enable IPv6?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" --defaultno 3>&1 1>&2 2>&3; then
+  kernel_options+=("ipv6.disable=1")
 fi
 
 if [[ -d /sys/firmware/efi/efivars ]]; then
