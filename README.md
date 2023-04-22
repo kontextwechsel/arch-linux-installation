@@ -18,7 +18,7 @@ Applications in **dmenu** can be maintained with `application-launcher`:
 Generates uniform Monokai color scheme for Sublime Text and xterm. Colors with less standard deviation in Sublime Text theme are converted to gray scale and simliar colors in xterm theme are replaced.
 
 ```bash
-pacman --sync --refresh python python-numpy
+pacman --sync --refresh python python-numpy python-requests
 python color_scheme.py
 ```
 
