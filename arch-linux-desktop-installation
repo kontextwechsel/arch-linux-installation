@@ -898,8 +898,6 @@ tee "${HOME}/.config/alacritty/alacritty.yml" <<- EOF
 	  duration: 0
 	  color: "#f7f7f7"
 
-	alt_send_esc: true
-
 	shell:
 	  program: /bin/bash
 	  args: [ "--login" ]
