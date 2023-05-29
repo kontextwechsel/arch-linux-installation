@@ -230,6 +230,7 @@ sudo tee /etc/xdg/mimeapps.list <<- EOF
 	application/javascript=sublime_text.desktop
 	application/json=sublime_text.desktop
 	application/sql=sublime_text.desktop
+	application/pdf=firefox.desktop
 	application/xml=sublime_text.desktop
 	application/x-shellscript=sublime_text.desktop
 	image/bmp=gpicview.desktop
