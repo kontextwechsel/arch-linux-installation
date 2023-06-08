@@ -260,7 +260,7 @@ tee "${HOME}/.local/bin/application-launcher" <<- EOF
 	if [[ "\$#" -gt 0 ]]; then
 	  case "\$1" in
 	    -a | --add)
-	      if [[ ! "\$2" =~ ^[a-z0-9\ -]+\$ ]]; then
+	      if [[ ! "\$2" =~ ^[a-z0-9\ -._]+\$ ]]; then
 	        printf "Invalid application\n"
 	        exit 1
 	      fi
