@@ -43,6 +43,7 @@ readonly packages=(
   feh
   firefox
   flatpak
+  fwupd
   gimp
   git
   gnome-themes-extra # Arc theme dependency
