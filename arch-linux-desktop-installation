@@ -742,7 +742,7 @@ tee "${HOME}/.config/i3status.d/30-disk" <<- EOF
 	    format = "%free"
 	}
 EOF
-readonly interface="$(ip --brief link show | awk '$2 == "UP" { print $1; exit }')"
+readonly interface="$(ip -brief link show | awk '$2 == "UP" { print $1; exit }')"
 if [[ "${interface}" = w* ]]; then
   tee "${HOME}/.config/i3status.d/60-wlan" <<- EOF
 		order += "wireless ${interface}"
