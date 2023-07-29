@@ -321,7 +321,7 @@ while IFS="=" read -r key value; do
 done < /etc/mkinitcpio.conf
 printf "%s\n" "${buffer[@]}" | sudo tee /etc/mkinitcpio.conf
 
-network_interface="$(ip --brief link show | awk '$2 == "UP" { print $1; exit }')"
+network_interface="$(ip -brief link show | awk '$2 == "UP" { print $1; exit }')"
 kernel_network_interface="$(sudo dmesg | grep -oP "(?<=${network_interface}: renamed from )(.+)(?=$)")"
 if [[ -n "${kernel_network_interface}:+substitution" ]]; then
   network_interface="${kernel_network_interface}"
