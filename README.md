@@ -350,7 +350,6 @@ fi
 sudo mkinitcpio --preset linux
 if [[ -d /etc/secure-boot/ ]]; then
   sudo sbsign --cert /etc/secure-boot/db.crt --key /etc/secure-boot/db.key --output /boot/EFI/Linux/arch-linux.efi /boot/EFI/Linux/arch-linux.efi
-  sudo sbsign --cert /etc/secure-boot/db.crt --key /etc/secure-boot/db.key --output /boot/EFI/Linux/arch-linux-fallback.efi /boot/EFI/Linux/arch-linux-fallback.efi
 fi
 ```
 

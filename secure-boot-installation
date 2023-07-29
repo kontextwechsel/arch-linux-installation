@@ -94,57 +94,26 @@ for n in "${ns[@]}"; do
 done
 sudo tee /etc/kernel/cmdline <<<"${buffer[*]}"
 
-microcodes=()
-if pacman -Q amd-ucode 2>/dev/null; then
-  microcodes+=("/boot/amd-ucode.img")
-fi
-if pacman -Q intel-ucode 2>/dev/null; then
-  microcodes+=("/boot/intel-ucode.img")
-fi
-
-sudo tee /etc/mkinitcpio.d/linux.preset <<-EOF
-  ALL_config="/etc/mkinitcpio.conf"
-  ALL_kver="/boot/vmlinuz-linux"
-  ALL_microcode="${microcodes[*]}"
-
-  PRESETS=("default" "fallback")
-
-  default_image="/boot/initramfs-linux.img"
-  default_uki="/boot/EFI/Linux/arch-linux.efi"
-
-  fallback_image="/boot/initramfs-linux-fallback.img"
-  fallback_options="-S autodetect"
-  fallback_uki="/boot/EFI/Linux/arch-linux-fallback.efi"
+sudo tee --append /etc/mkinitcpio.d/linux.preset <<- EOF
+	default_microcode=($(ls --quote-name /boot/*-ucode.img))
+	default_uki="/boot/EFI/Linux/arch-linux.efi"
 EOF
 sudo mkinitcpio -p linux
 
 sudo sbsign --cert /etc/secure-boot/db.crt --key /etc/secure-boot/db.key --output /boot/EFI/Linux/arch-linux.efi /boot/EFI/Linux/arch-linux.efi
-sudo sbsign --cert /etc/secure-boot/db.crt --key /etc/secure-boot/db.key --output /boot/EFI/Linux/arch-linux-fallback.efi /boot/EFI/Linux/arch-linux-fallback.efi
 
 sudo mkdir -p "/etc/pacman.d/hooks/"
-sudo tee /etc/pacman.d/hooks/91-linux.hook <<-EOF
-[Trigger]
-Type = Path
-Operation = Install
-Operation = Upgrade
-Target = usr/lib/modules/*/vmlinuz
-Target = usr/lib/initcpio/*
+sudo tee /etc/pacman.d/hooks/90-linux.hook <<- EOF
+	[Trigger]
+	Type = Path
+	Operation = Install
+	Operation = Upgrade
+	Target = usr/lib/modules/*/vmlinuz
+	Target = usr/lib/initcpio/*
 
-[Action]
-When = PostTransaction
-Exec = /usr/bin/sbsign --cert /etc/secure-boot/db.crt --key /etc/secure-boot/db.key --output /boot/EFI/Linux/arch-linux.efi /boot/EFI/Linux/arch-linux.efi
-EOF
-sudo tee /etc/pacman.d/hooks/92-linux-fallback.hook <<-EOF
-[Trigger]
-Type = Path
-Operation = Install
-Operation = Upgrade
-Target = usr/lib/modules/*/vmlinuz
-Target = usr/lib/initcpio/*
-
-[Action]
-When = PostTransaction
-Exec = /usr/bin/sbsign --cert /etc/secure-boot/db.crt --key /etc/secure-boot/db.key --output /boot/EFI/Linux/arch-linux-fallback.efi /boot/EFI/Linux/arch-linux-fallback.efi
+	[Action]
+	When = PostTransaction
+	Exec = /usr/bin/sbsign --cert /etc/secure-boot/db.crt --key /etc/secure-boot/db.key --output /boot/EFI/Linux/arch-linux.efi /boot/EFI/Linux/arch-linux.efi
 EOF
 
 while read -r n; do
@@ -158,8 +127,7 @@ else
 fi
 readonly part="${path: -1}"
 sudo efibootmgr --disk "${disk}" --part "${part}" --create --label "Arch Linux" --loader EFI/Linux/arch-linux.efi --create-only
-sudo efibootmgr --disk "${disk}" --part "${part}" --create --label "Arch Linux Fallback" --loader EFI/Linux/arch-linux-fallback.efi --create-only
-sudo efibootmgr -o "0000,0001"
+sudo efibootmgr -o "0000"
 
 if [[ -f /boot/EFI/BOOT/BOOTX64.EFI ]]; then
   read -r -p "Delete boot manager? [Y/n] "

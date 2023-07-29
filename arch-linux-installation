@@ -347,26 +347,33 @@ if whiptail --title "${TITLE}" --yesno "Enable SSH daemon?" "${DEFAULT_HEIGHT}" 
   arch-chroot /mnt ufw allow proto tcp to any port 22
 fi
 
-unset microcode_image
+unset microcode
 if [[ "$(< /sys/devices/virtual/dmi/id/sys_vendor)" != "QEMU" ]]; then
   case "$(lscpu | awk 'BEGIN { FS=":[[:space:]]*" } $1 == "Vendor ID" { print $2 }')" in
   "AuthenticAMD")
-    arch-chroot /mnt pacman --noconfirm --sync amd-ucode
-    microcode_image="amd-ucode.img"
+    microcode="amd-ucode"
+    arch-chroot /mnt pacman --noconfirm --sync "${microcode}"
     ;;
   "GenuineIntel")
-    arch-chroot /mnt pacman --noconfirm --sync intel-ucode
-    microcode_image="intel-ucode.img"
+    microcode="intel-ucode"
+    arch-chroot /mnt pacman --noconfirm --sync "${microcode}"
     ;;
   esac
 fi
-readonly microcode_image
+readonly microcode
 
 arch-chroot /mnt tee /etc/mkinitcpio.conf <<- EOF
 	MODULES=()
 	BINARIES=()
 	FILES=()
 	HOOKS=(base udev autodetect modconf block keyboard keymap encrypt filesystems fsck)
+EOF
+arch-chroot /mnt tee /etc/mkinitcpio.d/linux.preset <<- EOF
+	PRESETS=("default")
+
+	default_config="/etc/mkinitcpio.conf"
+	default_image="/boot/initramfs-linux.img"
+	default_kver="/boot/vmlinuz-linux"
 EOF
 arch-chroot /mnt mkinitcpio --preset linux
 
@@ -393,9 +400,9 @@ if [[ -d /sys/firmware/efi/efivars ]]; then
 		title Arch Linux
 		linux /vmlinuz-linux
 	EOF
-  if [[ -n "${microcode_image:+substitution}" ]]; then
+  if [[ -n "${microcode:+substitution}" ]]; then
     arch-chroot /mnt tee --append /boot/loader/entries/default.conf <<- EOF
-			initrd /${microcode_image}
+			initrd /${microcode}.img
 		EOF
   fi
   arch-chroot /mnt tee --append /boot/loader/entries/default.conf <<- EOF
