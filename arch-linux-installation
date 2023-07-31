@@ -57,41 +57,64 @@ fi
 size="$(("${#buffer[@]}" / 2))"
 readonly interface="$(whiptail --title "${TITLE}" --radiolist --noitem "Network interface" "$(("${size}" + 7))" "${DEFAULT_WIDTH}" "${size}" "${buffer[@]}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
 
-readonly hostname="$(whiptail --title "${TITLE}" --inputbox "Hostname" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
-if [[ ! "${hostname}" =~ ^[a-zA-Z0-9._-]+$ ]]; then
-  whiptail --title "${TITLE}" --msgbox "Invalid hostname" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
-  exit 1
-fi
+unset hostname
+while true; do
+  hostname="$(whiptail --title "${TITLE}" --inputbox "Hostname" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" "${hostname}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
+  if [[ ! "${hostname}" =~ ^[a-zA-Z0-9._-]+$ ]]; then
+    whiptail --title "${TITLE}" --msgbox "Invalid hostname" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
+  else
+    break
+  fi
+done
+readonly hostname
 
-readonly user="$(whiptail --title "${TITLE}" --inputbox "Username" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
-if [[ ! "${user}" =~ ^[a-z0-9_-]{1,30}$ ]]; then
-  whiptail --title "${TITLE}" --msgbox "Invalid user" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
-  exit 1
-fi
+unset user
+while true; do
+  user="$(whiptail --title "${TITLE}" --inputbox "Username" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" "${user}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
+  if [[ ! "${user}" =~ ^[a-z0-9_-]{1,30}$ ]]; then
+    whiptail --title "${TITLE}" --msgbox "Invalid user" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
+  else
+    break
+  fi
+done
+readonly user
 
-readonly user_password="$(whiptail --title "${TITLE}" --passwordbox "User password" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
-if [[ ! "${user_password}" =~ ^.{8,}$ ]]; then
-  whiptail --title "${TITLE}" --msgbox "Minimum password length is 8 characters" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
-  exit 1
-fi
+unset user_password
+while true; do
+  user_password="$(whiptail --title "${TITLE}" --passwordbox "User password" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
+  if [[ ! "${user_password}" =~ ^.{8,}$ ]]; then
+    whiptail --title "${TITLE}" --msgbox "Minimum password length is 8 characters" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
+  else
+    break
+  fi
+done
+readonly user_password
 
+unset disk_encryption_password
 if whiptail --title "${TITLE}" --yesno "Use password for disk encryption?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3; then
   disk_encryption_password="${user_password}"
 else
-  disk_encryption_password="$(whiptail --title "${TITLE}" --passwordbox "Disk Encryption Password" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
-  if [[ ! "${disk_encryption_password}" =~ ^.{8,}$ ]]; then
-    whiptail --title "${TITLE}" --msgbox "Minimum password length is 8 characters" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
-    exit 1
-  fi
+  while true; do
+    disk_encryption_password="$(whiptail --title "${TITLE}" --passwordbox "Disk Encryption Password" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
+    if [[ ! "${disk_encryption_password}" =~ ^.{8,}$ ]]; then
+      whiptail --title "${TITLE}" --msgbox "Minimum password length is 8 characters" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
+    else
+      break
+    fi
+  done
 fi
 readonly disk_encryption_password
 
-tz="$(whiptail --title "${TITLE}" --inputbox "Time zone" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" "Europe/Berlin" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
-readonly tz="$(timedatectl list-timezones | grep --ignore-case "^${tz}$")"
-if [[ -z "${tz}" ]]; then
-  whiptail --title "${TITLE}" --msgbox "Invalid time zone" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
-  exit 1
-fi
+tz="Europe/Berlin"
+while true; do
+  tz="$(whiptail --title "${TITLE}" --inputbox "Time zone" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" "${tz}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
+  if ! awk --assign="tz=${tz}" 'BEGIN { m = 0 }; $0 == tz { m = 1 }; END { exit !m }' <<< "$(timedatectl list-timezones)"; then
+    whiptail --title "${TITLE}" --msgbox "Time zone unavailable" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
+  else
+    break
+  fi
+done
+readonly tz
 
 buffer=(
   "us" "English (ANSI)" "ON"
@@ -438,16 +461,22 @@ fi
 
 if [[ "${interface}" == w* ]]; then
   if readonly ssid="$(iwgetid --raw)"; then
-    if whiptail --title "${TITLE}" --yesno "Add connected Wi-Fi?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3; then
-      readonly pre_shared_key="$(whiptail --title "${TITLE}" --passwordbox "Pre-shared key" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
-      if [[ "${pre_shared_key}" =~ ^.{8,}$ ]]; then
-        arch-chroot /mnt tee --append "/etc/wpa_supplicant/wpa_supplicant-${interface}.conf" <<- EOF
+    if whiptail --title "${TITLE}" --yesno "Add connected Wi-Fi network?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3; then
+      unset pre_shared_key
+      while true; do
+        pre_shared_key="$(whiptail --title "${TITLE}" --passwordbox "Pre-shared key" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
+        if [[ ! "${pre_shared_key}" =~ ^.{8,}$ ]]; then
+          whiptail --title "${TITLE}" --msgbox "Minimum pre-shared key length is 8 characters" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
+        else
+          break
+        fi
+      done
+      readonly pre_shared_key
 
-					$(wpa_passphrase "${ssid}" "${pre_shared_key}" | awk '$1 !~ /^#/ { print $0 }')
-				EOF
-      else
-        whiptail --title "${TITLE}" --msgbox "Minimum pre-shared key length is 8 characters" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
-      fi
+      arch-chroot /mnt tee --append "/etc/wpa_supplicant/wpa_supplicant-${interface}.conf" <<- EOF
+
+				$(wpa_passphrase "${ssid}" "${pre_shared_key}" | awk '$1 !~ /^#/ { print $0 }')
+			EOF
     fi
   fi
 fi
