@@ -214,8 +214,9 @@ arch-chroot /mnt tee /etc/hostname <<- EOF
 EOF
 arch-chroot /mnt tee /etc/hosts <<- EOF
 	127.0.0.1 localhost
-	::1 localhost
 	127.0.1.1 ${hostname}
+
+	::1 localhost
 EOF
 
 arch-chroot /mnt tee /etc/systemd/system.conf <<- EOF
@@ -235,10 +236,10 @@ arch-chroot /mnt tee "/etc/systemd/network/10-${interface}.network" <<- EOF
 	Name=${interface}
 
 	[Network]
-	DHCP=ipv4
+	DHCP=yes
 
 	[DHCP]
-	UseDomains=true
+	UseDomains=yes
 EOF
 arch-chroot /mnt systemctl enable systemd-networkd.service
 
@@ -436,15 +437,17 @@ else
 fi
 
 if [[ "${interface}" == w* ]]; then
-  if whiptail --title "${TITLE}" --yesno "Configure default Wi-Fi?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3; then
-    readonly network_name="$(whiptail --title "${TITLE}" --inputbox "SSID" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
-    readonly network_password="$(whiptail --title "${TITLE}" --passwordbox "Password" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
-    if [[ "${network_password}" =~ ^.{8,}$ ]]; then
-      arch-chroot /mnt tee --append "/etc/wpa_supplicant/wpa_supplicant-${interface}.conf" <<- EOF
-				$(wpa_passphrase ${network_name} ${network_password} | grep -v "^\s*#")
-			EOF
-    else
-      whiptail --title "${TITLE}" --msgbox "Minimum password length is 8 characters" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
+  if readonly ssid="$(iwgetid --raw)"; then
+    if whiptail --title "${TITLE}" --yesno "Add connected Wi-Fi?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3; then
+      readonly pre_shared_key="$(whiptail --title "${TITLE}" --passwordbox "Pre-shared key" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
+      if [[ "${pre_shared_key}" =~ ^.{8,}$ ]]; then
+        arch-chroot /mnt tee --append "/etc/wpa_supplicant/wpa_supplicant-${interface}.conf" <<- EOF
+
+					$(wpa_passphrase "${ssid}" "${pre_shared_key}" | awk '$1 !~ /^#/ { print $0 }')
+				EOF
+      else
+        whiptail --title "${TITLE}" --msgbox "Minimum pre-shared key length is 8 characters" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
+      fi
     fi
   fi
 fi
