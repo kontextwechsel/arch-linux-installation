@@ -40,7 +40,7 @@ sudo usermod --append --groups video "${USER}"
 
 mkdir --parents "${HOME}/.local/bin/"
 mkdir --parents "${HOME}/.local/share/bash-completion/completions/"
-tee "${HOME}/.local/bin/backlight" <<EOF
+tee "${HOME}/.local/bin/backlight" << EOF
 #!/bin/bash
 
 readonly brightness="\$(xbacklight -get)"
@@ -82,7 +82,7 @@ fi
 printf "Usage: backlight [--increment|--decrement|--reset]\n"
 exit 1
 EOF
-tee "${HOME}/.local/share/bash-completion/completions/backlight" <<EOF
+tee "${HOME}/.local/share/bash-completion/completions/backlight" << EOF
 function _backlight() {
   if [[ "${COMP_CWORD}" -eq 1 ]]; then
     readarray -t COMPREPLY < <(compgen -W "--increment --decrement --reset" -- "\${COMP_WORDS[\${COMP_CWORD}]}")
@@ -92,17 +92,17 @@ complete -F _backlight backlight
 EOF
 chmod +x "${HOME}/.local/bin/backlight"
 
-tee "${HOME}/.brightness" <<EOF
+tee "${HOME}/.brightness" << EOF
 "$(xbacklight -get)"
 EOF
 
-tee "${HOME}/.config/i3.d/41-backlight" <<EOF
+tee "${HOME}/.config/i3.d/41-backlight" << EOF
 bindsym XF86MonBrightnessUp exec --no-startup-id backlight --increment
 bindsym XF86MonBrightnessDown exec --no-startup-id backlight --decrement
 exec --no-startup-id backlight --reset
 EOF
 
-tee "${HOME}/.config/i3status.d/35-brightness" <<EOF
+tee "${HOME}/.config/i3status.d/35-brightness" << EOF
 order += "read_file brightness"
 read_file brightness {
     path = "\${HOME}/.brightness"
@@ -111,6 +111,59 @@ read_file brightness {
 EOF
 
 sudo systemctl mask systemd-backlight@.service
+```
+
+### Banner
+
+```bash
+sudo tee /usr/lib/initcpio/install/banner << EOF
+#!/bin/bash
+
+build() {
+  add_runscript
+}
+
+help() {
+  printf "%s\n" "Auf zum Atem!"
+}
+EOF
+
+sudo tee /usr/lib/initcpio/hooks/banner << EOF
+#!/usr/bin/ash
+
+run_hook() {
+  printf "%s\n" "                 __                                 _                 _ "
+  printf "%s\n" "     /\\\\         / _|                           /\\\\  | |               | |"
+  printf "%s\n" "    /  \\\\  _   _| |_   _____   _ _ __ ___      /  \\\\ | |_ ___ _ __ ___ | |"
+  printf "%s\n" "   / /\\\\ \\\\| | | |  _| |_  / | | | '_ \\\` _ \\\\    / /\\\\ \\\\| __/ _ \\\\ '_ \\\` _ \\\\| |"
+  printf "%s\n" "  / ____ \\\\ |_| | |    / /| |_| | | | | | |  / ____ \\\\ ||  __/ | | | | |_|"
+  printf "%s\n" " /_/    \\\\_\\\\__,_|_|   /___|\\\\__,_|_| |_| |_| /_/    \\\\_\\\\__\\\\___|_| |_| |_(_)"
+  printf "%s\n" "                                                                        "
+  printf "%s\n" "                                                                        "
+}
+EOF
+
+buffer=()
+while IFS="=" read -r key value; do
+  IFS=" " read -r -a array <<< "$(sed -r "s/\((.*)\)/\1/g" <<< "${value}")"
+  if [[ "${key}" = "HOOKS" ]]; then
+    hooks=()
+    for hook in "${array[@]}"; do
+      if [[ "${hook}" != "banner" ]]; then
+        hooks+=("${hook}")
+        if [[ "${hook}" = "base" ]]; then
+          hooks+=("banner")
+        fi
+      fi
+    done
+    buffer+=("${key}=(${hooks[*]})")
+  else
+    buffer+=("${key}=(${array[*]})")
+  fi
+done < /etc/mkinitcpio.conf
+printf "%s\n" "${buffer[@]}" | sudo tee /etc/mkinitcpio.conf
+
+sudo mkinitcpio -p linux
 ```
 
 ### Battery
@@ -122,12 +175,12 @@ sudo systemctl enable tlp.service
 sudo systemctl mask systemd-rfkill.service
 sudo systemctl mask systemd-rfkill.socket
 
-sudo tee --append /etc/systemd/logind.conf <<EOF
+sudo tee --append /etc/systemd/logind.conf << EOF
 HandleLidSwitch=suspend
 HandleLidSwitchDocked=suspend
 EOF
 
-tee "${HOME}/.config/i3status.d/40-battery" <<EOF
+tee "${HOME}/.config/i3status.d/40-battery" << EOF
 order += "battery 0"
 battery 0 {
     path = "/sys/class/power_supply/BAT%d/uevent"
@@ -160,7 +213,7 @@ sudo dd if=/dev/zero of=/swapfile bs=1K count="$(free -k | awk '$1 == "Mem:" { p
 sudo chmod u=rw,go= /swapfile
 sudo mkswap /swapfile
 sudo swapon /swapfile
-sudo tee --append /etc/fstab <<EOF
+sudo tee --append /etc/fstab << EOF
 
 # /swapfile
 /swapfile none swap defaults 0 0
@@ -176,9 +229,11 @@ while IFS="=" read -r key value; do
   if [[ "${key}" = "HOOKS" ]]; then
     hooks=()
     for hook in "${array[@]}"; do
-      hooks+=("${hook}")
-      if [[ "${hook}" = "filesystems" ]]; then
-        hooks+=("resume")
+      if [[ "${hook}" != "resume" ]]; then
+        hooks+=("${hook}")
+        if [[ "${hook}" = "filesystems" ]]; then
+          hooks+=("resume")
+        fi
       fi
     done
     buffer+=("${key}=(${hooks[*]})")
@@ -206,7 +261,7 @@ printf "%s\n" "${buffer[@]}" | sudo tee /boot/loader/entries/default.conf
 #### Battery
 
 ```bash
-sudo tee /etc/udev/rules.d/90-battery.rules <<EOF
+sudo tee /etc/udev/rules.d/90-battery.rules << EOF
 SUBSYSTEM=="power_supply", ATTR{status}=="Discharging", ATTR{capacity}=="[0-5]", RUN+="/usr/bin/systemctl hibernate"
 EOF
 ```
@@ -214,7 +269,7 @@ EOF
 ##### Workaround for ACPI not reporting battery status
 
 ```bash
-sudo tee /usr/lib/systemd/system/power-trigger.service <<EOF
+sudo tee /usr/lib/systemd/system/power-trigger.service << EOF
 [Unit]
 Description=Power Trigger
 
@@ -225,7 +280,7 @@ ExecStart=udevadm trigger --subsystem-match=power_supply --action=change --attr-
 [Install]
 WantedBy=default.target
 EOF
-sudo tee /usr/lib/systemd/system/power-trigger.timer <<EOF
+sudo tee /usr/lib/systemd/system/power-trigger.timer << EOF
 [Unit]
 Description=Power Trigger
 
@@ -239,30 +294,10 @@ EOF
 sudo systemctl enable power-trigger.timer
 ```
 
-### Scroll wheel
-
-```bash
-sudo pacman --sync --refresh imwheel
-
-tee "${HOME}/.imwheelrc" <<EOF
-".*"
-None, Up, Button4, 3
-None, Down, Button5, 3
-Control_L, Up, Control_L|Button4
-Control_L, Down, Control_L|Button5
-Shift_L, Up, Shift_L|Button4
-Shift_L, Down, Shift_L|Button5
-EOF
-
-tee "${HOME}/.config/i3.d/65-imwheel" <<EOF
-exec --no-startup-id imwheel -b 45
-EOF
-```
-
 ### Touchpad
 
 ```bash
-sudo tee --append /etc/X11/xorg.conf.d/90-default.conf <<EOF
+sudo tee --append /etc/X11/xorg.conf.d/90-default.conf << EOF
 
 Section "InputClass"
         Identifier "Touchpad control"
@@ -276,9 +311,9 @@ EndSection
 EOF
 ```
 
-## Virtualization
+### Virtualization
 
-### Docker
+#### Docker
 
 ```bash
 sudo pacman --sync --refresh docker docker-compose
@@ -286,7 +321,7 @@ sudo systemctl enable docker.service
 sudo usermod --append --groups docker "${USER}"
 ```
 
-### KVM/QEMU
+#### KVM/QEMU
 
 ```bash
 PACKAGES=(
