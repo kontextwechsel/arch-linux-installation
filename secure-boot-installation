@@ -100,10 +100,15 @@ sudo tee --append /etc/mkinitcpio.d/linux.preset <<- EOF
 EOF
 sudo mkinitcpio -p linux
 
-sudo sbsign --cert /etc/secure-boot/db.crt --key /etc/secure-boot/db.key --output /boot/EFI/Linux/arch-linux.efi /boot/EFI/Linux/arch-linux.efi
+sudo tee /usr/local/bin/sign-unified-kernel-image <<- EOF
+	#!/bin/bash
+
+	sbsign --cert /etc/secure-boot/db.crt --key /etc/secure-boot/db.key --output /boot/EFI/Linux/arch-linux.efi /boot/EFI/Linux/arch-linux.efi
+EOF
+sudo chmod +x /usr/local/bin/sign-unified-kernel-image
 
 sudo mkdir -p "/etc/pacman.d/hooks/"
-sudo tee /etc/pacman.d/hooks/90-linux.hook <<- EOF
+sudo tee /etc/pacman.d/hooks/99-linux.hook <<- EOF
 	[Trigger]
 	Type = Path
 	Operation = Install
@@ -113,8 +118,10 @@ sudo tee /etc/pacman.d/hooks/90-linux.hook <<- EOF
 
 	[Action]
 	When = PostTransaction
-	Exec = /usr/bin/sbsign --cert /etc/secure-boot/db.crt --key /etc/secure-boot/db.key --output /boot/EFI/Linux/arch-linux.efi /boot/EFI/Linux/arch-linux.efi
+	Exec = /usr/local/bin/sign-unified-kernel-image
 EOF
+
+sudo sign-unified-kernel-image
 
 while read -r n; do
   sudo efibootmgr --bootnum "${n}" --delete-bootnum
@@ -129,12 +136,12 @@ readonly part="${path: -1}"
 sudo efibootmgr --disk "${disk}" --part "${part}" --create --label "Arch Linux" --loader EFI/Linux/arch-linux.efi --create-only
 sudo efibootmgr -o "0000"
 
-if [[ -f /boot/EFI/BOOT/BOOTX64.EFI ]]; then
+if sudo bootctl --quiet is-installed; then
   read -r -p "Delete boot manager? [Y/n] "
   if [[ "${REPLY}" =~ ^[Yy]$ ]]; then
     sudo bootctl remove
-    if [[ -d /boot/loader ]]; then
-      sudo rm -r /boot/loader
+    if [[ -d /boot/loader/ ]]; then
+      sudo rm -r /boot/loader/
     fi
     if [[ -f /etc/pacman.d/hooks/10-systemd-boot.hook ]]; then
       sudo rm /etc/pacman.d/hooks/10-systemd-boot.hook
