@@ -316,7 +316,7 @@ EOF
 #### Docker
 
 ```bash
-sudo pacman --sync --refresh docker docker-compose
+sudo pacman --sync --refresh docker docker-buildx docker-compose
 sudo systemctl enable docker.service
 sudo usermod --append --groups docker "${USER}"
 ```
@@ -328,7 +328,7 @@ PACKAGES=(
   dnsmasq
   libvirt
   openbsd-netcat
-  qemu
+  qemu-desktop
   virt-manager
 )
 sudo pacman --sync --refresh "${PACKAGES[@]}"
