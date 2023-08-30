@@ -17,13 +17,15 @@ readonly DEFAULT_WIDTH=74
 
 buffer=()
 while IFS= read -r disk; do
-  buffer+=("${disk}")
-  if (( "${#buffer[@]}" > 2 )); then
-    buffer+=("OFF")
-  else
-    buffer+=("ON")
+  if lsblk -n -o MOUNTPOINT "${disk}" | awk 'length($1) != 0 { exit 1 }'; then
+    buffer+=("${disk}")
+    if (( "${#buffer[@]}" > 2 )); then
+      buffer+=("OFF")
+    else
+      buffer+=("ON")
+    fi
   fi
-done < <(parted --list --machine --script | awk 'BEGIN { RS = "\n\n" ; FS = "\n" } { print $2 }' | awk 'BEGIN { FS=":" } { print $1 }' | sort)
+done < <(lsblk -n -o TYPE,PATH | awk '$1 == "disk" { print $2 }' | sort)
 if (( "${#buffer[@]}" == 0 )); then
   whiptail --title "${TITLE}" --msgbox "No installation disk" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
   exit 1
