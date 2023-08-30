@@ -174,7 +174,7 @@ readonly virtual_block_device="/dev/mapper/${crypt_partition_id}"
 mkfs.ext4 "${virtual_block_device}"
 mount "${virtual_block_device}" /mnt
 mkdir --parents /mnt/boot/
-mount "${boot_partition}" /mnt/boot
+mount --options umask=0077 "${boot_partition}" /mnt/boot
 
 function unmount_filesystems() {
   umount --force --recursive --verbose /mnt
