@@ -137,6 +137,10 @@ else
   readonly selection_enable_ipv6="no"
 fi
 
+if whiptail --title "${TITLE}" --yesno "Enable logging?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" --defaultno 3>&1 1>&2 2>&3; then
+  exec &> >(tee --append "${BASH_SOURCE[0]}.log")
+fi
+
 set -x
 
 if [[ "${disk}" == *nvm* ]]; then
@@ -212,6 +216,7 @@ readonly packages=(
   bash-completion
   python
   reflector
+  libnewt
   man-db
   man-pages
   openssh
