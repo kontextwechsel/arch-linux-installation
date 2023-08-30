@@ -123,6 +123,18 @@ buffer=(
 size="$(("${#buffer[@]}" / 3))"
 readonly keymap="$(whiptail --title "${TITLE}" --radiolist --notags "Keyboard layout" "$(("${size}" + 7))" "${DEFAULT_WIDTH}" "${size}" "${buffer[@]}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
 
+if whiptail --title "${TITLE}" --yesno "Enable SSH daemon?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3; then
+  readonly selection_enable_sshd="yes"
+else
+  readonly selection_enable_sshd="no"
+fi
+
+if whiptail --title "${TITLE}" --yesno "Enable IPv6?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" --defaultno 3>&1 1>&2 2>&3; then
+  readonly selection_enable_ipv6="yes"
+else
+  readonly selection_enable_ipv6="no"
+fi
+
 set -x
 
 if [[ "${disk}" == *nvm* ]]; then
@@ -366,7 +378,7 @@ arch-chroot /mnt tee /etc/ssh/sshd_config <<- EOF
 	LogLevel VERBOSE
 EOF
 
-if whiptail --title "${TITLE}" --yesno "Enable SSH daemon?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3; then
+if [[ "${selection_enable_sshd}" == "yes" ]]; then
   arch-chroot /mnt systemctl enable sshd.service
   arch-chroot /mnt ufw allow proto tcp to any port 22
 fi
@@ -405,7 +417,7 @@ readonly system_partition_id="$(blkid -s UUID -o value "${system_partition}")"
 readonly virtual_block_device_id="$(blkid -s UUID -o value "${virtual_block_device}")"
 kernel_options=("cryptdevice=UUID=${system_partition_id}:${crypt_partition_id}:allow-discards")
 
-if ! whiptail --title "${TITLE}" --yesno "Enable IPv6?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" --defaultno 3>&1 1>&2 2>&3; then
+if [[ "${selection_enable_ipv6}" == "no" ]]; then
   kernel_options+=("ipv6.disable=1")
 fi
 
