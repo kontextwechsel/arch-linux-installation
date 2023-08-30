@@ -4,6 +4,11 @@ if ! sudo true; then
   exit 1
 fi
 
+if [[ ! -d /sys/firmware/efi/efivars ]]; then
+  printf "UEFI mode required\n"
+  exit 1
+fi
+
 sudo pacman --noconfirm --sync --refresh efitools sbsigntools
 
 readonly GUID="$(uuidgen --random)"
@@ -79,74 +84,72 @@ if ! sudo efi-updatevar -f "${all_signatures_signed}" db; then
   exit 1
 fi
 
+readonly secure_boot_certificate="/etc/secure-boot/db.crt"
+readonly secure_boot_key="/etc/secure-boot/db.key"
 sudo mkdir --parents /etc/secure-boot/
-sudo cp "${kernel_certificate}" /etc/secure-boot/db.crt
-sudo cp "${kernel_key}" /etc/secure-boot/db.key
-sudo chmod u=r,go= /etc/secure-boot/db.crt /etc/secure-boot/db.key
-
-sudo mkdir --parents /etc/kernel/
-IFS=" " read -r -a ns </proc/cmdline
-buffer=()
-for n in "${ns[@]}"; do
-  if [[ "${n}" != initrd* ]]; then
-    buffer+=("${n}")
-  fi
-done
-sudo tee /etc/kernel/cmdline <<<"${buffer[*]}"
-
-sudo tee --append /etc/mkinitcpio.d/linux.preset <<- EOF
-	default_microcode=($(ls --quote-name /boot/*-ucode.img))
-	default_uki="/boot/EFI/Linux/arch-linux.efi"
-EOF
-sudo mkinitcpio -p linux
-
-sudo tee /usr/local/bin/sign-unified-kernel-image <<- EOF
-	#!/bin/bash
-
-	sbsign --cert /etc/secure-boot/db.crt --key /etc/secure-boot/db.key --output /boot/EFI/Linux/arch-linux.efi /boot/EFI/Linux/arch-linux.efi
-EOF
-sudo chmod +x /usr/local/bin/sign-unified-kernel-image
-
-sudo mkdir -p "/etc/pacman.d/hooks/"
-sudo tee /etc/pacman.d/hooks/99-linux.hook <<- EOF
-	[Trigger]
-	Type = Path
-	Operation = Install
-	Operation = Upgrade
-	Target = usr/lib/modules/*/vmlinuz
-	Target = usr/lib/initcpio/*
-
-	[Action]
-	When = PostTransaction
-	Exec = /usr/local/bin/sign-unified-kernel-image
-EOF
-
-sudo sign-unified-kernel-image
-
-while read -r n; do
-  sudo efibootmgr --bootnum "${n}" --delete-bootnum
-done < <(efibootmgr | awk 'match($1, /^Boot([0-9A-F]{4})\*?$/, groups) { print groups[1] }')
-readonly path="$(readlink --canonicalize "/dev/disk/by-uuid/$(awk --field-separator="\\\s+" '$2 == "/boot" { split($1, r, "="); print r[2] }' /etc/fstab)")"
-if [[ "${path}" == *nvm* ]]; then
-  readonly disk="${path:0:-2}"
-else
-  readonly disk="${path:0:-1}"
-fi
-readonly part="${path: -1}"
-sudo efibootmgr --disk "${disk}" --part "${part}" --create --label "Arch Linux" --loader EFI/Linux/arch-linux.efi --create-only
-sudo efibootmgr -o "0000"
+sudo cp "${kernel_certificate}" "${secure_boot_certificate}"
+sudo cp "${kernel_key}" "${secure_boot_key}"
+sudo chmod u=r,go= "${secure_boot_certificate}" "${secure_boot_key}"
 
 if sudo bootctl --quiet is-installed; then
-  read -r -p "Delete boot manager? [Y/n] "
-  if [[ "${REPLY}" =~ ^[Yy]$ ]]; then
-    sudo bootctl remove
-    if [[ -d /boot/loader/ ]]; then
-      sudo rm -r /boot/loader/
-    fi
-    if [[ -f /etc/pacman.d/hooks/10-systemd-boot.hook ]]; then
-      sudo rm /etc/pacman.d/hooks/10-systemd-boot.hook
-    fi
-  else
-    sudo efibootmgr --disk "${disk}" --part "${part}" --create --label "Linux Boot Manager" --loader EFI/BOOT/BOOTX64.EFI --create-only
+  sudo bootctl remove
+  if [[ -d /boot/loader/ ]]; then
+    sudo rm -r /boot/loader/
   fi
+  if [[ -f /etc/pacman.d/hooks/10-systemd-boot.hook ]]; then
+    sudo rm /etc/pacman.d/hooks/10-systemd-boot.hook
+  fi
+fi
+
+read -r -p "Use Arch Linux as default EFI? [Y/n] "
+if [[ "${REPLY}" =~ ^[Yy]$ ]]; then
+  readonly unified_kernel_image="EFI/BOOT/BOOTX64.EFI"
+  readonly selection_default_efi="yes"
+else
+  readonly unified_kernel_image="EFI/Linux/arch-linux.efi"
+  readonly selection_default_efi="no"
+fi
+sudo mkdir --parents "/boot/${unified_kernel_image%/*}/"
+
+sudo mkdir --parents /etc/kernel/
+IFS=" " read -r -a parameters < /proc/cmdline
+buffer=()
+for parameter in "${parameters[@]}"; do
+  if [[ "${parameter}" != initrd* ]]; then
+    buffer+=("${parameter}")
+  fi
+done
+sudo tee /etc/kernel/cmdline <<< "${buffer[*]}"
+
+sudo tee /etc/initcpio/post/sign-unified-kernel-image <<- EOF
+	#!/bin/bash
+
+	readonly unified_kernel_image="\$3"
+	if [[ -f "\${unified_kernel_image}" ]]; then
+	  /usr/bin/sbsign --cert ${secure_boot_certificate} --key ${secure_boot_key} --output "\${unified_kernel_image}" "\${unified_kernel_image}"
+	fi
+EOF
+sudo chmod +x /etc/initcpio/post/sign-unified-kernel-image
+
+sudo tee /etc/mkinitcpio.d/linux.preset <<- EOF
+	PRESETS=("default")
+
+	default_config="/etc/mkinitcpio.conf"
+	default_kver="/boot/vmlinuz-linux"
+	default_microcode=($(ls --quote-name /boot/*-ucode.img))
+	default_uki="/boot/${unified_kernel_image}"
+EOF
+sudo find /boot/ -name "initramfs-*.img" -delete
+sudo mkinitcpio -p linux
+
+read -r -p "Delete all UEFI entries? [Y/n] "
+if [[ "${REPLY}" =~ ^[Yy]$ ]]; then
+  while IFS= read -r n; do
+    sudo efibootmgr --quiet --bootnum "${n}" --delete-bootnum
+  done < <(efibootmgr | awk 'BEGIN { IGNORECASE=1 } match($1, /^(boot)([0-9A-F]{4})([*])?$/, groups) { print groups[2] }')
+fi
+
+if [[ "${selection_default_efi}" == "no" ]]; then
+  IFS=" " read -r disk part < <(lsblk -n -o MOUNTPOINT,PKNAME,PARTN | awk '$1 == "/boot" { printf "%s %s", $2, $3 }')
+  sudo efibootmgr --disk "/dev/${disk}" --part "${part}" --create --label "Arch Linux" --loader "${unified_kernel_image}"
 fi
