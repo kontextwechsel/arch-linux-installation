@@ -14,6 +14,10 @@ readonly COLOR_PINK="#f92472"
 readonly COLOR_GREEN="#a6e22c"
 readonly COLOR_WHITE="#f7f7f7"
 
+if whiptail --title "${TITLE}" --yesno "Enable logging?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" --defaultno 3>&1 1>&2 2>&3; then
+  exec &> >(tee --append "${BASH_SOURCE[0]}.log")
+fi
+
 set -x
 
 sudo sed --in-place "s/^#Color/Color/g" /etc/pacman.conf
@@ -57,7 +61,6 @@ readonly packages=(
   i3-wm
   i3status
   jq
-  libnewt
   libnotify
   libreoffice-fresh
   lsof
