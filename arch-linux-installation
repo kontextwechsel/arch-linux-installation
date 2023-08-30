@@ -184,10 +184,18 @@ function unmount_filesystems() {
 }
 trap unmount_filesystems EXIT
 
-tee /etc/pacman.d/mirrorlist <<- EOF
-	Server = https://mirrors.kernel.org/archlinux/\$repo/os/\$arch
-	Server = https://mirrors.mit.edu/archlinux/\$repo/os/\$arch
-EOF
+readonly reflector_options=(
+  "--completion-percent" "100.0"
+  "--country" "DE,US"
+  "--delay" "0.5"
+  "--latest" "20"
+  "--number" "10"
+  "--protocol" "https"
+  "--save" "/etc/pacman.d/mirrorlist"
+  "--sort" "rate"
+  "--url" "https://archlinux.org/mirrors/status/tier/1/json/"
+)
+reflector "${reflector_options[@]}"
 pacman --sync --refresh --refresh --noconfirm archlinux-keyring
 
 readonly packages=(
@@ -195,18 +203,34 @@ readonly packages=(
   base-devel
   linux
   linux-firmware
+  mkinitcpio
   nftables
   iptables-nft
   sudo
   vim
   bash
   bash-completion
+  python
+  reflector
   man-db
   man-pages
   openssh
   ufw
 )
 pacstrap /mnt "${packages[@]}"
+
+arch-chroot /mnt tee /etc/xdg/reflector/reflector.conf < <(printf "%s %s\n" "${reflector_options[@]}")
+arch-chroot /mnt tee /usr/local/bin/pacman-mirror-update <<- EOF
+	#!/bin/bash
+
+	if [[ -w /etc/pacman.d/mirrorlist ]]; then
+	  /usr/bin/reflector --verbose @/etc/xdg/reflector/reflector.conf
+	else
+	  printf "%s\n" "Permission denied"
+	  exit 1
+	fi
+EOF
+arch-chroot /mnt chmod +x /usr/local/bin/pacman-mirror-update
 
 genfstab -t UUID /mnt | tee /mnt/etc/fstab
 arch-chroot /mnt sed --in-place --regexp-extended "s/[ \t]+/ /g" /etc/fstab
