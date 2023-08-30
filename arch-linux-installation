@@ -436,6 +436,7 @@ arch-chroot /mnt tee /etc/mkinitcpio.d/linux.preset <<- EOF
 	default_image="/boot/initramfs-linux.img"
 	default_kver="/boot/vmlinuz-linux"
 EOF
+arch-chroot /mnt find /boot/ -name "initramfs-*.img" -delete
 arch-chroot /mnt mkinitcpio --preset linux
 
 readonly system_partition_id="$(blkid -s UUID -o value "${system_partition}")"
