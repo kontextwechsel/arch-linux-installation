@@ -14,7 +14,7 @@ function create_certificate() {
   local certificate="$2"
   local key="$3"
 
-  openssl req -newkey rsa:4096 -nodes -keyout "${key}" -new -x509 -sha256 -days 3650 -subj "/CN=${name}" -out "${certificate}" 2>/dev/null
+  openssl req -newkey rsa:4096 -nodes -keyout "${key}" -new -x509 -sha256 -days 3650 -subj "/CN=${name}" -out "${certificate}" 2> /dev/null
 }
 
 temporary_files=()
@@ -46,7 +46,7 @@ if [[ "${REPLY}" =~ ^[Yy]$ ]]; then
   readonly microsoft_production_certificate_binary="$(mktemp)" && temporary_files+=("${microsoft_production_certificate_binary}")
   readonly microsoft_production_certificate="$(mktemp)" && temporary_files+=("${microsoft_production_certificate}")
   readonly microsoft_production_signature="$(mktemp)" && temporary_files+=("${microsoft_production_signature}")
-  if ! curl -f -L -s "https://go.microsoft.com/fwlink/p/?linkid=321192" >"${microsoft_production_certificate_binary}"; then
+  if ! curl -f -L -s "https://go.microsoft.com/fwlink/p/?linkid=321192" > "${microsoft_production_certificate_binary}"; then
     printf "Failed to download Microsoft Windows Production certificate\n"
     exit 1
   fi
@@ -60,7 +60,7 @@ if [[ "${REPLY}" =~ ^[Yy]$ ]]; then
   readonly microsoft_uefi_certificate_binary="$(mktemp)" && temporary_files+=("${microsoft_uefi_certificate_binary}")
   readonly microsoft_uefi_certificate="$(mktemp)" && temporary_files+=("${microsoft_uefi_certificate}")
   readonly micrososft_uefi_signature="$(mktemp)" && temporary_files+=("${micrososft_uefi_signature}")
-  if ! curl -f -L -s https://go.microsoft.com/fwlink/p/?linkid=321194 >"${microsoft_uefi_certificate_binary}"; then
+  if ! curl -f -L -s https://go.microsoft.com/fwlink/p/?linkid=321194 > "${microsoft_uefi_certificate_binary}"; then
     printf "Failed to download Microsoft UEFI certificate\n"
     exit 1
   fi
@@ -71,7 +71,7 @@ fi
 
 readonly all_signatures="$(mktemp)" && temporary_files+=("${all_signatures}")
 readonly all_signatures_signed="$(mktemp)" && temporary_files+=("${all_signatures_signed}")
-cat "${signatures[@]}" >"${all_signatures}"
+cat "${signatures[@]}" > "${all_signatures}"
 sign-efi-sig-list -g "${GUID}" -k "${platform_key}" -c "${platform_certificate}" db "${all_signatures}" "${all_signatures_signed}"
 
 if ! sudo efi-updatevar -f "${all_signatures_signed}" db; then

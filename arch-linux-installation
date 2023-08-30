@@ -18,18 +18,18 @@ readonly DEFAULT_WIDTH=74
 buffer=()
 while IFS= read -r disk; do
   buffer+=("${disk}")
-  if (("${#buffer[@]}" > 2)); then
+  if (( "${#buffer[@]}" > 2 )); then
     buffer+=("OFF")
   else
     buffer+=("ON")
   fi
 done < <(parted --list --machine --script | awk 'BEGIN { RS = "\n\n" ; FS = "\n" } { print $2 }' | awk 'BEGIN { FS=":" } { print $1 }' | sort)
-if (("${#buffer[@]}" == 0)); then
+if (( "${#buffer[@]}" == 0 )); then
   whiptail --title "${TITLE}" --msgbox "No installation disk" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
   exit 1
 fi
-size="$(("${#buffer[@]}" / 2))"
-readonly disk="$(whiptail --title "${TITLE}" --radiolist --noitem "Installation disk" "$(("${size}" + 7))" "${DEFAULT_WIDTH}" "${size}" "${buffer[@]}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
+size="$(( "${#buffer[@]}" / 2 ))"
+readonly disk="$(whiptail --title "${TITLE}" --radiolist --noitem "Installation disk" "$(( "${size}" + 7 ))" "${DEFAULT_WIDTH}" "${size}" "${buffer[@]}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
 
 buffer=()
 while IFS= read -r interface; do
@@ -40,7 +40,7 @@ while IFS= read -r interface; do
       property="${!name}"
       if [[ -n "${property:+substitution}" ]]; then
         buffer+=("${property}")
-        if (("${#buffer[@]}" > 2)); then
+        if (( "${#buffer[@]}" > 2 )); then
           buffer+=("OFF")
         else
           buffer+=("ON")
@@ -50,12 +50,12 @@ while IFS= read -r interface; do
     done
   fi
 done < <(ip -brief link show | awk '{ print $1 }' | sort)
-if (("${#buffer[@]}" == 0)); then
+if (( "${#buffer[@]}" == 0 )); then
   whiptail --title "${TITLE}" --msgbox "No network interface" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
   exit 1
 fi
-size="$(("${#buffer[@]}" / 2))"
-readonly interface="$(whiptail --title "${TITLE}" --radiolist --noitem "Network interface" "$(("${size}" + 7))" "${DEFAULT_WIDTH}" "${size}" "${buffer[@]}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
+size="$(( "${#buffer[@]}" / 2 ))"
+readonly interface="$(whiptail --title "${TITLE}" --radiolist --noitem "Network interface" "$(( "${size}" + 7 ))" "${DEFAULT_WIDTH}" "${size}" "${buffer[@]}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
 
 unset hostname
 while true; do
@@ -120,8 +120,8 @@ buffer=(
   "us" "English (ANSI)" "ON"
   "de" "German (ISO)" "OFF"
 )
-size="$(("${#buffer[@]}" / 3))"
-readonly keymap="$(whiptail --title "${TITLE}" --radiolist --notags "Keyboard layout" "$(("${size}" + 7))" "${DEFAULT_WIDTH}" "${size}" "${buffer[@]}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
+size="$(( "${#buffer[@]}" / 3 ))"
+readonly keymap="$(whiptail --title "${TITLE}" --radiolist --notags "Keyboard layout" "$(( "${size}" + 7 ))" "${DEFAULT_WIDTH}" "${size}" "${buffer[@]}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
 
 if whiptail --title "${TITLE}" --yesno "Enable SSH daemon?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3; then
   readonly selection_enable_sshd="yes"
@@ -387,16 +387,15 @@ unset microcode
 if [[ "$(< /sys/devices/virtual/dmi/id/sys_vendor)" != "QEMU" ]]; then
   case "$(lscpu | awk 'BEGIN { FS=":[[:space:]]*" } $1 == "Vendor ID" { print $2 }')" in
   "AuthenticAMD")
-    microcode="amd-ucode"
+    readonly microcode="amd-ucode"
     arch-chroot /mnt pacman --noconfirm --sync "${microcode}"
     ;;
   "GenuineIntel")
-    microcode="intel-ucode"
+    readonly microcode="intel-ucode"
     arch-chroot /mnt pacman --noconfirm --sync "${microcode}"
     ;;
   esac
 fi
-readonly microcode
 
 arch-chroot /mnt tee /etc/mkinitcpio.conf <<- EOF
 	MODULES=()
