@@ -32,6 +32,30 @@ sudo tee --append /etc/pacman.conf <<- EOF
 EOF
 rm sublimehq-pub.gpg
 
+sudo tee /etc/pacman.d/hooks/20-slock.hook <<- EOF
+	[Trigger]
+	Type = Package
+	Operation = Install
+	Operation = Upgrade
+	Target = slock
+
+	[Action]
+	When = PostTransaction
+	Exec = /usr/bin/perl -i -p -e "s/#CC3333/${COLOR_MEDIUM_GRAY^^}/g;" -e "s/#005577/${COLOR_GREEN^^}/g;" /usr/bin/slock
+EOF
+
+sudo tee /etc/pacman.d/hooks/30-noto-fonts.hook <<- EOF
+	[Trigger]
+	Type = Package
+	Operation = Install
+	Operation = Upgrade
+	Target = noto-fonts
+
+	[Action]
+	When = PostTransaction
+	Exec = /usr/bin/find /usr/share/fonts/noto/ -type f ! -name NotoColorEmoji.ttf ! -name NotoSans-*.ttf ! -name NotoSansMono-*.ttf ! -name NotoSansSymbols-*.ttf ! -name NotoSansSymbols2-*.ttf ! -name NotoSerif-*.ttf -delete
+EOF
+
 readonly packages=(
   adobe-source-code-pro-fonts
   adobe-source-sans-pro-fonts
@@ -67,6 +91,8 @@ readonly packages=(
   mkvtoolnix-cli
   mpv
   nmap
+  noto-fonts
+  noto-fonts-emoji
   numlockx
   p7zip
   pass
@@ -106,23 +132,6 @@ readonly packages=(
 sudo pacman --noconfirm --sync --refresh "${packages[@]}"
 
 flatpak remote-add --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-
-curl --remote-name "https://dn-works.com/wp-content/uploads/2020/UFAS-Fonts/Symbola.zip"
-sudo mkdir --parents /usr/share/fonts/ancient-scripts/
-sudo unzip -d /usr/share/fonts/ancient-scripts Symbola.zip Symbola.otf
-rm Symbola.zip
-
-sudo perl -i -p -e "s/#CC3333/${COLOR_MEDIUM_GRAY^^}/g;" -e "s/#005577/${COLOR_GREEN^^}/g;" /usr/bin/slock
-sudo tee /etc/pacman.d/hooks/20-slock.hook <<- EOF
-	[Trigger]
-	Type = Package
-	Operation = Upgrade
-	Target = slock
-
-	[Action]
-	When = PostTransaction
-	Exec = /usr/bin/perl -i -p -e "s/#CC3333/${COLOR_MEDIUM_GRAY^^}/g;" -e "s/#005577/${COLOR_GREEN^^}/g;" /usr/bin/slock
-EOF
 
 sudo tee /usr/share/X11/xkb/symbols/default <<-EOF
 	default partial alphanumeric_keys
