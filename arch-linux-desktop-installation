@@ -131,8 +131,6 @@ readonly packages=(
 )
 sudo pacman --noconfirm --sync --refresh "${packages[@]}"
 
-flatpak remote-add --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-
 sudo tee /usr/share/X11/xkb/symbols/default <<-EOF
 	default partial alphanumeric_keys
 	xkb_symbols "us" {
