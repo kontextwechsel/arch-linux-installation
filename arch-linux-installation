@@ -137,12 +137,6 @@ else
   readonly selection_enable_sshd="no"
 fi
 
-if whiptail --title "${TITLE}" --yesno "Enable IPv6?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" --defaultno 3>&1 1>&2 2>&3; then
-  readonly selection_enable_ipv6="yes"
-else
-  readonly selection_enable_ipv6="no"
-fi
-
 if [[ "${boot_mode}" == "uefi" ]]; then
   if whiptail --title "${TITLE}" --yesno "Use unified kernel image as default EFI image?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3; then
     readonly selection_default_efi="yes"
@@ -320,6 +314,7 @@ arch-chroot /mnt tee "/etc/systemd/network/10-${interface}.network" <<- EOF
 
 	[Network]
 	DHCP=yes
+	LinkLocalAddressing=no
 
 	[DHCP]
 	UseDomains=yes
@@ -448,10 +443,6 @@ fi
 readonly system_partition_id="$(blkid -s UUID -o value "${system_partition}")"
 readonly virtual_block_device_id="$(blkid -s UUID -o value "${virtual_block_device}")"
 kernel_options=("cryptdevice=UUID=${system_partition_id}:${crypt_partition_id}:allow-discards")
-
-if [[ "${selection_enable_ipv6}" == "no" ]]; then
-  kernel_options+=("ipv6.disable=1")
-fi
 
 arch-chroot /mnt tee /etc/mkinitcpio.conf <<- EOF
 	MODULES=()
