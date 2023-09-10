@@ -15,6 +15,12 @@ readonly TITLE="Arch Linux"
 readonly DEFAULT_HEIGHT=8
 readonly DEFAULT_WIDTH=74
 
+if [[ -d /sys/firmware/efi/efivars/ ]]; then
+  readonly boot_mode="uefi"
+else
+  readonly boot_mode="bios"
+fi
+
 buffer=()
 while IFS= read -r disk; do
   if lsblk -n -o MOUNTPOINT "${disk}" | awk 'length($1) != 0 { exit 1 }'; then
@@ -137,6 +143,14 @@ else
   readonly selection_enable_ipv6="no"
 fi
 
+if [[ "${boot_mode}" == "uefi" ]]; then
+  if whiptail --title "${TITLE}" --yesno "Use unified kernel image as default EFI image?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3; then
+    readonly selection_default_efi="yes"
+  else
+    readonly selection_default_efi="no"
+  fi
+fi
+
 if whiptail --title "${TITLE}" --yesno "Enable logging?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" --defaultno 3>&1 1>&2 2>&3; then
   exec &> >(tee --append "${BASH_SOURCE[0]}.log")
 fi
@@ -144,16 +158,14 @@ fi
 set -x
 
 if [[ "${disk}" == *nvm* ]]; then
-  boot_partition="${disk}p1"
-  system_partition="${disk}p2"
+  readonly boot_partition="${disk}p1"
+  readonly system_partition="${disk}p2"
 else
-  boot_partition="${disk}1"
-  system_partition="${disk}2"
+  readonly boot_partition="${disk}1"
+  readonly system_partition="${disk}2"
 fi
-readonly boot_partition
-readonly system_partition
 
-if [[ -d /sys/firmware/efi/efivars ]]; then
+if [[ "${boot_mode}" == "uefi" ]]; then
   parted --script "${disk}" mklabel gpt || exit 1
   parted --script "${disk}" mkpart EFI 4MiB 516MiB
   parted --script "${disk}" mkpart LINUX 516MiB 100%
@@ -179,8 +191,13 @@ EOF
 readonly virtual_block_device="/dev/mapper/${crypt_partition_id}"
 mkfs.ext4 "${virtual_block_device}"
 mount "${virtual_block_device}" /mnt
-mkdir --parents /mnt/boot/
-mount --options umask=0077 "${boot_partition}" /mnt/boot
+if [[ "${boot_mode}" == "uefi" ]]; then
+  mkdir --parents "/mnt/efi/"
+  mount --options umask=0077 "${boot_partition}" /mnt/efi
+else
+  mkdir --parents "/mnt/boot/"
+  mount "${boot_partition}" /mnt/boot
+fi
 
 function unmount_filesystems() {
   umount --force --recursive --verbose /mnt
@@ -428,22 +445,6 @@ if [[ "$(< /sys/devices/virtual/dmi/id/sys_vendor)" != "QEMU" ]]; then
   esac
 fi
 
-arch-chroot /mnt tee /etc/mkinitcpio.conf <<- EOF
-	MODULES=()
-	BINARIES=()
-	FILES=()
-	HOOKS=(base udev autodetect modconf block keyboard keymap encrypt filesystems fsck)
-EOF
-arch-chroot /mnt tee /etc/mkinitcpio.d/linux.preset <<- EOF
-	PRESETS=("default")
-
-	default_config="/etc/mkinitcpio.conf"
-	default_image="/boot/initramfs-linux.img"
-	default_kver="/boot/vmlinuz-linux"
-EOF
-arch-chroot /mnt find /boot/ -name "initramfs-*.img" -delete
-arch-chroot /mnt mkinitcpio --preset linux
-
 readonly system_partition_id="$(blkid -s UUID -o value "${system_partition}")"
 readonly virtual_block_device_id="$(blkid -s UUID -o value "${virtual_block_device}")"
 kernel_options=("cryptdevice=UUID=${system_partition_id}:${crypt_partition_id}:allow-discards")
@@ -452,41 +453,48 @@ if [[ "${selection_enable_ipv6}" == "no" ]]; then
   kernel_options+=("ipv6.disable=1")
 fi
 
-if [[ -d /sys/firmware/efi/efivars ]]; then
-  arch-chroot /mnt pacman --noconfirm --sync efibootmgr
-  arch-chroot /mnt bootctl install
-  arch-chroot /mnt tee /boot/loader/loader.conf <<- EOF
-		default default.conf
-		console-mode max
-		timeout 0
-		auto-entries false
-		auto-firmware true
-		editor false
+arch-chroot /mnt tee /etc/mkinitcpio.conf <<- EOF
+	MODULES=()
+	BINARIES=()
+	FILES=()
+	HOOKS=(base udev autodetect modconf block keyboard keymap encrypt filesystems fsck)
+EOF
+if [[ "${boot_mode}" == "uefi" ]]; then
+  arch-chroot /mnt tee /etc/kernel/cmdline <<- EOF
+		root=UUID=${virtual_block_device_id} ${kernel_options[*]} rw quiet
 	EOF
-  arch-chroot /mnt tee /boot/loader/entries/default.conf <<- EOF
-		title Arch Linux
-		linux /vmlinuz-linux
-	EOF
-  if [[ -n "${microcode:+substitution}" ]]; then
-    arch-chroot /mnt tee --append /boot/loader/entries/default.conf <<- EOF
-			initrd /${microcode}.img
-		EOF
+  if [[ "${selection_default_efi}" == yes ]]; then
+    arch-chroot /mnt mkdir --parents /efi/EFI/BOOT/
+    readonly unified_kernel_image="EFI/BOOT/BOOTX64.EFI"
+  else
+    arch-chroot /mnt mkdir --parents /efi/EFI/Linux/
+    readonly unified_kernel_image="EFI/Linux/arch-linux.efi"
   fi
-  arch-chroot /mnt tee --append /boot/loader/entries/default.conf <<- EOF
-		initrd /initramfs-linux.img
-		options root=UUID=${virtual_block_device_id} ${kernel_options[*]} rw quiet
-	EOF
-  arch-chroot /mnt mkdir --parents /etc/pacman.d/hooks/
-  arch-chroot /mnt tee /etc/pacman.d/hooks/10-systemd-boot.hook <<- EOF
-		[Trigger]
-		Type = Package
-		Operation = Upgrade
-		Target = systemd
+  arch-chroot /mnt tee /etc/mkinitcpio.d/linux.preset <<- EOF
+		PRESETS=("default")
 
-		[Action]
-		When = PostTransaction
-		Exec = /usr/bin/bootctl update
+		default_config="/etc/mkinitcpio.conf"
+		default_kver="/boot/vmlinuz-linux"
+		default_microcode=("$(arch-chroot /mnt ls --quote-name /boot/*-ucode.img)")
+		default_uki="/efi/${unified_kernel_image}"
 	EOF
+else
+  arch-chroot /mnt tee /etc/mkinitcpio.d/linux.preset <<- EOF
+		PRESETS=("default")
+
+		default_config="/etc/mkinitcpio.conf"
+		default_kver="/boot/vmlinuz-linux"
+		default_image="/boot/initramfs-linux.img"
+	EOF
+fi
+arch-chroot /mnt find /boot/ -name "initramfs-*.img" -delete
+arch-chroot /mnt mkinitcpio --preset linux
+
+if [[ "${boot_mode}" == "uefi" ]]; then
+  arch-chroot /mnt pacman --noconfirm --sync efibootmgr
+  if [[ "${selection_default_efi}" == "no" ]]; then
+    efibootmgr --disk "${disk}" --create --label "Arch Linux" --loader "${unified_kernel_image}"
+  fi
 else
   arch-chroot /mnt pacman --noconfirm --sync grub
   arch-chroot /mnt tee /etc/default/grub <<- EOF
