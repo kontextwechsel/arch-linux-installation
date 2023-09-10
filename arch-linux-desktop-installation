@@ -280,7 +280,7 @@ tee "${HOME}/.local/bin/application-launcher" <<- EOF
 	        exit 1
 	      fi
 	      readonly temporary_file="\$(mktemp)"
-	      awk --assign="application=\$2" --field-separator="=" '\$1 != application' "\${CONFIGURATION_FILE}" > "\${temporary_file}"
+	      awk --assign "application=\$2" --field-separator "=" '\$1 != application' "\${CONFIGURATION_FILE}" > "\${temporary_file}"
 	      readonly executable="\$(realpath "\$(dirname "\$3")" | sed "s/^\/home\/\${USER}\//~\//g")/\$(basename "\$3")"
 	      readonly args="\${*:4}"
 	      if [[ -n "\${args}" ]]; then
@@ -293,7 +293,7 @@ tee "${HOME}/.local/bin/application-launcher" <<- EOF
 	      ;;
 	    -r | --remove)
 	      readonly temporary_file="\$(mktemp)"
-	      awk --assign="application=\$2" --field-separator="=" '\$1 != application' "\${CONFIGURATION_FILE}" > "\${temporary_file}"
+	      awk --assign "application=\$2" --field-separator "=" '\$1 != application' "\${CONFIGURATION_FILE}" > "\${temporary_file}"
 	      mv "\${temporary_file}" "\${CONFIGURATION_FILE}"
 	      ;;
 	    -l | --list)
@@ -311,7 +311,7 @@ tee "${HOME}/.local/bin/application-launcher" <<- EOF
 	  done < "\${CONFIGURATION_FILE}"
 	  while IFS="=" read -r application executable; do
 	    buffer+=(["\${application}"]="\${executable}")
-	  done < <(flatpak list --app | awk --field-separator="\t" '{ printf "%s=/usr/bin/flatpak run %s\n", tolower(\$1), \$2 }')
+	  done < <(flatpak list --app | awk --field-separator "\t" '{ printf "%s=/usr/bin/flatpak run %s\n", tolower(\$1), \$2 }')
 	  readonly buffer
 
 	  readonly selection="\$(dmenu -i -sb "\${BACKGROUND_COLOR}" <<< "\$(printf "%s\n" "\${!buffer[@]}" | sort)")"
