@@ -139,7 +139,6 @@ run_hook() {
   printf "%s\n" "  / ____ \\\\ |_| | |    / /| |_| | | | | | |  / ____ \\\\ ||  __/ | | | | |_|"
   printf "%s\n" " /_/    \\\\_\\\\__,_|_|   /___|\\\\__,_|_| |_| |_| /_/    \\\\_\\\\__\\\\___|_| |_| |_(_)"
   printf "%s\n" "                                                                        "
-  printf "%s\n" "                                                                        "
 }
 EOF
 
@@ -206,6 +205,8 @@ sudo systemctl enable bluetooth.service
 
 ### Hibernate
 
+Requires UEFI mode!
+
 #### Swap
 
 ```bash
@@ -223,6 +224,11 @@ EOF
 #### Resume
 
 ```bash
+IFS=" " read -r -a parameters < /etc/kernel/cmdline
+parameters+=("resume=$(awk '$2 == "/" { print $1 }' /etc/fstab)")
+parameters+=("resume_offset=$(sudo filefrag -v /swapfile | awk 'BEGIN { FS="[[:space:].:]+" } $2 == "0" { print $5 }')")
+sudo tee /etc/kernel/cmdline <<< "${parameters[*]}"
+
 buffer=()
 while IFS="=" read -r key value; do
   IFS=" " read -r -a array <<< "$(sed -r "s/\((.*)\)/\1/g" <<< ${value})"
@@ -242,20 +248,8 @@ while IFS="=" read -r key value; do
   fi
 done < /etc/mkinitcpio.conf
 printf "%s\n" "${buffer[@]}" | sudo tee /etc/mkinitcpio.conf
-sudo mkinitcpio --preset linux
 
-buffer=()
-while IFS=" " read -r key value; do
-  if [[ "${key}" = "options" ]]; then
-    IFS=" " read -r -a array <<< "${value}"
-    array+=("resume=$(awk '$2 == "/" { print $1 }' /etc/fstab)")
-    array+=("resume_offset=$(sudo filefrag -v /swapfile | awk 'BEGIN { FS="[[:space:].:]+" } $2 == "0" { print $5 }')")
-    buffer+=("${key} ${array[*]}")
-  else
-    buffer+=("${key} ${value}")
-  fi
-done < /boot/loader/entries/default.conf
-printf "%s\n" "${buffer[@]}" | sudo tee /boot/loader/entries/default.conf
+sudo mkinitcpio --preset linux
 ```
 
 #### Battery
