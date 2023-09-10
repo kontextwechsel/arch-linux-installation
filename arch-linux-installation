@@ -116,7 +116,7 @@ readonly disk_encryption_password
 tz="Europe/Berlin"
 while true; do
   tz="$(whiptail --title "${TITLE}" --inputbox "Time zone" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" "${tz}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
-  if ! awk --assign="tz=${tz}" 'BEGIN { m = 0 }; $0 == tz { m = 1 }; END { exit !m }' <<< "$(timedatectl list-timezones)"; then
+  if ! awk --assign "tz=${tz}" 'BEGIN { m = 0 }; $0 == tz { m = 1 }; END { exit !m }' <<< "$(timedatectl list-timezones)"; then
     whiptail --title "${TITLE}" --msgbox "Time zone unavailable" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
   else
     break
@@ -387,6 +387,16 @@ if [[ "${interface}" == w* ]]; then
 	EOF
   arch-chroot /mnt chmod +x /usr/local/bin/wpa_cli
   arch-chroot /mnt systemctl enable "wpa_supplicant@${interface}.service"
+  if readonly ssid="$(iwgetid --raw)"; then
+    readonly pre_shared_key_file="/var/lib/iwd/${ssid}.psk"
+    if [[ -f "${pre_shared_key_file}" ]]; then
+      readonly pre_shared_key="$(awk --field-separator "=" 'BEGIN { IGNORECASE=1 } $1 == "passphrase" { print $2 }' "${pre_shared_key_file}")"
+      arch-chroot /mnt tee --append "/etc/wpa_supplicant/wpa_supplicant-${interface}.conf" <<- EOF
+
+				$(wpa_passphrase "${ssid}" "${pre_shared_key}" | awk '$1 !~ /^#/ { print $0 }')
+			EOF
+    fi
+  fi
 fi
 
 arch-chroot /mnt systemctl enable ufw.service
@@ -499,26 +509,4 @@ else
 	EOF
   arch-chroot /mnt grub-install "${disk}"
   arch-chroot /mnt grub-mkconfig --output=/boot/grub/grub.cfg
-fi
-
-if [[ "${interface}" == w* ]]; then
-  if readonly ssid="$(iwgetid --raw)"; then
-    if whiptail --title "${TITLE}" --yesno "Add connected Wi-Fi network?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3; then
-      unset pre_shared_key
-      while true; do
-        pre_shared_key="$(whiptail --title "${TITLE}" --passwordbox "Pre-shared key" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
-        if [[ ! "${pre_shared_key}" =~ ^.{8,}$ ]]; then
-          whiptail --title "${TITLE}" --msgbox "Minimum pre-shared key length is 8 characters" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
-        else
-          break
-        fi
-      done
-      readonly pre_shared_key
-
-      arch-chroot /mnt tee --append "/etc/wpa_supplicant/wpa_supplicant-${interface}.conf" <<- EOF
-
-				$(wpa_passphrase "${ssid}" "${pre_shared_key}" | awk '$1 !~ /^#/ { print $0 }')
-			EOF
-    fi
-  fi
 fi
