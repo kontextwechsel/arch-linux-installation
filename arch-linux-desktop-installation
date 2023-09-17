@@ -449,8 +449,8 @@ tee "${HOME}/.Xresources" <<- EOF
 	XTerm.VT100.color4: rgb:67/d8/ef
 	XTerm.VT100.color5: rgb:ac/80/ff
 	XTerm.VT100.color6: rgb:2a/a1/98
-	XTerm.VT100.color7: rgb:f8/f8/f8
-	XTerm.VT100.color8: rgb:28/28/28
+	XTerm.VT100.color7: rgb:f7/f7/f7
+	XTerm.VT100.color8: rgb:6f/6f/6f
 	XTerm.VT100.color9: rgb:f9/24/72
 	XTerm.VT100.color10: rgb:a6/e2/2c
 	XTerm.VT100.color11: rgb:e7/db/74
@@ -815,6 +815,19 @@ tee "${HOME}/.config/alacritty/alacritty.yml" <<- EOF
 	env:
 	  TERM: xterm
 
+	theme:
+	  colors: &colors
+	    black: &black "#6f6f6f"
+	    red: &red "#f92472"
+	    green: &green "#a6e22c"
+	    yellow: &yellow "#e7db74"
+	    blue: &blue "#67d8ef"
+	    magenta: &magenta "#ac80ff"
+	    cyan: &cyan "#2aa198"
+	    white: &white "#f7f7f7"
+	  foreground: &foreground "#f7f7f7"
+	  background: &background "#282828"
+
 	window:
 	  title: Terminal
 	  dynamic_title: true
@@ -826,49 +839,33 @@ tee "${HOME}/.config/alacritty/alacritty.yml" <<- EOF
 
 	colors:
 	  primary:
-	    background: "#282828"
-	    foreground: "#f7f7f7"
-	  normal:
-	    black:   "#6f6f6f"
-	    red:     "#f92472"
-	    green:   "#a6e22c"
-	    yellow:  "#e7db74"
-	    blue:    "#67d8ef"
-	    magenta: "#ac80ff"
-	    cyan:    "#2aa198"
-	    white:   "#f8f8f8"
-	  bright:
-	    black:   "#282828"
-	    red:     "#f92472"
-	    green:   "#a6e22c"
-	    yellow:  "#e7db74"
-	    blue:    "#67d8ef"
-	    magenta: "#ac80ff"
-	    cyan:    "#2aa198"
-	    white:   "#f7f7f7"
+	    foreground: *foreground
+	    background: *background
+	  normal: *colors
+	  bright: *colors
+	  cursor:
+	    text: *background
+	    cursor: *foreground
 	  selection:
-	   text: "#282828"
-	   background: "#f7f7f7"
-	  line_indicator:
-	    foreground: "#282828"
-	    background: "#f7f7f7"
+	    text: *background
+	    background: *foreground
 	  search:
 	    matches:
-	      foreground: "#282828"
-	      background: "#f7f7f7"
+	      foreground: *background
+	      background: *foreground
 	    focused_match:
-	      foreground: "#f7f7f7"
-	      background: "#2aa198"
-	  footer_bar:
-	    foreground: "#282828"
-	    background: "#f7f7f7"
+	      foreground: *foreground
+	      background: *cyan
 	  hints:
 	    start:
-	      foreground: "#f7f7f7"
-	      background: "#f92472"
+	      foreground: *foreground
+	      background: *red
 	    end:
-	      foreground: "#f92472"
-	      background: "#f7f7f7"
+	      foreground: *red
+	      background: *foreground
+	  footer_bar:
+	    foreground: *background
+	    background: *foreground
 
 	font:
 	  normal:
@@ -881,7 +878,6 @@ tee "${HOME}/.config/alacritty/alacritty.yml" <<- EOF
 	  bold_italic:
 	    style: Regular
 	  size: 16.0
-	draw_bold_text_with_bright_colors: false
 
 	cursor:
 	  style:
@@ -908,7 +904,7 @@ tee "${HOME}/.config/alacritty/alacritty.yml" <<- EOF
 	bell:
 	  animation: Linear
 	  duration: 0
-	  color: "#f7f7f7"
+	  color: *foreground
 
 	shell:
 	  program: /bin/bash
