@@ -327,7 +327,7 @@ tee "${HOME}/.local/share/bash-completion/completions/application-launcher" <<-E
 	      COMPREPLY+=("\${option} ")
 	    done
 	  else
-	    if [[ "\${COMP_WORDS[1]}" = "--add" ]]; then
+	    if [[ "\${COMP_WORDS[1]}" == "--add" ]]; then
 	      if [[ "\${COMP_CWORD}" -eq 2 ]]; then
 	        if [[ -n "\${COMP_WORDS[2]}" ]]; then
 	          COMPREPLY=("\${COMP_WORDS[2]} ")
@@ -345,7 +345,7 @@ tee "${HOME}/.local/share/bash-completion/completions/application-launcher" <<-E
 	          COMPREPLY=("\${COMP_WORDS[\${COMP_CWORD}]} ")
 	        fi
 	      fi
-	    elif [[ "\${COMP_WORDS[1]}" = "--remove" ]]; then
+	    elif [[ "\${COMP_WORDS[1]}" == "--remove" ]]; then
 	      if [[ "\${COMP_CWORD}" -eq 2 ]]; then
 	        for application in \$(compgen -W "\$(application-launcher --list | awk '{ print \$1 }')" -- "\${COMP_WORDS[\${COMP_CWORD}]}"); do
 	          COMPREPLY+=("\${application} ")
@@ -492,7 +492,7 @@ tee "${HOME}/.bash_profile" <<- EOF
 EOF
 
 tee "${HOME}/.bashrc" <<- EOF
-	if [[ "\$-" = *i* ]]; then
+	if [[ "\$-" == *i* ]]; then
 	  if [[ -z "\${SSH_CLIENT:+substitution}" ]]; then
 	    PS1="\[\e[32m\]\u@\h\[\e[m\]:\[\e[34m\]\w\[\e[m\]\\\$ "
 	  else
@@ -756,7 +756,7 @@ tee "${HOME}/.config/i3status.d/30-disk" <<- EOF
 	}
 EOF
 readonly interface="$(ip -brief link show | awk '$2 == "UP" { print $1; exit }')"
-if [[ "${interface}" = w* ]]; then
+if [[ "${interface}" == w* ]]; then
   tee "${HOME}/.config/i3status.d/60-wlan" <<- EOF
 		order += "wireless ${interface}"
 		wireless ${interface} {
@@ -1000,7 +1000,7 @@ EOF
 
 chmod --recursive go= "${HOME}/"
 
-if [[ "$(< /sys/devices/virtual/dmi/id/sys_vendor)" = "QEMU" ]]; then
+if [[ "$(< /sys/devices/virtual/dmi/id/sys_vendor)" == "QEMU" ]]; then
   sudo pacman --noconfirm --sync --refresh spice-vdagent
   tee "${HOME}/.config/i3.d/21-spice" <<- EOF
 		exec --no-startup-id spice-vdagent

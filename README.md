@@ -30,6 +30,63 @@ python color_scheme.py
 
 Microsoft UEFI signature may be required for dedicated graphics cards. Microsoft Production signature is required for booting Windows.
 
+### Secure Boot status
+
+Prints Secure Boot status before password prompt for disk encryption.
+
+```bash
+sudo tee /etc/initcpio/install/secure-boot-status << EOF
+#!/bin/bash
+
+build() {
+  add_binary "/usr/bin/awk"
+  add_binary "/usr/bin/od"
+  add_runscript
+}
+
+help() {
+  :
+}
+EOF
+
+sudo tee /etc/initcpio/hooks/secure-boot-status << EOF
+#!/usr/bin/ash
+
+run_hook () {
+  if [ -d /sys/firmware/efi/efivars/ ]; then
+    if [ "\$(od --address-radix=n --format=u1 /sys/firmware/efi/efivars/SecureBoot-????????-????-????-????-???????????? | awk '{ print \$NF }')" -eq 1 ]; then
+      readonly status="\e[32menabled\e[0m"
+    else
+      readonly status="\e[31mdisabled\e[0m"
+    fi
+    printf "Secure Boot is %b\n\n" "\${status}"
+  fi
+}
+EOF
+
+buffer=()
+while IFS="=" read -r key value; do
+  IFS=" " read -r -a variables <<< "$(sed -r "s/\((.*)\)/\1/g" <<< "${value}")"
+  if [[ "${key}" == "HOOKS" ]]; then
+    hooks=()
+    for hook in "${variables[@]}"; do
+      if [[ "${hook}" != "secure-boot-status" ]]; then
+        if [[ "${hook}" == "encrypt" ]]; then
+          hooks+=("secure-boot-status")
+        fi
+        hooks+=("${hook}")
+      fi
+    done
+    buffer+=("${key}=(${hooks[*]})")
+  else
+    buffer+=("${key}=(${variables[*]})")
+  fi
+done < /etc/mkinitcpio.conf
+printf "%s\n" "${buffer[@]}" | sudo tee /etc/mkinitcpio.conf
+
+sudo mkinitcpio -p linux
+```
+
 ## Additional installation steps
 
 ### Backlight
@@ -116,48 +173,55 @@ sudo systemctl mask systemd-backlight@.service
 ### Banner
 
 ```bash
-sudo tee /usr/lib/initcpio/install/banner << EOF
+sudo tee /etc/initcpio/banner << EOF
+                __                                 _                 _
+    /\         / _|                           /\  | |               | |
+   /  \  _   _| |_   _____   _ _ __ ___      /  \ | |_ ___ _ __ ___ | |
+  / /\ \| | | |  _| |_  / | | | '_ \` _ \    / /\ \| __/ _ \ '_ \` _ \| |
+ / ____ \ |_| | |    / /| |_| | | | | | |  / ____ \ ||  __/ | | | | |_|
+/_/    \_\__,_|_|   /___|\__,_|_| |_| |_| /_/    \_\__\___|_| |_| |_(_)
+
+EOF
+
+sudo tee /etc/initcpio/install/banner << EOF
 #!/bin/bash
 
 build() {
-  add_runscript
+  if [[ -s /etc/initcpio/banner ]]; then
+    add_file "/etc/initcpio/banner"
+    add_runscript
+  fi
 }
 
 help() {
-  printf "%s\n" "Auf zum Atem!"
+  :
 }
 EOF
 
-sudo tee /usr/lib/initcpio/hooks/banner << EOF
+sudo tee /etc/initcpio/hooks/banner << EOF
 #!/usr/bin/ash
 
 run_hook() {
-  printf "%s\n" "                 __                                 _                 _ "
-  printf "%s\n" "     /\\\\         / _|                           /\\\\  | |               | |"
-  printf "%s\n" "    /  \\\\  _   _| |_   _____   _ _ __ ___      /  \\\\ | |_ ___ _ __ ___ | |"
-  printf "%s\n" "   / /\\\\ \\\\| | | |  _| |_  / | | | '_ \\\` _ \\\\    / /\\\\ \\\\| __/ _ \\\\ '_ \\\` _ \\\\| |"
-  printf "%s\n" "  / ____ \\\\ |_| | |    / /| |_| | | | | | |  / ____ \\\\ ||  __/ | | | | |_|"
-  printf "%s\n" " /_/    \\\\_\\\\__,_|_|   /___|\\\\__,_|_| |_| |_| /_/    \\\\_\\\\__\\\\___|_| |_| |_(_)"
-  printf "%s\n" "                                                                        "
+  cat /etc/initcpio/banner
 }
 EOF
 
 buffer=()
 while IFS="=" read -r key value; do
-  IFS=" " read -r -a array <<< "$(sed -r "s/\((.*)\)/\1/g" <<< "${value}")"
-  if [[ "${key}" = "HOOKS" ]]; then
+  IFS=" " read -r -a variables <<< "$(sed -r "s/\((.*)\)/\1/g" <<< "${value}")"
+  if [[ "${key}" == "HOOKS" ]]; then
     hooks=()
-    for hook in "${array[@]}"; do
+    for hook in "${variables[@]}"; do
       if [[ "${hook}" != "banner" ]]; then
         hooks+=("${hook}")
-        if [[ "${hook}" = "base" ]]; then
+        if [[ "${hook}" == "base" ]]; then
           hooks+=("banner")
         fi
       fi
     done
     buffer+=("${key}=(${hooks[*]})")
   else
-    buffer+=("${key}=(${array[*]})")
+    buffer+=("${key}=(${variables[*]})")
   fi
 done < /etc/mkinitcpio.conf
 printf "%s\n" "${buffer[@]}" | sudo tee /etc/mkinitcpio.conf
@@ -231,20 +295,20 @@ sudo tee /etc/kernel/cmdline <<< "${parameters[*]}"
 
 buffer=()
 while IFS="=" read -r key value; do
-  IFS=" " read -r -a array <<< "$(sed -r "s/\((.*)\)/\1/g" <<< ${value})"
-  if [[ "${key}" = "HOOKS" ]]; then
+  IFS=" " read -r -a variables <<< "$(sed -r "s/\((.*)\)/\1/g" <<< ${value})"
+  if [[ "${key}" == "HOOKS" ]]; then
     hooks=()
-    for hook in "${array[@]}"; do
+    for hook in "${variables[@]}"; do
       if [[ "${hook}" != "resume" ]]; then
         hooks+=("${hook}")
-        if [[ "${hook}" = "filesystems" ]]; then
+        if [[ "${hook}" == "filesystems" ]]; then
           hooks+=("resume")
         fi
       fi
     done
     buffer+=("${key}=(${hooks[*]})")
   else
-    buffer+=("${key}=(${array[*]})")
+    buffer+=("${key}=(${variables[*]})")
   fi
 done < /etc/mkinitcpio.conf
 printf "%s\n" "${buffer[@]}" | sudo tee /etc/mkinitcpio.conf
@@ -258,34 +322,6 @@ sudo mkinitcpio --preset linux
 sudo tee /etc/udev/rules.d/90-battery.rules << EOF
 SUBSYSTEM=="power_supply", ATTR{status}=="Discharging", ATTR{capacity}=="[0-5]", RUN+="/usr/bin/systemctl hibernate"
 EOF
-```
-
-##### Workaround for ACPI not reporting battery status
-
-```bash
-sudo tee /usr/lib/systemd/system/power-trigger.service << EOF
-[Unit]
-Description=Power Trigger
-
-[Service]
-Type=oneshot
-ExecStart=udevadm trigger --subsystem-match=power_supply --action=change --attr-match=status=Discharging
-
-[Install]
-WantedBy=default.target
-EOF
-sudo tee /usr/lib/systemd/system/power-trigger.timer << EOF
-[Unit]
-Description=Power Trigger
-
-[Timer]
-OnCalendar=*:0/1
-Unit=power-trigger.service
-
-[Install]
-WantedBy=default.target
-EOF
-sudo systemctl enable power-trigger.timer
 ```
 
 ### Touchpad
