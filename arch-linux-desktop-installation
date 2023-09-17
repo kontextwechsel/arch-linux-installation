@@ -433,6 +433,9 @@ tee "${HOME}/.xinitrc" <<- EOF
 	exec /usr/bin/i3 -c "/run/user/\${UID}/i3/config"  > /dev/null 2>&1
 EOF
 
+tee "${HOME}/.Xauthority" <<- EOF
+EOF
+
 tee "${HOME}/.Xresources" <<- EOF
 	Xft.dpi: 96
 	XTerm.termName: xterm
