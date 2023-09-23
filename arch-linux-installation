@@ -476,7 +476,7 @@ if [[ "${boot_mode}" == "uefi" ]]; then
 
 		default_config="/etc/mkinitcpio.conf"
 		default_kver="/boot/vmlinuz-linux"
-		default_microcode=("$(arch-chroot /mnt ls --quote-name /boot/*-ucode.img)")
+		default_microcode=(\$(ls /boot/*-ucode.img))
 		default_uki="/efi/${unified_kernel_image}"
 	EOF
 else
