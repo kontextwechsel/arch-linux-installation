@@ -487,7 +487,7 @@ tee "${HOME}/.bash_profile" <<- EOF
 	    PATH="\${HOME}/.local/bin:\${PATH}"
 	fi
 	if [[ -z "\${DISPLAY}" && "\${XDG_VTNR}" -eq 1 ]]; then
-	    exec startx
+	    startx
 	fi
 EOF
 
