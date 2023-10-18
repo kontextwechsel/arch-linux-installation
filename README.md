@@ -111,11 +111,11 @@ function set_brightness() {
 if [[ "\$#" -eq 1 ]]; then
   case "\$1" in
     -i | --increment)
-      set_brightness "\$(("\${brightness}" > 90 ? 100 : "\${brightness}" + 10))"
+      set_brightness "\$(( "\${brightness}" > 90 ? 100 : "\${brightness}" + 10 ))"
       exit
       ;;
     -d | --decrement)
-      set_brightness "\$(("\${brightness}" < 10 ? 0 : "\${brightness}" - 10))"
+      set_brightness "\$(( "\${brightness}" < 10 ? 0 : "\${brightness}" - 10 ))"
       exit
       ;;
     -r | --reset)
@@ -354,14 +354,14 @@ sudo usermod --append --groups docker "${USER}"
 #### KVM/QEMU
 
 ```bash
-PACKAGES=(
+packages=(
   dnsmasq
   libvirt
   openbsd-netcat
   qemu-desktop
   virt-manager
 )
-sudo pacman --sync --refresh "${PACKAGES[@]}"
+sudo pacman --sync --refresh "${packages[@]}"
 sudo systemctl enable libvirtd.service
 sudo usermod --append --groups libvirt "${USER}"
 
