@@ -288,10 +288,11 @@ EOF
 #### Resume
 
 ```bash
-IFS=" " read -r -a parameters < /etc/kernel/cmdline
-parameters+=("resume=$(awk '$2 == "/" { print $1 }' /etc/fstab)")
-parameters+=("resume_offset=$(sudo filefrag -v /swapfile | awk 'BEGIN { FS="[[:space:].:]+" } $2 == "0" { print $5 }')")
-sudo tee /etc/kernel/cmdline <<< "${parameters[*]}"
+swap_partition_id="$(lsblk -n -o MOUNTPOINT,UUID | awk '$1 == "/" { print $2 }')"
+swap_file_offset="$(sudo filefrag -v /swapfile | awk '$1 == "0:" { match($4, /[0-9]+/, m); print m[0] }')"
+sudo tee /etc/cmdline.d/hibernate.conf << EOF
+resume=UUID=${swap_partition_id} resume_offset=${swap_file_offset}
+EOF
 
 buffer=()
 while IFS="=" read -r key value; do

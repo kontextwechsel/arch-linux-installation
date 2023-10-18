@@ -461,7 +461,8 @@ arch-chroot /mnt tee /etc/mkinitcpio.conf <<- EOF
 	HOOKS=(base udev autodetect modconf block keyboard keymap encrypt filesystems fsck)
 EOF
 if [[ "${boot_mode}" == "uefi" ]]; then
-  arch-chroot /mnt tee /etc/kernel/cmdline <<- EOF
+  arch-chroot /mnt mkdir --parents /etc/cmdline.d/
+  arch-chroot /mnt tee /etc/cmdline.d/default.conf <<- EOF
 		root=UUID=${virtual_block_device_id} ${kernel_options[*]} rw quiet
 	EOF
   if [[ "${selection_default_efi}" == yes ]]; then
