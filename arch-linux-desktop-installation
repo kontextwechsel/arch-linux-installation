@@ -20,20 +20,31 @@ fi
 
 set -x
 
-sudo sed --in-place "s/^#Color/Color/g" /etc/pacman.conf
+sudo mkdir --parents /etc/pacman.d/conf/
+sudo tee /etc/pacman.d/conf/color <<- EOF
+	Color
+EOF
 
-curl --remote-name "https://download.sublimetext.com/sublimehq-pub.gpg"
-sudo pacman-key --add sublimehq-pub.gpg
-sudo pacman-key --lsign-key 8A8F901A
-sudo tee --append /etc/pacman.conf <<- EOF
-
+readonly sublime_text_key_id="1EDDE2CDFC025D17F6DA9EC0ADAE6AD28A8F901A"
+sudo pacman-key --recv-keys "${sublime_text_key_id}"
+sudo pacman-key --lsign-key "${sublime_text_key_id}"
+sudo tee /etc/pacman.d/conf/sublime-text <<- EOF
 	[sublime-text]
 	Server = https://download.sublimetext.com/arch/stable/x86_64
 EOF
-rm sublimehq-pub.gpg
+
+sudo tee /etc/pacman.d/conf/noto-fonts <<- EOF
+	NoExtract = usr/share/fonts/noto/Noto*.ttf
+	NoExtract = !usr/share/fonts/noto/NotoColorEmoji.ttf
+	NoExtract = !usr/share/fonts/noto/NotoSans-*.ttf
+	NoExtract = !usr/share/fonts/noto/NotoSansMono-*.ttf
+	NoExtract = !usr/share/fonts/noto/NotoSansSymbols
+	NoExtract = !usr/share/fonts/noto/NotoSansSymbols-*.ttf
+	NoExtract = !usr/share/fonts/noto/NotoSerif-*.ttf
+EOF
 
 sudo mkdir --parents /etc/pacman.d/hooks/
-sudo tee /etc/pacman.d/hooks/20-slock.hook <<- EOF
+sudo tee /etc/pacman.d/hooks/slock.hook <<- EOF
 	[Trigger]
 	Type = Package
 	Operation = Install
@@ -43,17 +54,6 @@ sudo tee /etc/pacman.d/hooks/20-slock.hook <<- EOF
 	[Action]
 	When = PostTransaction
 	Exec = /usr/bin/perl -i -p -e "s/#CC3333/${COLOR_MEDIUM_GRAY^^}/g;" -e "s/#005577/${COLOR_GREEN^^}/g;" /usr/bin/slock
-EOF
-sudo tee /etc/pacman.d/hooks/30-noto-fonts.hook <<- EOF
-	[Trigger]
-	Type = Package
-	Operation = Install
-	Operation = Upgrade
-	Target = noto-fonts
-
-	[Action]
-	When = PostTransaction
-	Exec = /usr/bin/find /usr/share/fonts/noto/ -type f ! -name NotoColorEmoji.ttf ! -name NotoSans-*.ttf ! -name NotoSansMono-*.ttf ! -name NotoSansSymbols-*.ttf ! -name NotoSansSymbols2-*.ttf ! -name NotoSerif-*.ttf -delete
 EOF
 
 readonly packages=(

@@ -235,6 +235,23 @@ readonly packages=(
 )
 pacstrap /mnt "${packages[@]}"
 
+arch-chroot /mnt tee /etc/pacman.conf <<- EOF
+	[options]
+	HoldPkg = pacman glibc
+	Architecture = auto
+	SigLevel = PackageRequired DatabaseOptional
+	LocalFileSigLevel = PackageOptional DatabaseOptional
+	CheckSpace
+
+	Include = /etc/pacman.d/conf/*
+
+	[core]
+	Include = /etc/pacman.d/mirrorlist
+
+	[extra]
+	Include = /etc/pacman.d/mirrorlist
+EOF
+
 arch-chroot /mnt tee /etc/xdg/reflector/reflector.conf < <(printf "%s %s\n" "${reflector_options[@]}")
 arch-chroot /mnt tee /usr/local/bin/pacman-mirror-update <<- EOF
 	#!/bin/bash
