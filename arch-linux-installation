@@ -469,7 +469,8 @@ fi
 
 readonly system_partition_id="$(blkid -s UUID -o value "${system_partition}")"
 readonly virtual_block_device_id="$(blkid -s UUID -o value "${virtual_block_device}")"
-kernel_options=("cryptdevice=UUID=${system_partition_id}:${crypt_partition_id}:allow-discards")
+readonly default_kernel_options=("cryptdevice=UUID=${system_partition_id}:${crypt_partition_id}:allow-discards")
+readonly security_kernel_options=("lockdown=integrity")
 
 arch-chroot /mnt tee /etc/mkinitcpio.conf <<- EOF
 	MODULES=()
@@ -480,7 +481,10 @@ EOF
 if [[ "${boot_mode}" == "uefi" ]]; then
   arch-chroot /mnt mkdir --parents /etc/cmdline.d/
   arch-chroot /mnt tee /etc/cmdline.d/default.conf <<- EOF
-		root=UUID=${virtual_block_device_id} ${kernel_options[*]} rw quiet
+		root=UUID=${virtual_block_device_id} ${default_kernel_options[*]} rw quiet
+	EOF
+  arch-chroot /mnt tee /etc/cmdline.d/security.conf <<- EOF
+		${security_kernel_options[*]}
 	EOF
   if [[ "${selection_default_efi}" == yes ]]; then
     arch-chroot /mnt mkdir --parents /efi/EFI/BOOT/
@@ -522,7 +526,7 @@ else
 		GRUB_TIMEOUT=0
 		GRUB_TIMEOUT_STYLE=hidden
 		GRUB_DISABLE_RECOVERY=true
-		GRUB_CMDLINE_LINUX="${kernel_options[*]}"
+		GRUB_CMDLINE_LINUX="${default_kernel_options[*]} ${security_kernel_options[*]}"
 		GRUB_CMDLINE_LINUX_DEFAULT="quiet"
 	EOF
   arch-chroot /mnt grub-install "${disk}"
