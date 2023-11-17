@@ -430,7 +430,7 @@ tee "${HOME}/.xinitrc" <<- EOF
 	mkdir --parents "/run/user/\${UID}/i3status/"
 	awk 'NR != 1 && FNR == 1 { printf "\n" } { print }' "\${HOME}/.config/i3.d/"* > "/run/user/\${UID}/i3/config"
 	awk 'NR != 1 && FNR == 1 { printf "\n" } { print }' "\${HOME}/.config/i3status.d/"* > "/run/user/\${UID}/i3status/config"
-	exec /usr/bin/i3 -c "/run/user/\${UID}/i3/config"  > /dev/null 2>&1
+	exec /usr/bin/i3 -c "/run/user/\${UID}/i3/config" > /dev/null 2>&1
 EOF
 
 tee "${HOME}/.Xauthority" <<- EOF
@@ -761,7 +761,7 @@ if [[ "${interface}" == w* ]]; then
 		order += "wireless ${interface}"
 		wireless ${interface} {
 		    format_up = "%essid"
-		    format_down = "🖧"
+		    format_down = "—"
 		}
 	EOF
 else
@@ -769,7 +769,7 @@ else
 		order += "ethernet ${interface}"
 		ethernet ${interface} {
 		    format_up = "%ip"
-		    format_down = "🖧"
+		    format_down = "—"
 		}
 	EOF
 fi
