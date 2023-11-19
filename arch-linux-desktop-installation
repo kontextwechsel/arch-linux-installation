@@ -783,7 +783,12 @@ EOF
 mkdir --parents "${HOME}/.config/dunst/"
 tee "${HOME}/.config/dunst/dunstrc" <<- EOF
 	[global]
-	    geometry="300x1-10-35"
+	    width = 300
+	    height = 100
+	    notification_limit = 1
+	    origin = "bottom-right"
+	    offset = 10x36
+	    progress_bar = false
 	    padding = 10
 	    horizontal_padding = 10
 	    frame_width = 1
@@ -791,7 +796,6 @@ tee "${HOME}/.config/dunst/dunstrc" <<- EOF
 	    line_height = 3
 	    format = "<b>%s</b>\n%b"
 	    word_wrap = true
-	    hide_duplicate_count = true
 	    show_indicators = false
 
 	[urgency_low]
