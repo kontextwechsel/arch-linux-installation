@@ -186,10 +186,10 @@ readonly virtual_block_device="/dev/mapper/${crypt_partition_id}"
 mkfs.ext4 "${virtual_block_device}"
 mount "${virtual_block_device}" /mnt
 if [[ "${boot_mode}" == "uefi" ]]; then
-  mkdir --parents "/mnt/efi/"
+  mkdir --parents /mnt/efi/
   mount --options umask=0077 "${boot_partition}" /mnt/efi
 else
-  mkdir --parents "/mnt/boot/"
+  mkdir --parents /mnt/boot/
   mount "${boot_partition}" /mnt/boot
 fi
 
@@ -250,6 +250,10 @@ arch-chroot /mnt tee /etc/pacman.conf <<- EOF
 
 	[extra]
 	Include = /etc/pacman.d/mirrorlist
+EOF
+arch-chroot /mnt mkdir --parents /etc/pacman.d/conf/
+arch-chroot /mnt tee /etc/pacman.d/conf/color <<- EOF
+	Color
 EOF
 
 arch-chroot /mnt tee /etc/xdg/reflector/reflector.conf < <(printf "%s %s\n" "${reflector_options[@]}")
