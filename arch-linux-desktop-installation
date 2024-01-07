@@ -20,11 +20,6 @@ fi
 
 set -x
 
-sudo mkdir --parents /etc/pacman.d/conf/
-sudo tee /etc/pacman.d/conf/color <<- EOF
-	Color
-EOF
-
 readonly sublime_text_key_id="1EDDE2CDFC025D17F6DA9EC0ADAE6AD28A8F901A"
 sudo pacman-key --recv-keys "${sublime_text_key_id}"
 sudo pacman-key --lsign-key "${sublime_text_key_id}"
