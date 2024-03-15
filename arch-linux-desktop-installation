@@ -103,6 +103,7 @@ readonly packages=(
   rsync
   scrot
   slock
+  smartmontools
   sublime-text
   tcpdump
   testdisk
@@ -110,6 +111,7 @@ readonly packages=(
   ttf-liberation
   unrar
   unzip
+  usbutils
   wget
   wireplumber
   xclip
