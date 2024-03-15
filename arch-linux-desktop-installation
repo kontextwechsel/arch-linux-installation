@@ -438,7 +438,7 @@ tee "${HOME}/.Xresources" <<- EOF
 	XTerm.termName: xterm
 	XTerm.title: Terminal
 	XTerm.VT100.faceName: Source Code Pro
-	XTerm.VT100.faceSize: 14
+	XTerm.VT100.faceSize: 16
 	XTerm.VT100.allowBoldFonts: false
 	XTerm.VT100.background: rgb:28/28/28
 	XTerm.VT100.foreground: rgb:f7/f7/f7
