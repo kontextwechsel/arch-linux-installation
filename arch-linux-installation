@@ -145,6 +145,17 @@ if [[ "${boot_mode}" == "uefi" ]]; then
   fi
 fi
 
+if [[ "${boot_mode}" == "uefi" ]]; then
+  if [[ "${selection_default_efi}" == "yes" ]]; then
+    readonly default_option="--defaultno"
+  fi
+  if whiptail --title "${TITLE}" --yesno "Add EFI image to boot manager?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" "${default_option}" 3>&1 1>&2 2>&3; then
+    readonly selection_boot_entry="yes"
+  else
+    readonly selection_boot_entry="no"
+  fi
+fi
+
 if whiptail --title "${TITLE}" --yesno "Enable logging?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" --defaultno 3>&1 1>&2 2>&3; then
   exec &> >(tee --append "${BASH_SOURCE[0]}.log")
 fi
@@ -490,7 +501,7 @@ if [[ "${boot_mode}" == "uefi" ]]; then
   arch-chroot /mnt tee /etc/cmdline.d/security.conf <<- EOF
 		${security_kernel_options[*]}
 	EOF
-  if [[ "${selection_default_efi}" == yes ]]; then
+  if [[ "${selection_default_efi}" == "yes" ]]; then
     arch-chroot /mnt mkdir --parents /efi/EFI/BOOT/
     readonly unified_kernel_image="EFI/BOOT/BOOTX64.EFI"
   else
@@ -519,8 +530,8 @@ arch-chroot /mnt mkinitcpio --preset linux
 
 if [[ "${boot_mode}" == "uefi" ]]; then
   arch-chroot /mnt pacman --noconfirm --sync efibootmgr
-  if [[ "${selection_default_efi}" == "no" ]]; then
-    efibootmgr --disk "${disk}" --create --label "Arch Linux" --loader "${unified_kernel_image}"
+  if [[ "${selection_boot_entry}" == "yes" ]]; then
+    efibootmgr --disk "${disk}" --create --label "Arch Linux" --loader "/${unified_kernel_image}"
   fi
 else
   arch-chroot /mnt pacman --noconfirm --sync grub
