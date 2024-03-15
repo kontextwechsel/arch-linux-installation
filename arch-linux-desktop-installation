@@ -535,7 +535,7 @@ tee "${HOME}/.bashrc" <<- EOF
 	    alias "\${command}"="/usr/bin/systemctl \${command}"
 	  done
 
-	  function toogle_history() {
+	  function toggle_history() {
 	    if [[ -z "\${HISTFILE:+substitution}" ]]; then
 	      HISTFILE="\${HOME}/.bash_history"
 	      printf "\e[30mHistory enabled\e[0m\n"
@@ -544,7 +544,7 @@ tee "${HOME}/.bashrc" <<- EOF
 	      printf "\e[30mHistory disabled\e[0m\n"
 	    fi
 	  }
-	  bind -x '"\eh": toogle_history'
+	  bind -x '"\eh": toggle_history'
 
 	  function prettify_git() {
 	    args=("\$@")
