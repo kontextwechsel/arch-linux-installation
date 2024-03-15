@@ -168,7 +168,7 @@ sudo tee /etc/X11/xorg.conf.d/10-keyboard.conf <<- EOF
 	        MatchIsKeyboard "on"
 	        Option "XkbLayout" "default,default"
 	        Option "XkbVariant" "${variants}"
-	        Option "XkbOptions" "caps:escape_shifted_capslock,grp:win_space_toggle"
+	        Option "XkbOptions" "caps:escape_shifted_capslock,grp:rctrl_rshift_toggle"
 	EndSection
 EOF
 sudo tee /etc/X11/xorg.conf.d/90-default.conf <<- EOF
