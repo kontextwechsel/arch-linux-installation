@@ -360,6 +360,7 @@ packages=(
   libvirt
   openbsd-netcat
   qemu-desktop
+  swtpm
   virt-manager
 )
 sudo pacman --sync --refresh "${packages[@]}"
