@@ -468,14 +468,14 @@ fi
 unset microcode
 if [[ "$(< /sys/devices/virtual/dmi/id/sys_vendor)" != "QEMU" ]]; then
   case "$(lscpu | awk 'BEGIN { FS=":[[:space:]]*" } $1 == "Vendor ID" { print $2 }')" in
-  "AuthenticAMD")
-    readonly microcode="amd-ucode"
-    arch-chroot /mnt pacman --noconfirm --sync "${microcode}"
-    ;;
-  "GenuineIntel")
-    readonly microcode="intel-ucode"
-    arch-chroot /mnt pacman --noconfirm --sync "${microcode}"
-    ;;
+    "AuthenticAMD")
+      readonly microcode="amd-ucode"
+      arch-chroot /mnt pacman --noconfirm --sync "${microcode}"
+      ;;
+    "GenuineIntel")
+      readonly microcode="intel-ucode"
+      arch-chroot /mnt pacman --noconfirm --sync "${microcode}"
+      ;;
   esac
 fi
 
