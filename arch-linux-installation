@@ -488,7 +488,7 @@ arch-chroot /mnt tee /etc/mkinitcpio.conf <<- EOF
 	MODULES=()
 	BINARIES=()
 	FILES=()
-	HOOKS=(base udev autodetect modconf block keyboard keymap encrypt filesystems fsck)
+	HOOKS=(base udev autodetect microcode modconf block keyboard keymap encrypt filesystems fsck)
 EOF
 if [[ "${boot_mode}" == "uefi" ]]; then
   arch-chroot /mnt mkdir --parents /etc/cmdline.d/
@@ -510,7 +510,6 @@ if [[ "${boot_mode}" == "uefi" ]]; then
 
 		default_config="/etc/mkinitcpio.conf"
 		default_kver="/boot/vmlinuz-linux"
-		default_microcode=(\$(find /boot/ -name "*-ucode.img"))
 		default_uki="/efi/${unified_kernel_image}"
 	EOF
 else
