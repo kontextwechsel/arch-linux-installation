@@ -41,21 +41,32 @@ readonly disk="$(whiptail --title "${TITLE}" --radiolist --noitem "Installation 
 
 buffer=()
 while IFS= read -r interface; do
-  if [[ -e "/sys/class/net/${interface}" ]]; then
-    unset ID_NET_NAME_FROM_DATABASE ID_NET_NAME_ONBOARD ID_NET_NAME_SLOT ID_NET_NAME_PATH ID_NET_NAME_MAC
-    source <(udevadm info --query=property --export "/sys/class/net/${interface}")
-    for name in ID_NET_NAME_FROM_DATABASE ID_NET_NAME_ONBOARD ID_NET_NAME_SLOT ID_NET_NAME_PATH ID_NET_NAME_MAC; do
-      property="${!name}"
-      if [[ -n "${property:+substitution}" ]]; then
-        buffer+=("${property}")
-        if (( "${#buffer[@]}" > 2 )); then
-          buffer+=("OFF")
-        else
-          buffer+=("ON")
-        fi
-        break
+  unset name
+  case "${interface}" in
+    e*)
+      # Use predictable network interface name for ethernet interfaces
+      if [[ -e "/sys/class/net/${interface}" ]]; then
+        unset ID_NET_NAME_FROM_DATABASE ID_NET_NAME_ONBOARD ID_NET_NAME_SLOT ID_NET_NAME_PATH ID_NET_NAME_MAC
+        source <(udevadm info --query=property --export "/sys/class/net/${interface}")
+        for variable in ID_NET_NAME_FROM_DATABASE ID_NET_NAME_ONBOARD ID_NET_NAME_SLOT ID_NET_NAME_PATH ID_NET_NAME_MAC; do
+          if [[ -n "${!variable:+substitution}" ]]; then
+            name="${!variable}"
+            break
+          fi
+        done
       fi
-    done
+      ;;
+    w*)
+      name="${interface}"
+      ;;
+  esac
+  if [[ -n "${name:+substitution}" ]]; then
+    buffer+=("${name}")
+    if (( "${#buffer[@]}" > 2 )); then
+      buffer+=("OFF")
+    else
+      buffer+=("ON")
+    fi
   fi
 done < <(ip -brief link show | awk '{ print $1 }' | sort)
 if (( "${#buffer[@]}" == 0 )); then
@@ -405,30 +416,16 @@ arch-chroot /mnt passwd --lock root
 arch-chroot /mnt ln --symbolic /dev/null /root/.bash_history
 
 if [[ "${interface}" == w* ]]; then
-  arch-chroot /mnt pacman --noconfirm --sync wpa_supplicant
-  arch-chroot /mnt tee "/etc/wpa_supplicant/wpa_supplicant-${interface}.conf" <<- EOF
-		ctrl_interface=/run/wpa_supplicant
-		ctrl_interface_group=${user}
-		update_config=1
+  arch-chroot /mnt pacman --noconfirm --sync iwd
+  arch-chroot /mnt mkdir --parents /etc/iwd/
+  arch-chroot /mnt tee /etc/iwd/main.conf <<- EOF
+		[General]
+		EnableNetworkConfiguration=false
 	EOF
-  arch-chroot /mnt chmod u=rw,go= "/etc/wpa_supplicant/wpa_supplicant-${interface}.conf"
-  arch-chroot /mnt tee /usr/local/bin/wpa_cli <<- EOF
-		#!/bin/bash
-
-		/usr/bin/wpa_cli -i ${interface}
-	EOF
-  arch-chroot /mnt chmod +x /usr/local/bin/wpa_cli
-  arch-chroot /mnt systemctl enable "wpa_supplicant@${interface}.service"
-  if readonly ssid="$(iwgetid --raw)"; then
-    readonly pre_shared_key_file="/var/lib/iwd/${ssid}.psk"
-    if [[ -f "${pre_shared_key_file}" ]]; then
-      readonly pre_shared_key="$(awk --field-separator "=" 'BEGIN { IGNORECASE=1 } $1 == "passphrase" { print $2 }' "${pre_shared_key_file}")"
-      arch-chroot /mnt tee --append "/etc/wpa_supplicant/wpa_supplicant-${interface}.conf" <<- EOF
-
-				$(wpa_passphrase "${ssid}" "${pre_shared_key}" | awk '$1 !~ /^#/ { print $0 }')
-			EOF
-    fi
-  fi
+  arch-chroot /mnt mkdir --parents --mode=u=rwX,go= /var/lib/iwd/
+  find /var/lib/iwd/ -type f -name "*.psk" -exec cp -- {} /mnt/var/lib/iwd/ \;
+  arch-chroot /mnt systemctl enable "iwd.service"
+  arch-chroot /mnt usermod --append --groups network "${user}"
 fi
 
 arch-chroot /mnt systemctl enable ufw.service
