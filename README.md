@@ -84,7 +84,7 @@ while IFS="=" read -r key value; do
 done < /etc/mkinitcpio.conf
 printf "%s\n" "${buffer[@]}" | sudo tee /etc/mkinitcpio.conf
 
-sudo mkinitcpio -p linux
+sudo mkinitcpio --preset linux
 ```
 
 ## Additional installation steps
@@ -166,8 +166,6 @@ read_file brightness {
     format = "🔆 %content%"
 }
 EOF
-
-sudo systemctl mask systemd-backlight@.service
 ```
 
 ### Banner
@@ -226,7 +224,7 @@ while IFS="=" read -r key value; do
 done < /etc/mkinitcpio.conf
 printf "%s\n" "${buffer[@]}" | sudo tee /etc/mkinitcpio.conf
 
-sudo mkinitcpio -p linux
+sudo mkinitcpio --preset linux
 ```
 
 ### Battery
@@ -235,8 +233,7 @@ sudo mkinitcpio -p linux
 sudo pacman --sync --refresh tlp
 sudo systemctl enable tlp.service
 
-sudo systemctl mask systemd-rfkill.service
-sudo systemctl mask systemd-rfkill.socket
+sudo systemctl mask systemd-rfkill.service systemd-rfkill.socket
 
 sudo tee --append /etc/systemd/logind.conf << EOF
 HandleLidSwitch=suspend
@@ -269,7 +266,7 @@ sudo systemctl enable bluetooth.service
 
 ### Hibernate
 
-Requires UEFI mode!
+Requires UEFI and disabled kernel lockdown mode!
 
 #### Swap
 
@@ -313,6 +310,8 @@ while IFS="=" read -r key value; do
   fi
 done < /etc/mkinitcpio.conf
 printf "%s\n" "${buffer[@]}" | sudo tee /etc/mkinitcpio.conf
+
+sudo rm /etc/cmdline.d/security.conf
 
 sudo mkinitcpio --preset linux
 ```
