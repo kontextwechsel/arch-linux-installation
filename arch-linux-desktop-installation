@@ -265,6 +265,11 @@ tee "${HOME}/.local/bin/application-launcher" <<- EOF
 	readonly CONFIGURATION_FILE="\${HOME}/.config/application-launcher/config"
 	readonly BACKGROUND_COLOR="#6f6f6f"
 
+	function help() {
+	  printf "Usage: application-launcher [--add|--remove|--list] [APPLICATION] [EXECUTABLE] [ARGUMENTS...]\n"
+	  exit 1
+	}
+
 	if [[ "\$#" -gt 0 ]]; then
 	  case "\$1" in
 	    -a | --add)
@@ -297,8 +302,7 @@ tee "${HOME}/.local/bin/application-launcher" <<- EOF
 	      column --table --separator "=" "\${CONFIGURATION_FILE}"
 	      ;;
 	    *)
-	      printf "Usage: application-launcher [--add|--remove|--list] [APPLICATION] [EXECUTABLE] [ARGUMENTS...]\n"
-	      exit 1
+	      help
 	      ;;
 	  esac
 	else
@@ -362,8 +366,8 @@ tee "${HOME}/.local/bin/display-configuration" <<- EOF
 	  xrandr --output "\${screen}" --auto
 	done < <(xrandr | awk '\$2 == "connected" { print \$1 }')
 
-	if [[ -d "\${HOME}/.local/share/backgrounds" ]]; then
-	  feh --bg-fill --no-fehbg --randomize "\${HOME}/.local/share/backgrounds"
+	if [[ -d "\${HOME}/.local/share/backgrounds/" ]]; then
+	  feh --bg-fill --no-fehbg --randomize "\${HOME}/.local/share/backgrounds/"
 	else
 	  xsetroot -grey
 	fi
@@ -378,6 +382,11 @@ tee "${HOME}/.local/bin/screenshot" <<- EOF
 
 	FILENAME="%Y-%m-%d-%H-%M-%S.png"
 
+	function help() {
+	  printf "Usage: screenshot [-s|--select] [-c|--clipboard]\n"
+	  exit 1
+	}
+
 	args=("--overwrite")
 	while [[ "\$#" -gt 0 ]]; do
 	  case "\$1" in
@@ -391,8 +400,8 @@ tee "${HOME}/.local/bin/screenshot" <<- EOF
 	      shift
 	      ;;
 	    *)
-	      printf "Usage: screenshot [-s|--select] [-c|--clipboard]"
-	      exit 1
+	      help
+	      ;;
 	  esac
 	done
 	readonly args

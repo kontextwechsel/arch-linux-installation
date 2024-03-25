@@ -102,46 +102,50 @@ tee "${HOME}/.local/bin/backlight" << EOF
 
 readonly brightness="\$(xbacklight -get)"
 
+function help() {
+  printf "Usage: backlight [--increment|--decrement|--reset]\n"
+  exit 1
+}
+
 function set_brightness() {
   xbacklight -set "\$1"
   printf "%s\n" "\$1" > "\${HOME}/.brightness"
   killall -USR1 i3status
 }
 
-if [[ "\$#" -eq 1 ]]; then
-  case "\$1" in
-    -i | --increment)
-      set_brightness "\$(( "\${brightness}" > 90 ? 100 : "\${brightness}" + 10 ))"
-      exit
-      ;;
-    -d | --decrement)
-      set_brightness "\$(( "\${brightness}" < 10 ? 0 : "\${brightness}" - 10 ))"
-      exit
-      ;;
-    -r | --reset)
-      set -x
-      if [[ -f "\${HOME}/.brightness" ]]; then
-        value="\$(< "\${HOME}/.brightness")"
-      else
-        value="\${brightness}"
-      fi
-      if [[ "\${value}" =~ ^([1-9]?[0-9]|100)\$ ]]; then
-        set_brightness "\${value}"
-      else
-        set_brightness "\${brightness}"
-      fi
-      set +x
-      exit
-      ;;
-  esac
+if [[ "\$#" -ne 1 ]]; then
+  help
 fi
 
-printf "Usage: backlight [--increment|--decrement|--reset]\n"
-exit 1
+case "\$1" in
+  -i | --increment)
+    set_brightness "\$(( "\${brightness}" > 90 ? 100 : "\${brightness}" + 10 ))"
+    ;;
+  -d | --decrement)
+    set_brightness "\$(( "\${brightness}" < 10 ? 0 : "\${brightness}" - 10 ))"
+    ;;
+  -r | --reset)
+    set -x
+    if [[ -f "\${HOME}/.brightness" ]]; then
+      value="\$(< "\${HOME}/.brightness")"
+    else
+      value="\${brightness}"
+    fi
+    if [[ "\${value}" =~ ^([1-9]?[0-9]|100)\$ ]]; then
+      set_brightness "\${value}"
+    else
+      set_brightness "\${brightness}"
+    fi
+    set +x
+    ;;
+  *)
+    help
+    ;;
+esac
 EOF
 tee "${HOME}/.local/share/bash-completion/completions/backlight" << EOF
 function _backlight() {
-  if [[ "${COMP_CWORD}" -eq 1 ]]; then
+  if [[ "\${COMP_CWORD}`" -eq 1 ]]; then
     readarray -t COMPREPLY < <(compgen -W "--increment --decrement --reset" -- "\${COMP_WORDS[\${COMP_CWORD}]}")
   fi
 }
