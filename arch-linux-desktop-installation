@@ -312,7 +312,7 @@ tee "${HOME}/.local/bin/application-launcher" <<- EOF
 	  done < "\${CONFIGURATION_FILE}"
 	  while IFS="=" read -r application executable; do
 	    buffer+=(["\${application}"]="\${executable}")
-	  done < <(flatpak list --app | awk --field-separator "\t" '{ printf "%s=/usr/bin/flatpak run %s\n", tolower(\$1), \$2 }')
+	  done < <(flatpak list --app | awk --field-separator "\t" '{ n = split(\$2, a, "."); printf "%s=/usr/bin/flatpak run %s\n", tolower(a[n]), \$2 }')
 	  readonly buffer
 
 	  readonly selection="\$(dmenu -i -sb "\${BACKGROUND_COLOR}" <<< "\$(printf "%s\n" "\${!buffer[@]}" | sort)")"
