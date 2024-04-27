@@ -366,7 +366,7 @@ tee "${HOME}/.local/bin/display-configuration" <<- EOF
 	  xrandr --output "\${screen}" --auto
 	done < <(xrandr | awk '\$2 == "connected" { print \$1 }')
 
-	if [[ -d "\${HOME}/.local/share/backgrounds/" ]]; then
+	if feh --loadable "\${HOME}/.local/share/backgrounds/" > /dev/null 2>&1; then
 	  feh --bg-fill --no-fehbg --randomize "\${HOME}/.local/share/backgrounds/"
 	else
 	  xsetroot -grey
