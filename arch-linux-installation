@@ -253,7 +253,6 @@ readonly packages=(
   man-db
   man-pages
   openssh
-  ufw
 )
 pacstrap /mnt "${packages[@]}"
 
@@ -428,10 +427,33 @@ if [[ "${interface}" == w* ]]; then
   arch-chroot /mnt usermod --append --groups network "${user}"
 fi
 
-arch-chroot /mnt systemctl enable ufw.service
-arch-chroot /mnt ufw default reject incoming
-arch-chroot /mnt ufw default allow outgoing
-arch-chroot /mnt ufw enable
+arch-chroot /mnt tee /etc/nftables.conf <<- EOF
+	destroy table inet default
+	table inet default {
+	    chain input {
+	        type filter hook input priority filter; policy drop;
+	        ct state vmap { invalid : drop, established : accept, related : accept }
+	        iifname "lo" accept
+	        ip protocol icmp accept
+EOF
+if [[ "${selection_enable_sshd}" == "yes" ]]; then
+  arch-chroot /mnt tee -a /etc/nftables.conf <<- EOF
+		        tcp dport 22 accept
+	EOF
+fi
+arch-chroot /mnt tee -a /etc/nftables.conf <<- EOF
+	    }
+
+	    chain output {
+	        type filter hook output priority filter; policy accept;
+	    }
+
+	    chain forward {
+	        type filter hook forward priority filter; policy drop;
+	    }
+	}
+EOF
+arch-chroot /mnt systemctl enable nftables.service
 
 arch-chroot /mnt tee /etc/ssh/ssh_config <<- EOF
 	HostKeyAlgorithms ssh-ed25519
@@ -462,7 +484,6 @@ EOF
 
 if [[ "${selection_enable_sshd}" == "yes" ]]; then
   arch-chroot /mnt systemctl enable sshd.service
-  arch-chroot /mnt ufw allow proto tcp to any port 22
 fi
 
 unset microcode

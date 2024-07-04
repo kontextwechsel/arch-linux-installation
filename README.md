@@ -372,3 +372,15 @@ sudo usermod --append --groups libvirt "${USER}"
 
 application-launcher --add "virt-manager" "/usr/bin/virt-manager"
 ```
+
+#### Firewall
+
+```bash
+sudo nft --file /etc/nftables.conf
+
+sudo nft add rule inet default input iifname "virbr*" udp dport { 53, 67 } accept
+sudo nft add rule inet default forward ct state vmap { invalid : drop, established : accept, related : accept }
+sudo nft add rule inet default forward iifname { "docker*", "virbr*" } accept
+
+printf "destroy table inet default\n%s\n" "$(sudo nft list table inet default | sed "s/\t/    /g")" | sudo tee /etc/nftables.conf
+```
