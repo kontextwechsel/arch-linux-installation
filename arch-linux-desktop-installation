@@ -266,7 +266,7 @@ tee "${HOME}/.local/bin/application-launcher" <<- EOF
 	readonly BACKGROUND_COLOR="#6f6f6f"
 
 	function help() {
-	  printf "Usage: application-launcher [--add|--remove|--list] [APPLICATION] [EXECUTABLE] [ARGUMENTS...]\n"
+	  printf "Usage: %s [--add|--remove|--list] [APPLICATION] [EXECUTABLE] [ARGUMENTS...]\n" "\$(basename \${BASH_SOURCE[0]})"
 	  exit 1
 	}
 
@@ -383,7 +383,7 @@ tee "${HOME}/.local/bin/screenshot" <<- EOF
 	FILENAME="%Y-%m-%d-%H-%M-%S.png"
 
 	function help() {
-	  printf "Usage: screenshot [-s|--select] [-c|--clipboard]\n"
+	  printf "Usage: %s [-s|--select] [-c|--clipboard]\n" "\$(basename \${BASH_SOURCE[0]})"
 	  exit 1
 	}
 
@@ -562,7 +562,7 @@ tee "${HOME}/.bashrc" <<- EOF
 	        /usr/bin/git --no-pager log --reverse "\${args[@]:1}"
 	        ;;
 	      graph)
-	        /usr/bin/git --no-pager log --color=always --graph "\${args[@]:1}" | less -r
+	        /usr/bin/git --no-pager log --graph --color=always "\${args[@]:1}" | less --RAW-CONTROL-CHARS
 	        ;;
 	      *)
 	        /usr/bin/git --no-pager "\${args[@]}"
