@@ -103,7 +103,7 @@ tee "${HOME}/.local/bin/backlight" << EOF
 readonly brightness="\$(xbacklight -get)"
 
 function help() {
-  printf "Usage: backlight [--increment|--decrement|--reset]\n"
+  printf "Usage: %s [--increment|--decrement|--reset]\n" "\$(basename \${BASH_SOURCE[0]})"
   exit 1
 }
 
@@ -145,7 +145,7 @@ esac
 EOF
 tee "${HOME}/.local/share/bash-completion/completions/backlight" << EOF
 function _backlight() {
-  if [[ "\${COMP_CWORD}`" -eq 1 ]]; then
+  if [[ "\${COMP_CWORD}" -eq 1 ]]; then
     readarray -t COMPREPLY < <(compgen -W "--increment --decrement --reset" -- "\${COMP_WORDS[\${COMP_CWORD}]}")
   fi
 }
