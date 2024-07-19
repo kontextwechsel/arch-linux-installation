@@ -425,7 +425,7 @@ tee "${HOME}/.config/application-launcher/config" <<- EOF
 	libreoffice=/usr/bin/libreoffice
 	pavucontrol=/usr/bin/pavucontrol
 	pcmanfm=/usr/bin/pcmanfm
-	sublime-text=/usr/bin/subl -n
+	sublime-text=/usr/bin/subl --new-window
 	thunderbird=/usr/bin/thunderbird
 EOF
 
@@ -968,23 +968,31 @@ unzip -p "/opt/sublime_text/Packages/Color Scheme - Default.sublime-package" Mon
   tee "${HOME}/.config/sublime-text/Packages/User/Auf zum Atem"'!'".sublime-color-scheme"
 tee "${HOME}/.config/sublime-text/Packages/User/Preferences.sublime-settings" <<- EOF
 	{
+	    "always_prompt_for_file_reload": true,
+	    "close_windows_when_empty": true,
 	    "color_scheme": "Packages/User/Auf zum Atem!.sublime-color-scheme",
-	    "draw_white_space": "all",
+	    "drag_text": false,
+	    "draw_white_space": [ "all" ],
 	    "ensure_newline_at_eof_on_save": true,
 	    "fallback_encoding": "ISO 8859-1",
 	    "font_face": "Source Code Pro",
 	    "font_size": 14,
+	    "hardware_acceleration": "opengl", // Requires OpenGL support!
 	    "highlight_line": true,
 	    "highlight_modified_tabs": true,
-	    "hot_exit": false,
+	    "hot_exit": "disabled",
 	    "line_padding_bottom": 3,
 	    "line_padding_top": 3,
+	    "open_files_in_new_window": "always",
 	    "remember_workspace": false,
+	    "ruler_style": "stippled",
+	    "rulers": [ 80 ],
 	    "scroll_speed": 0,
+	    "selection_description_column_type": "real",
 	    "show_encoding": true,
 	    "show_line_endings": true,
-	    "trim_trailing_white_space_on_save": true,
-	    "update_check": false
+	    "trim_trailing_white_space_on_save": "all",
+	    "update_check": false, // Requires Sublime Text license!
 	}
 EOF
 tee "${HOME}/.config/sublime-text/Packages/User/Default (Linux).sublime-keymap" <<- EOF
