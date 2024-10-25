@@ -23,7 +23,7 @@ fi
 
 buffer=()
 while IFS= read -r disk; do
-  if lsblk -n -o MOUNTPOINT "${disk}" | awk 'length($1) != 0 { exit 1 }'; then
+  if lsblk --noheadings --output --list MOUNTPOINT "${disk}" | awk 'length($1) != 0 { exit 1 }'; then
     buffer+=("${disk}")
     if (( "${#buffer[@]}" > 2 )); then
       buffer+=("OFF")
@@ -31,7 +31,7 @@ while IFS= read -r disk; do
       buffer+=("ON")
     fi
   fi
-done < <(lsblk -n -o TYPE,PATH | awk '$1 == "disk" { print $2 }' | sort)
+done < <(lsblk --noheadings --output --list TYPE,PATH | awk '$1 == "disk" { print $2 }' | sort)
 if (( "${#buffer[@]}" == 0 )); then
   whiptail --title "${TITLE}" --msgbox "No installation disk" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
   exit 1
@@ -500,8 +500,8 @@ if [[ "$(< /sys/devices/virtual/dmi/id/sys_vendor)" != "QEMU" ]]; then
   esac
 fi
 
-readonly system_partition_id="$(blkid -s UUID -o value "${system_partition}")"
-readonly virtual_block_device_id="$(blkid -s UUID -o value "${virtual_block_device}")"
+readonly system_partition_id="$(blkid --match-tag UUID --output value "${system_partition}")"
+readonly virtual_block_device_id="$(blkid --match-tag UUID --output value "${virtual_block_device}")"
 readonly default_kernel_options=("cryptdevice=UUID=${system_partition_id}:${crypt_partition_id}:allow-discards")
 readonly security_kernel_options=("lockdown=integrity")
 
@@ -512,6 +512,7 @@ arch-chroot /mnt tee /etc/mkinitcpio.conf <<- EOF
 	HOOKS=(base udev autodetect microcode modconf block keyboard keymap encrypt filesystems fsck)
 EOF
 if [[ "${boot_mode}" == "uefi" ]]; then
+  arch-chroot /mnt pacman --noconfirm --sync efibootmgr systemd-ukify
   arch-chroot /mnt mkdir --parents /etc/cmdline.d/
   arch-chroot /mnt tee /etc/cmdline.d/default.conf <<- EOF
 		root=UUID=${virtual_block_device_id} ${default_kernel_options[*]} rw quiet
@@ -533,7 +534,11 @@ if [[ "${boot_mode}" == "uefi" ]]; then
 		default_kver="/boot/vmlinuz-linux"
 		default_uki="/efi/${unified_kernel_image}"
 	EOF
+  if [[ "${selection_boot_entry}" == "yes" ]]; then
+    efibootmgr --disk "${disk}" --create --label "Arch Linux" --loader "/${unified_kernel_image}"
+  fi
 else
+  arch-chroot /mnt pacman --noconfirm --sync grub
   arch-chroot /mnt tee /etc/mkinitcpio.d/linux.preset <<- EOF
 		PRESETS=("default")
 
@@ -541,17 +546,6 @@ else
 		default_kver="/boot/vmlinuz-linux"
 		default_image="/boot/initramfs-linux.img"
 	EOF
-fi
-arch-chroot /mnt find /boot/ -name "initramfs-*.img" -delete
-arch-chroot /mnt mkinitcpio --preset linux
-
-if [[ "${boot_mode}" == "uefi" ]]; then
-  arch-chroot /mnt pacman --noconfirm --sync efibootmgr
-  if [[ "${selection_boot_entry}" == "yes" ]]; then
-    efibootmgr --disk "${disk}" --create --label "Arch Linux" --loader "/${unified_kernel_image}"
-  fi
-else
-  arch-chroot /mnt pacman --noconfirm --sync grub
   arch-chroot /mnt tee /etc/default/grub <<- EOF
 		GRUB_DISTRIBUTOR="Arch"
 		GRUB_DEFAULT=0
@@ -564,3 +558,5 @@ else
   arch-chroot /mnt grub-install "${disk}"
   arch-chroot /mnt grub-mkconfig --output=/boot/grub/grub.cfg
 fi
+arch-chroot /mnt find /boot/ -name "initramfs-*.img" -delete
+arch-chroot /mnt mkinitcpio --preset linux
