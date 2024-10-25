@@ -14,6 +14,17 @@ sudo pacman --noconfirm --sync --refresh efitools sbsigntools
 readonly GUID="$(uuidgen --random)"
 readonly MICROSOFT_GUID="77fa9abd-0359-4d32-bd60-28f4e78f784b"
 
+temporary_files=()
+trap "{ rm -f \${temporary_files[@]}; }" EXIT
+
+function create_temporary_file() {
+  local file
+
+  file="$(mktemp)"
+  temporary_files+=("${file}")
+  printf "%s" "${file}"
+}
+
 function create_certificate() {
   local name="$1"
   local certificate="$2"
@@ -22,13 +33,10 @@ function create_certificate() {
   openssl req -newkey rsa:4096 -nodes -keyout "${key}" -new -x509 -sha256 -days 3650 -subj "/CN=${name}" -out "${certificate}" 2> /dev/null
 }
 
-temporary_files=()
-trap "{ rm \${temporary_files[@]}; }" EXIT
-
-readonly platform_certificate="$(mktemp)" && temporary_files+=("${platform_certificate}")
-readonly platform_key="$(mktemp)" && temporary_files+=("${platform_key}")
-readonly platform_signature="$(mktemp)" && temporary_files+=("${platform_signature}")
-readonly platform_signature_signed="$(mktemp)" && temporary_files+=("${platform_signature_signed}")
+readonly platform_certificate="$(create_temporary_file)"
+readonly platform_key="$(create_temporary_file)"
+readonly platform_signature="$(create_temporary_file)"
+readonly platform_signature_signed="$(create_temporary_file)"
 create_certificate "Arch Linux Platform Key" "${platform_certificate}" "${platform_key}"
 cert-to-efi-sig-list -g "${GUID}" "${platform_certificate}" "${platform_signature}"
 sign-efi-sig-list -g "${GUID}" -k "${platform_key}" -c "${platform_certificate}" PK "${platform_signature}" "${platform_signature_signed}"
@@ -38,9 +46,9 @@ if ! sudo efi-updatevar -f "${platform_signature_signed}" PK; then
   exit 1
 fi
 
-readonly unified_kernel_image_certificate="$(mktemp)" && temporary_files+=("${unified_kernel_image_certificate}")
-readonly unified_kernel_image_key="$(mktemp)" && temporary_files+=("${unified_kernel_image_key}")
-readonly unified_kernel_image_signature="$(mktemp)" && temporary_files+=("${unified_kernel_image_signature}")
+readonly unified_kernel_image_certificate="$(create_temporary_file)"
+readonly unified_kernel_image_key="$(create_temporary_file)"
+readonly unified_kernel_image_signature="$(create_temporary_file)"
 create_certificate "Arch Linux Signature Key" "${unified_kernel_image_certificate}" "${unified_kernel_image_key}"
 cert-to-efi-sig-list -g "${GUID}" "${unified_kernel_image_certificate}" "${unified_kernel_image_signature}"
 
@@ -48,9 +56,9 @@ signatures=("${unified_kernel_image_signature}")
 
 read -r -p "Add Microsoft Windows Production signature? [Y/n] "
 if [[ "${REPLY}" =~ ^[Yy]$ ]]; then
-  readonly microsoft_production_certificate_binary="$(mktemp)" && temporary_files+=("${microsoft_production_certificate_binary}")
-  readonly microsoft_production_certificate="$(mktemp)" && temporary_files+=("${microsoft_production_certificate}")
-  readonly microsoft_production_signature="$(mktemp)" && temporary_files+=("${microsoft_production_signature}")
+  readonly microsoft_production_certificate_binary="$(create_temporary_file)"
+  readonly microsoft_production_certificate="$(create_temporary_file)"
+  readonly microsoft_production_signature="$(create_temporary_file)"
   if ! curl -f -L -s "https://go.microsoft.com/fwlink/p/?linkid=321192" > "${microsoft_production_certificate_binary}"; then
     printf "Failed to download Microsoft Windows Production certificate\n"
     exit 1
@@ -62,9 +70,9 @@ fi
 
 read -r -p "Add Microsoft Microsoft UEFI signature? [Y/n] "
 if [[ "${REPLY}" =~ ^[Yy]$ ]]; then
-  readonly microsoft_uefi_certificate_binary="$(mktemp)" && temporary_files+=("${microsoft_uefi_certificate_binary}")
-  readonly microsoft_uefi_certificate="$(mktemp)" && temporary_files+=("${microsoft_uefi_certificate}")
-  readonly micrososft_uefi_signature="$(mktemp)" && temporary_files+=("${micrososft_uefi_signature}")
+  readonly microsoft_uefi_certificate_binary="$(create_temporary_file)"
+  readonly microsoft_uefi_certificate="$(create_temporary_file)"
+  readonly micrososft_uefi_signature="$(create_temporary_file)"
   if ! curl -f -L -s https://go.microsoft.com/fwlink/p/?linkid=321194 > "${microsoft_uefi_certificate_binary}"; then
     printf "Failed to download Microsoft UEFI certificate\n"
     exit 1
@@ -74,8 +82,8 @@ if [[ "${REPLY}" =~ ^[Yy]$ ]]; then
   signatures+=("${micrososft_uefi_signature}")
 fi
 
-readonly all_signatures="$(mktemp)" && temporary_files+=("${all_signatures}")
-readonly all_signatures_signed="$(mktemp)" && temporary_files+=("${all_signatures_signed}")
+readonly all_signatures="$(create_temporary_file)"
+readonly all_signatures_signed="$(create_temporary_file)"
 cat "${signatures[@]}" > "${all_signatures}"
 sign-efi-sig-list -g "${GUID}" -k "${platform_key}" -c "${platform_certificate}" db "${all_signatures}" "${all_signatures_signed}"
 
