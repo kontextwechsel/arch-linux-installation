@@ -43,68 +43,28 @@ sudo tee /etc/pacman.d/hooks/slock.hook <<- EOF
 	Exec = /usr/bin/perl -i -p -e "s/#CC3333/${COLOR_MEDIUM_GRAY^^}/g;" -e "s/#005577/${COLOR_GREEN^^}/g;" /usr/bin/slock
 EOF
 
-readonly packages=(
-  adobe-source-code-pro-fonts
-  adobe-source-sans-pro-fonts
-  adobe-source-serif-pro-fonts
-  alacritty
+packages=(
   arc-gtk-theme
   arc-icon-theme
-  bc
-  bind
   dmenu
-  dmidecode
   dunst
   feh
-  firefox
   flatpak
-  fwupd
-  gimp
-  git
   gnome-themes-extra # Arc theme dependency
-  gpicview
   gtk-engine-murrine # Arc theme dependency
   gvfs
   gvfs-mtp
   gvfs-nfs
   gvfs-smb
-  htop
   i3-wm
   i3status
-  jq
-  leafpad
   libnotify
-  libreoffice-fresh
-  lsof
-  mkvtoolnix-cli
-  mpv
-  nmap
-  noto-fonts
-  noto-fonts-emoji
   numlockx
-  p7zip
-  pass
-  pavucontrol
-  pcmanfm
   pipewire
   pipewire-pulse
   polkit
-  pwgen
-  python
-  python-virtualenv
-  ripgrep
-  rsync
   scrot
   slock
-  smartmontools
-  tcpdump
-  testdisk
-  thunderbird
-  ttf-liberation
-  unrar
-  unzip
-  usbutils
-  wget
   wireplumber
   xclip
   xcursor-vanilla-dmz
@@ -116,8 +76,55 @@ readonly packages=(
   xorg-xsetroot
   xss-lock
   xterm
+)
+packages+=(
+  alacritty
+  firefox
+  gimp
+  gpicview
+  leafpad
+  libreoffice-fresh
+  mpv
+  pavucontrol
+  pcmanfm
+  thunderbird
+)
+packages+=(
+  adobe-source-code-pro-fonts
+  adobe-source-sans-pro-fonts
+  adobe-source-serif-pro-fonts
+  noto-fonts
+  noto-fonts-emoji
+  ttf-liberation
+)
+packages+=(
+  bc
+  bind
+  curl
+  dmidecode
+  fwupd
+  git
+  htop
+  lsof
+  nmap
+  openssl
+  p7zip
+  pass
+  pciutils
+  pwgen
+  python
+  rsync
+  smartmontools
+  tcpdump
+  testdisk
+  unrar
+  unzip
+  usbutils
+  wget
   zip
 )
+readonly packages
+
 sudo pacman --noconfirm --sync --refresh "${packages[@]}"
 
 sudo tee /usr/share/X11/xkb/symbols/default <<-EOF
