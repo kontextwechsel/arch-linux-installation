@@ -247,7 +247,6 @@ readonly packages=(
   vim
   bash
   bash-completion
-  python
   reflector
   libnewt
   man-db
