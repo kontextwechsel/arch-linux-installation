@@ -23,7 +23,7 @@ fi
 
 buffer=()
 while IFS= read -r disk; do
-  if lsblk --noheadings --output --list MOUNTPOINT "${disk}" | awk 'length($1) != 0 { exit 1 }'; then
+  if lsblk --noheadings --list --output MOUNTPOINT "${disk}" | awk 'length($1) != 0 { exit 1 }'; then
     buffer+=("${disk}")
     if (( "${#buffer[@]}" > 2 )); then
       buffer+=("OFF")
@@ -31,7 +31,7 @@ while IFS= read -r disk; do
       buffer+=("ON")
     fi
   fi
-done < <(lsblk --noheadings --output --list TYPE,PATH | awk '$1 == "disk" { print $2 }' | sort)
+done < <(lsblk --noheadings --list --output TYPE,PATH | awk '$1 == "disk" { print $2 }' | sort)
 if (( "${#buffer[@]}" == 0 )); then
   whiptail --title "${TITLE}" --msgbox "No installation disk" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
   exit 1
