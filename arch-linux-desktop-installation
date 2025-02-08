@@ -191,44 +191,28 @@ sudo tee /usr/share/icons/default/index.theme <<- EOF
 	Inherits=Vanilla-DMZ
 EOF
 
+readarray -t icons < <(find /usr/share/icons/Arc/ -type f -name applications-system.png -o -name applications-system-symbolic.svg)
+for icon in "${icons[@]}"; do
+    sudo ln --symbolic --force --relative "${icon}" "${icon/applications-system/gtk-preferences}"
+done
+sudo gtk-update-icon-cache --force /usr/share/icons/Arc/
+
 sudo mkdir --parents /etc/gtk-2.0/
 sudo tee /etc/gtk-2.0/gtkrc <<- EOF
 	gtk-theme-name = "Arc-Lighter"
 	gtk-icon-theme-name = "Arc"
 	gtk-cursor-theme-name = "Vanilla-DMZ"
 	gtk-font-name = "Source Sans 3 12"
-	gtk-button-images = 1
-	gtk-cursor-theme-size = 0
-	gtk-enable-event-sounds = 1
-	gtk-enable-input-feedback-sounds = 1
-	gtk-menu-images = 1
-	gtk-toolbar-icon-size = GTK_ICON_SIZE_LARGE_TOOLBAR
-	gtk-toolbar-style = GTK_TOOLBAR_BOTH
-	gtk-xft-antialias = 1
-	gtk-xft-hinting = 1
-	gtk-xft-hintstyle = "hintfull"
-	gtk-xft-rgba = "rgb"
 EOF
 
-sudo mkdir --parents /etc/gtk-3.0/
-sudo tee /etc/gtk-3.0/settings.ini <<- EOF
+sudo mkdir --parents /etc/gtk-{3,4}.0/
+sudo tee /etc/gtk-{3,4}.0/settings.ini <<- EOF
 	[Settings]
 	gtk-theme-name = Arc-Lighter
 	gtk-icon-theme-name = Arc
 	gtk-cursor-theme-name = Vanilla-DMZ
 	gtk-font-name = Source Sans 3 12
-	gtk-button-images = 1
-	gtk-cursor-theme-size = 0
 	gtk-decoration-layout = menu:
-	gtk-enable-event-sounds = 1
-	gtk-enable-input-feedback-sounds = 1
-	gtk-menu-images = 1
-	gtk-toolbar-icon-size = GTK_ICON_SIZE_LARGE_TOOLBAR
-	gtk-toolbar-style = GTK_TOOLBAR_BOTH
-	gtk-xft-antialias = 1
-	gtk-xft-hinting = 1
-	gtk-xft-hintstyle = hintfull
-	gtk-xft-rgba = rgb
 EOF
 
 sudo mkdir --parents /etc/xdg/
