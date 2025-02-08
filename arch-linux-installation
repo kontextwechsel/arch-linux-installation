@@ -373,6 +373,8 @@ arch-chroot /mnt tee /etc/systemd/resolved.conf <<- EOF
 	[Resolve]
 	DNS=
 	FallbackDNS=
+	LLMNR=no
+	MulticastDNS=no
 EOF
 arch-chroot /mnt systemctl enable systemd-resolved.service
 # Use plain chroot since arch-chroot mounts resolv.conf of the host system
@@ -423,7 +425,7 @@ if [[ "${interface}" == w* ]]; then
 	EOF
   arch-chroot /mnt mkdir --parents --mode=u=rwX,go= /var/lib/iwd/
   find /var/lib/iwd/ -type f -name "*.psk" -exec cp -- {} /mnt/var/lib/iwd/ \;
-  arch-chroot /mnt systemctl enable "iwd.service"
+  arch-chroot /mnt systemctl enable iwd.service
   arch-chroot /mnt usermod --append --groups network "${user}"
 fi
 
