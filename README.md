@@ -328,6 +328,78 @@ SUBSYSTEM=="power_supply", ATTR{status}=="Discharging", ATTR{capacity}=="[0-5]",
 EOF
 ```
 
+### Sublime Text
+
+```bash
+readonly sublime_text_key_id="1EDDE2CDFC025D17F6DA9EC0ADAE6AD28A8F901A"
+sudo pacman-key --recv-keys "${sublime_text_key_id}"
+sudo pacman-key --lsign-key "${sublime_text_key_id}"
+sudo tee /etc/pacman.d/conf/sublime-text <<- EOF
+	[sublime-text]
+	Server = https://download.sublimetext.com/arch/stable/x86_64
+EOF
+
+sudo pacman --sync --refresh sublime-text
+
+application-launcher --add sublime-text /usr/bin/subl --new-window
+
+mkdir --parents "${HOME}/.config/sublime-text/Packages/User/"
+unzip -p "/opt/sublime_text/Packages/Color Scheme - Default.sublime-package" Monokai.sublime-color-scheme |
+  sed -E "s/\"(name)\"(\s*):(\s*)\"Monokai\"/\"\1\"\2:\3\"Auf zum Atem\!\"/g" |
+  sed -E "s/\"(author)\"(\s*):(\s*)\".*?\"/\"\1\"\2:\3\"Me\"/g" |
+  sed -E "s/\"(black2)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(32, 32, 32)\"/g" |
+  sed -E "s/\"(black3)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(40, 40, 40)\"/g" |
+  sed -E "s/\"(grey)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(70, 70, 70)\"/g" |
+  sed -E "s/\"(white)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(247, 247, 247)\"/g" |
+  sed -E "s/\"(white2)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(248, 248, 248)\"/g" |
+  sed -E "s/\"(white3)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(247, 247, 247)\"/g" |
+  sed -E "s/\"(yellow3)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(206, 206, 206)\"/g" |
+  sed -E "s/\"(yellow4)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(60, 60, 60)\"/g" |
+  sed -E "s/\"(yellow5)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(111, 111, 111)\"/g" |
+  tee "${HOME}/.config/sublime-text/Packages/User/Auf zum Atem"'!'".sublime-color-scheme"
+tee "${HOME}/.config/sublime-text/Packages/User/Preferences.sublime-settings" <<- EOF
+	{
+	    "always_prompt_for_file_reload": true,
+	    "close_windows_when_empty": true,
+	    "color_scheme": "Packages/User/Auf zum Atem!.sublime-color-scheme",
+	    "drag_text": false,
+	    "draw_white_space": [ "all" ],
+	    "ensure_newline_at_eof_on_save": true,
+	    "fallback_encoding": "ISO 8859-1",
+	    "font_face": "Source Code Pro",
+	    "font_size": 14,
+	    "hardware_acceleration": "opengl", // Requires OpenGL support!
+	    "highlight_line": true,
+	    "highlight_modified_tabs": true,
+	    "hot_exit": "disabled",
+	    "line_padding_bottom": 3,
+	    "line_padding_top": 3,
+	    "open_files_in_new_window": "always",
+	    "remember_workspace": false,
+	    "ruler_style": "stippled",
+	    "rulers": [ 80 ],
+	    "scroll_speed": 0,
+	    "selection_description_column_type": "real",
+	    "show_encoding": true,
+	    "show_line_endings": true,
+	    "trim_trailing_white_space_on_save": "all",
+	    "update_check": false, // Requires Sublime Text license!
+	}
+EOF
+tee "${HOME}/.config/sublime-text/Packages/User/Default (Linux).sublime-keymap" <<- EOF
+	[]
+EOF
+mkdir --parents "${HOME}/.config/sublime-text/Local/"
+tee "${HOME}/.config/sublime-text/Local/Session.sublime_session" <<- EOF
+	{"windows":[{"menu_visible":false}]}
+EOF
+
+tee "${HOME}/.config/mimeapps.list" <<- EOF
+	[Default Applications]
+	$(awk --field-separator "=" '$2 == "leafpad.desktop" { print $1 FS "sublime_text.desktop" }' /etc/xdg/mimeapps.list)
+EOF
+```
+
 ### Touchpad
 
 ```bash
