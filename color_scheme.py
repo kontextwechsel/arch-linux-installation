@@ -13,6 +13,7 @@ import zipfile
 
 import numpy
 import requests
+import yaml
 
 STANDARD_DEVIATION = 0.05
 COLOR_DISTANCE = 0.25
@@ -72,10 +73,10 @@ def get_sublime_RGB_colors(sublime_HSL_colors):
 
 def get_gogh_RGB_colors():
     r = requests.get(
-        "https://raw.githubusercontent.com/Gogh-Co/Gogh/master/json/monokai-dark.json"
+        "https://raw.githubusercontent.com/Gogh-Co/Gogh/refs/heads/master/themes/Monokai%20Dark.yml"
     )
     r.raise_for_status()
-    scheme = json.loads(r.text)
+    scheme = yaml.load(r.text, yaml.SafeLoader)
 
     def to_decimal(c):
         return tuple([int(c[x : x + 2], 16) / 255 for x in range(0, len(c), 2)])
