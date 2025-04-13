@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import colorsys
 import contextlib
+import decimal
 import io
 import json
 import re
 import tarfile
 import tempfile
+import typing
 import webbrowser
 import zipfile
 
@@ -15,11 +16,88 @@ import numpy
 import requests
 import yaml
 
-STANDARD_DEVIATION = 0.05
-COLOR_DISTANCE = 0.25
+STANDARD_DEVIATION = decimal.Decimal("10.25")
+COLOR_DISTANCE = decimal.Decimal("63.25")
 
 
-def get_sublime_HSL_colors():
+class RGB(typing.NamedTuple):
+    name: str
+    R: int
+    G: int
+    B: int
+    A: int
+
+    def to_grayscale_color(self) -> typing.Self:
+        deviation = numpy.std((self.R, self.G, self.B))
+        if deviation < STANDARD_DEVIATION:
+            R = self.R * decimal.Decimal("0.2989")
+            G = self.G * decimal.Decimal("0.5870")
+            B = self.B * decimal.Decimal("0.1140")
+            value = int((R + G + B).to_integral_value(rounding=decimal.ROUND_HALF_UP))
+            return RGB(self.name, value, value, value, self.A)
+        else:
+            return self
+
+    def to_similar_color(
+        self, colors: typing.List[typing.Self], grayscale=True
+    ) -> typing.Self:
+        if grayscale or not self.R == self.G == self.B:
+            distance = None
+            selected = None
+            for color in colors:
+                d = numpy.sqrt(
+                    numpy.square(self.R - color.R)
+                    + numpy.square(self.G - color.G)
+                    + numpy.square(self.B - color.B)
+                )
+                if distance is None or d < distance:
+                    distance = d
+                    selected = RGB(self.name, color.R, color.G, color.B, color.A)
+            if selected is not None and distance < COLOR_DISTANCE:
+                return selected
+        return self
+
+    def __str__(self) -> str:
+        if self.A == 255:
+            return f"#{bytes((self.R, self.G, self.B)).hex()}"
+        else:
+            return f"#{bytes((self.R, self.G, self.B, self.A)).hex()}"
+
+
+class HSL(typing.NamedTuple):
+    name: str
+    H: int
+    S: int
+    L: int
+    A: decimal.Decimal
+
+    def to_RGB(self) -> RGB:
+        to_int = lambda v: int(
+            (v * 255).to_integral_value(rounding=decimal.ROUND_HALF_UP)
+        )
+        S = self.S / decimal.Decimal(100)
+        L = self.L / decimal.Decimal(100)
+        c = (1 - abs(2 * L - 1)) * S
+        x = c * (1 - abs((self.H / decimal.Decimal(60)) % 2 - 1))
+        m = L - c / decimal.Decimal(2)
+        if 0 <= self.H < 60:
+            R, G, B = c, x, 0
+        elif 60 <= self.H < 120:
+            R, G, B = x, c, 0
+        elif 120 <= self.H < 180:
+            R, G, B = 0, c, x
+        elif 180 <= self.H < 240:
+            R, G, B = 0, x, c
+        elif 240 <= self.H < 300:
+            R, G, B = x, 0, c
+        else:
+            R, G, B = c, 0, x
+        return RGB(
+            self.name, to_int(R + m), to_int(G + m), to_int(B + m), to_int(self.A)
+        )
+
+
+def get_sublime_colors() -> list[RGB]:
     r = requests.get("https://www.sublimetext.com/download_thanks")
     r.raise_for_status()
     m = re.search(
@@ -52,244 +130,147 @@ def get_sublime_HSL_colors():
                 r"hsl(a)?\((?P<H>[0-9]{1,3}),\s+(?P<S>[0-9]{1,3})%,\s+(?P<L>[0-9]{1,3})%(,\s+(?P<A>0\.[0-9]{1,2}))?\)",
                 scheme[color],
             )
-            H, S, L, A = (
-                int(m.group("H")) / 360.0,
-                int(m.group("S")) / 100.0,
-                int(m.group("L")) / 100.0,
-                float(m.group("A") or 1),
+            colors.append(
+                HSL(
+                    color,
+                    int(m.group("H")),
+                    int(m.group("S")),
+                    int(m.group("L")),
+                    decimal.Decimal(m.group("A") or "1.0"),
+                ).to_RGB()
             )
-            colors.append((color, (H, S, L), A))
         return colors
     else:
         raise Exception("Failed to retrieve Sublime Text download URL")
 
 
-def get_sublime_RGB_colors(sublime_HSL_colors):
-    colors = list()
-    for name, (H, S, L), A in sublime_HSL_colors:
-        colors.append((name, colorsys.hls_to_rgb(H, L, S), A))
-    return colors
-
-
-def get_gogh_RGB_colors():
+def get_gogh_colors() -> list[RGB]:
     r = requests.get(
         "https://raw.githubusercontent.com/Gogh-Co/Gogh/refs/heads/master/themes/Monokai%20Dark.yml"
     )
     r.raise_for_status()
     scheme = yaml.load(r.text, yaml.SafeLoader)
 
-    def to_decimal(c):
-        return tuple([int(c[x : x + 2], 16) / 255 for x in range(0, len(c), 2)])
-
-    colors = list()
-    for color in scheme:
-        if color.startswith("color"):
-            colors.append(
-                (
-                    f"color{int(color.split('_')[-1]) - 1}",
-                    to_decimal(scheme[color][1:]),
-                    1.0,
-                )
-            )
-        if color in ["foreground", "background"]:
-            colors.append((color, to_decimal(scheme[color][1:]), 1.0))
-    return colors
-
-
-def get_grayscale_RGB_colors(default_RGB_colors):
-    colors = list()
-    for name, (R, G, B), A in default_RGB_colors:
-        if numpy.std((R, G, B)) < STANDARD_DEVIATION:
-            value = 0.2989 * R + 0.5870 * G + 0.1140 * B
-            colors.append((name, (value, value, value), A))
+    def to_int(color):
+        R, G, B = int(color[1:3], 16), int(color[3:5], 16), int(color[5:7], 16)
+        if len(color) == 7:
+            return R, G, B, 255
         else:
-            colors.append((name, (R, G, B), A))
-    return colors
+            return R, G, B, int(color[:9], 16)
 
-
-def get_selected_RGB_colors(default_RGB_colors, reference_RGB_colors):
     colors = list()
-    for default_name, (default_R, default_G, default_B), A in default_RGB_colors:
-        min_distance = 1
-        selected_color = None
-        for (
-            reference_name,
-            (
-                reference_R,
-                reference_G,
-                reference_B,
-            ),
-            _,
-        ) in reference_RGB_colors:
-            distance = numpy.sqrt(
-                numpy.square(default_R - reference_R)
-                + numpy.square(default_G - reference_G)
-                + numpy.square(default_B - reference_B)
-            )
-            if distance < min_distance:
-                min_distance = distance
-                selected_color = (reference_R, reference_G, reference_B)
-        if min_distance < COLOR_DISTANCE:
-            colors.append((default_name, selected_color, A))
+
+    for color in ["background", "foreground", *range(16)]:
+        if type(color) == int:
+            name = f"color{str(color)}"
+            R, G, B, A = to_int(scheme[f"color_{str(color % 8 + 1).zfill(2)}"])
         else:
-            colors.append((default_name, (default_R, default_G, default_B), A))
+            name = color
+            R, G, B, A = to_int(scheme[color])
+        colors.append(RGB(name, R, G, B, A))
     return colors
+
+
+def main() -> None:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".html", delete=False) as file:
+        background_color = RGB("background", 221, 221, 221, 255)
+        text_color = RGB("text", 34, 34, 34, 255)
+
+        print(f"<!DOCTYPE html>", file=file)
+        print(f"<html>", file=file)
+        print(f"<head>", file=file)
+        print(f"<title>Auf zum Atem!</title>", file=file)
+        print(f'<meta charset="utf-8"/>', file=file)
+        print(f"</head>", file=file)
+        print(f'<body style="background-color:{background_color};">', file=file)
+
+        def print_large_text(text):
+            print(
+                f'<p style="font-family:monospace;font-size:24px;color:{text_color};">{text}</p>',
+                file=file,
+            )
+
+        def print_small_text(text):
+            print(
+                f'<p style="font-family:monospace;font-size:16px;color:{text_color};">{text}</p>',
+                file=file,
+            )
+
+        def print_text_block(text):
+            print(
+                f'<td style="width:100px;font-family:monospace;font-size:10px;color:{text_color};">{text}</td>',
+                file=file,
+            )
+
+        def print_color_block(color):
+            print(
+                f'<td style="width:100px;height:50px;background-color:{color}"></td>',
+                file=file,
+            )
+
+        def print_separator():
+            print("</tr>", file=file)
+            print('<tr height="5px">', file=file)
+            print("</tr>", file=file)
+            print("<tr>", file=file)
+
+        def print_colors(colors):
+            print('<table cellspacing="0" cellpadding="0">', file=file)
+            print("<tbody>", file=file)
+            print("<tr>", file=file)
+            for color in colors:
+                print_text_block(color.name)
+            print_separator()
+            for color in colors:
+                print_color_block(color)
+            print_separator()
+            for color in colors:
+                print_text_block(f"{color}")
+            print("</tr>", file=file)
+            print("</tbody>", file=file)
+            print("</table>", file=file)
+
+        print_large_text("Sublime Text Monokai")
+
+        print_small_text("Theme")
+        sublime_colors = get_sublime_colors()
+        print_colors(sublime_colors)
+
+        print_small_text("Grayscale")
+        sublime_grayscale_colors = [
+            color.to_grayscale_color() for color in sublime_colors
+        ]
+        print_colors(sublime_grayscale_colors)
+
+        print_small_text("Selected")
+        sublime_selected_colors = []
+        for color in sublime_grayscale_colors:
+            sublime_selected_colors.append(
+                color.to_similar_color(sublime_selected_colors, grayscale=False)
+            )
+        print_colors(sublime_selected_colors)
+
+        print_large_text("Gogh Monokai Dark")
+
+        print_small_text("Theme")
+        gogh_colors = get_gogh_colors()
+        print_colors(gogh_colors)
+
+        print_small_text("Grayscale")
+        gogh_grayscale_colors = [color.to_grayscale_color() for color in gogh_colors]
+        print_colors(gogh_grayscale_colors)
+
+        print_small_text("Selected")
+        gogh_selected_colors = [
+            color.to_similar_color(sublime_selected_colors) for color in gogh_colors
+        ]
+        print_colors(gogh_selected_colors)
+
+        print("</body>", file=file)
+        print("</html>", file=file)
+
+    webbrowser.open(file.name)
 
 
 if __name__ == "__main__":
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".html", delete=False) as file:
-        background_color = "#dddddd"
-        text_color = "#222222"
-
-        print(
-            f'<html><head><title>Auf zum Atem!</title><meta charset="utf-8"/></head><body style="background-color:{background_color};">',
-            file=file,
-        )
-
-        to_byte = lambda v: round(v * 255)
-        to_hex = lambda v: hex(to_byte(v))[2:].zfill(2).lower()
-
-        large_text = (
-            lambda text: f'<p style="font-family:monospace;font-size:24px;color:{text_color};">{text}</p>'
-        )
-        medium_text = (
-            lambda text: f'<p style="font-family:monospace;font-size:16px;color:{text_color};">{text}</p>'
-        )
-        small_text = (
-            lambda text: f'<p style="font-family:monospace;font-size:12px;color:{text_color};">{text}</p>'
-        )
-        text_block = (
-            lambda text: f'<td width="100px" style="font-family:monospace;font-size:10px;color:{text_color};">{text}</td>'
-        )
-        color_block = (
-            lambda color: f'<td width="100px" height="100px" style="background-color:{color}"></td>'
-        )
-
-        table_open = '<table cellspacing="0" cellpadding="0"><tbody><tr>'
-        table_separator = '</tr><tr height="5px" /><tr>'
-        table_close = "</tr></tbody></table>"
-
-        sublime_HSL_colors = get_sublime_HSL_colors()
-        sublime_RGB_colors = get_sublime_RGB_colors(sublime_HSL_colors)
-        sublime_grayscale_RGB_colors = get_grayscale_RGB_colors(sublime_RGB_colors)
-
-        print(large_text("Sublime Text Monokai"), file=file)
-        print(medium_text("Default"), file=file)
-        print(table_open, file=file)
-        for name, _, _ in sublime_HSL_colors:
-            print(text_block(name), file=file)
-        print(table_separator, file=file)
-        for name, (H, S, L), _ in sublime_HSL_colors:
-            print(
-                color_block(f"hsl({int(H * 360)},{int(S * 100)}%,{int(L * 100)}%)"),
-                file=file,
-            )
-        print(table_separator, file=file)
-        for name, (H, S, L), _ in sublime_HSL_colors:
-            print(
-                text_block(f"{int(H * 360)}/{int(S * 100)}%/{int(L * 100)}%"), file=file
-            )
-        print(table_separator, file=file)
-        for name, (R, G, B), _ in sublime_RGB_colors:
-            print(text_block(f"{to_byte(R)}/{to_byte(G)}/{to_byte(B)}"), file=file)
-        print(table_separator, file=file)
-        for name, (R, G, B), _ in sublime_RGB_colors:
-            print(text_block(f"#{to_hex(R)}{to_hex(G)}{to_hex(B)}"), file=file)
-        print(table_close, file=file)
-        print(medium_text("Normalized"), file=file)
-        print(table_open, file=file)
-        for name, _, _ in sublime_HSL_colors:
-            print(text_block(name), file=file)
-        print(table_separator, file=file)
-        for name, (R, G, B), _ in sublime_grayscale_RGB_colors:
-            print(
-                color_block(f"rgb({to_byte(R)},{to_byte(G)},{to_byte(B)})"), file=file
-            )
-        print(table_separator, file=file)
-        for name, (R, G, B), _ in sublime_grayscale_RGB_colors:
-            print(text_block(f"{to_byte(R)}/{to_byte(G)}/{to_byte(B)}"), file=file)
-        print(table_separator, file=file)
-        for name, (R, G, B), _ in sublime_grayscale_RGB_colors:
-            print(text_block(f"#{to_hex(R)}{to_hex(G)}{to_hex(B)}"), file=file)
-        print(table_close, file=file)
-
-        gogh_RGB_colors = get_gogh_RGB_colors()
-        gogh_grayscale_RGB_colors = get_grayscale_RGB_colors(gogh_RGB_colors)
-        gogh_selected_RGB_colors = get_selected_RGB_colors(
-            gogh_grayscale_RGB_colors, sublime_grayscale_RGB_colors
-        )
-
-        print(large_text("Gogh Monokai Dark"), file=file)
-        print(medium_text("Default"), file=file)
-        print(table_open, file=file)
-        for name, _, _ in gogh_RGB_colors:
-            print(text_block(name), file=file)
-        print(table_separator, file=file)
-        for name, (R, G, B), _ in gogh_RGB_colors:
-            print(color_block(f"#{to_hex(R)}{to_hex(G)}{to_hex(B)}"), file=file)
-        print(table_separator, file=file)
-        for name, (R, G, B), _ in gogh_RGB_colors:
-            print(text_block(f"{to_byte(R)}/{to_byte(G)}/{to_byte(B)}"), file=file)
-        print(table_separator, file=file)
-        for name, (R, G, B), _ in gogh_RGB_colors:
-            print(text_block(f"#{to_hex(R)}{to_hex(G)}{to_hex(B)}"), file=file)
-        print(table_close, file=file)
-        print(medium_text("Normalized"), file=file)
-        print(table_open, file=file)
-        for name, _, _ in gogh_RGB_colors:
-            print(text_block(name), file=file)
-        print(table_separator, file=file)
-        for name, (R, G, B), _ in gogh_grayscale_RGB_colors:
-            print(
-                color_block(f"rgb({to_byte(R)},{to_byte(G)},{to_byte(B)})"), file=file
-            )
-        print(table_separator, file=file)
-        for name, (R, G, B), _ in gogh_grayscale_RGB_colors:
-            print(text_block(f"{to_byte(R)}/{to_byte(G)}/{to_byte(B)}"), file=file)
-        print(table_separator, file=file)
-        for name, (R, G, B), _ in gogh_grayscale_RGB_colors:
-            print(text_block(f"#{to_hex(R)}{to_hex(G)}{to_hex(B)}"), file=file)
-        print(table_close, file=file)
-        print(medium_text("Selected"), file=file)
-        print(table_open, file=file)
-        for name, _, _ in gogh_RGB_colors:
-            print(text_block(name), file=file)
-        print(table_separator, file=file)
-        for name, (R, G, B), _ in gogh_selected_RGB_colors:
-            print(
-                color_block(f"rgb({to_byte(R)},{to_byte(G)},{to_byte(B)})"), file=file
-            )
-        print(table_separator, file=file)
-        for name, (R, G, B), _ in gogh_selected_RGB_colors:
-            print(text_block(f"{to_byte(R)}/{to_byte(G)}/{to_byte(B)}"), file=file)
-        print(table_separator, file=file)
-        for name, (R, G, B), _ in gogh_selected_RGB_colors:
-            print(text_block(f"#{to_hex(R)}{to_hex(G)}{to_hex(B)}"), file=file)
-        print(table_close, file=file)
-
-        print(large_text("Script"), file=file)
-        print(medium_text("Monokai.sublime-color-scheme"), file=file)
-        colors = {}
-        for name, (R, G, B), A in sublime_grayscale_RGB_colors:
-            if A == 1.0:
-                colors[name] = f"rgb({to_byte(R)}, {to_byte(G)}, {to_byte(B)})"
-            else:
-                colors[name] = f"rgba({to_byte(R)}, {to_byte(G)}, {to_byte(B)}, {A})"
-        text = (
-            json.dumps({"variables": colors}, indent=2)
-            .replace(" ", "&nbsp;")
-            .replace("\n", "<br />")
-        )
-        print(small_text(f"{text}"), file=file)
-
-        print(medium_text(".Xresources"), file=file)
-        text = "<br />".join(
-            [
-                f"XTerm.VT100.{name}: rgb:{to_hex(R)}/{to_hex(G)}/{to_hex(B)}"
-                for name, (R, G, B), _ in gogh_selected_RGB_colors
-            ]
-        )
-        print(small_text(text), file=file)
-
-        print("</body></html>", file=file)
-    webbrowser.open(file.name)
+    main()

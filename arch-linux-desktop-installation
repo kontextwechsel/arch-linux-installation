@@ -8,11 +8,18 @@ if ! sudo true; then
   exit 1
 fi
 
-readonly COLOR_DARK_GRAY="#464646"
-readonly COLOR_MEDIUM_GRAY="#6f6f6f"
-readonly COLOR_PINK="#f92472"
-readonly COLOR_GREEN="#a6e22c"
-readonly COLOR_WHITE="#f7f7f7"
+readonly -A COLORS=(
+  ["Gray A"]="#282828"
+  ["Gray B"]="#464646"
+  ["Gray C"]="#6f6f6f"
+  ["Pink"]="#f92472"
+  ["Green"]="#a6e22c"
+  ["Yellow"]="#ffe894"
+  ["Blue"]="#67d8ef"
+  ["Purple"]="#ac80ff"
+  ["Teal"]="#2aa198"
+  ["White"]="#f7f7f7"
+)
 
 if whiptail --title "${TITLE}" --yesno "Enable logging?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" --defaultno 3>&1 1>&2 2>&3; then
   exec &> >(tee --append "${BASH_SOURCE[0]}.log")
@@ -40,7 +47,7 @@ sudo tee /etc/pacman.d/hooks/slock.hook <<- EOF
 
 	[Action]
 	When = PostTransaction
-	Exec = /usr/bin/perl -i -p -e "s/#CC3333/${COLOR_MEDIUM_GRAY^^}/g;" -e "s/#005577/${COLOR_GREEN^^}/g;" /usr/bin/slock
+	Exec = /usr/bin/perl -i -p -e "s/#CC3333/${COLORS["Gray C"]^^}/g;" -e "s/#005577/${COLORS["Green"]^^}/g;" /usr/bin/slock
 EOF
 
 packages=(
@@ -210,7 +217,7 @@ sudo tee /usr/local/bin/application-launcher <<- EOF
 	        ;;
 	    esac
 	  else
-	    readonly selection="\$(dmenu -i -sb "#6f6f6f" <<< "\$(print --keys)")"
+	    readonly selection="\$(dmenu -i -sb "${COLORS["Gray C"]}" <<< "\$(print --keys)")"
 	    if [[ -n "\${selection}" ]]; then
 	      i3-msg "exec --no-startup-id \${applications[\${selection}]}"
 	    fi
@@ -470,24 +477,24 @@ tee "${HOME}/.Xresources" <<- EOF
 	XTerm.VT100.faceName: Source Code Pro
 	XTerm.VT100.faceSize: 16
 	XTerm.VT100.allowBoldFonts: false
-	XTerm.VT100.background: rgb:28/28/28
-	XTerm.VT100.foreground: rgb:f7/f7/f7
-	XTerm.VT100.color0: rgb:6f/6f/6f
-	XTerm.VT100.color1: rgb:f9/24/72
-	XTerm.VT100.color2: rgb:a6/e2/2c
-	XTerm.VT100.color3: rgb:e7/db/74
-	XTerm.VT100.color4: rgb:67/d8/ef
-	XTerm.VT100.color5: rgb:ac/80/ff
-	XTerm.VT100.color6: rgb:2a/a1/98
-	XTerm.VT100.color7: rgb:f7/f7/f7
-	XTerm.VT100.color8: rgb:6f/6f/6f
-	XTerm.VT100.color9: rgb:f9/24/72
-	XTerm.VT100.color10: rgb:a6/e2/2c
-	XTerm.VT100.color11: rgb:e7/db/74
-	XTerm.VT100.color12: rgb:67/d8/ef
-	XTerm.VT100.color13: rgb:ac/80/ff
-	XTerm.VT100.color14: rgb:2a/a1/98
-	XTerm.VT100.color15: rgb:f7/f7/f7
+	XTerm.VT100.background: ${COLORS["Gray A"]}
+	XTerm.VT100.foreground: ${COLORS["White"]}
+	XTerm.VT100.color0: ${COLORS["Gray C"]}
+	XTerm.VT100.color1: ${COLORS["Pink"]}
+	XTerm.VT100.color2: ${COLORS["Green"]}
+	XTerm.VT100.color3: ${COLORS["Yellow"]}
+	XTerm.VT100.color4: ${COLORS["Blue"]}
+	XTerm.VT100.color5: ${COLORS["Purple"]}
+	XTerm.VT100.color6: ${COLORS["Teal"]}
+	XTerm.VT100.color7: ${COLORS["White"]}
+	XTerm.VT100.color8: ${COLORS["Gray C"]}
+	XTerm.VT100.color9: ${COLORS["Pink"]}
+	XTerm.VT100.color10: ${COLORS["Green"]}
+	XTerm.VT100.color11: ${COLORS["Yellow"]}
+	XTerm.VT100.color12: ${COLORS["Blue"]}
+	XTerm.VT100.color13: ${COLORS["Purple"]}
+	XTerm.VT100.color14: ${COLORS["Teal"]}
+	XTerm.VT100.color15: ${COLORS["White"]}
 	XTerm.VT100.alternateScroll: true
 	XTerm.VT100.fastScroll: true
 	XTerm.VT100.jumpScroll: true
@@ -616,10 +623,10 @@ tee "${HOME}/.config/i3.d/10-default" <<- EOF
 	floating_modifier \$mod
 
 	font pango:Source Code Pro 10
-	client.focused ${COLOR_DARK_GRAY} ${COLOR_DARK_GRAY} ${COLOR_WHITE} ${COLOR_MEDIUM_GRAY}
-	client.focused_inactive ${COLOR_DARK_GRAY} ${COLOR_DARK_GRAY} ${COLOR_MEDIUM_GRAY} ${COLOR_WHITE}
-	client.unfocused ${COLOR_DARK_GRAY} ${COLOR_DARK_GRAY} ${COLOR_MEDIUM_GRAY} ${COLOR_WHITE}
-	client.urgent ${COLOR_DARK_GRAY} ${COLOR_PINK} ${COLOR_WHITE} ${COLOR_PINK}
+	client.focused ${COLORS["Gray B"]} ${COLORS["Gray B"]} ${COLORS["White"]} ${COLORS["Gray C"]}
+	client.focused_inactive ${COLORS["Gray B"]} ${COLORS["Gray B"]} ${COLORS["Gray C"]} ${COLORS["White"]}
+	client.unfocused ${COLORS["Gray B"]} ${COLORS["Gray B"]} ${COLORS["Gray C"]} ${COLORS["White"]}
+	client.urgent ${COLORS["Gray B"]} ${COLORS["Pink"]} ${COLORS["White"]} ${COLORS["Pink"]}
 
 	bindsym \$mod+Return exec --no-startup-id alacritty
 	bindsym \$mod+Shift+q kill
@@ -722,13 +729,13 @@ tee "${HOME}/.config/i3.d/30-status" <<- EOF
 	    strip_workspace_numbers yes
 
 	    colors {
-	        background ${COLOR_DARK_GRAY}
-	        statusline ${COLOR_WHITE}
-	        separator ${COLOR_MEDIUM_GRAY}
-	        focused_workspace ${COLOR_WHITE} ${COLOR_MEDIUM_GRAY} ${COLOR_WHITE}
-	        active_workspace ${COLOR_WHITE} ${COLOR_MEDIUM_GRAY} ${COLOR_WHITE}
-	        inactive_workspace ${COLOR_MEDIUM_GRAY} ${COLOR_DARK_GRAY} ${COLOR_WHITE}
-	        urgent_workspace ${COLOR_MEDIUM_GRAY} ${COLOR_PINK} ${COLOR_WHITE}
+	        background ${COLORS["Gray B"]}
+	        statusline ${COLORS["White"]}
+	        separator ${COLORS["Gray C"]}
+	        focused_workspace ${COLORS["White"]} ${COLORS["Gray C"]} ${COLORS["White"]}
+	        active_workspace ${COLORS["White"]} ${COLORS["Gray C"]} ${COLORS["White"]}
+	        inactive_workspace ${COLORS["Gray C"]} ${COLORS["Gray B"]} ${COLORS["White"]}
+	        urgent_workspace ${COLORS["Gray C"]} ${COLORS["Pink"]} ${COLORS["White"]}
 	    }
 	}
 EOF
@@ -762,9 +769,9 @@ mkdir --parents "${HOME}/.config/i3status.d/"
 tee "${HOME}/.config/i3status.d/10-default" <<- EOF
 	general {
 	    colors = true
-	    color_good = "${COLOR_GREEN}"
-	    color_degraded = "${COLOR_MEDIUM_GRAY}"
-	    color_bad = "${COLOR_PINK}"
+	    color_good = "${COLORS["Green"]}"
+	    color_degraded = "${COLORS["Gray C"]}"
+	    color_bad = "${COLORS["Pink"]}"
 	    interval = 5
 	}
 EOF
@@ -826,21 +833,21 @@ tee "${HOME}/.config/dunst/dunstrc" <<- EOF
 	    show_indicators = false
 
 	[urgency_low]
-	    background = "${COLOR_DARK_GRAY}"
-	    foreground = "${COLOR_WHITE}"
-	    frame_color = "${COLOR_MEDIUM_GRAY}"
+	    background = "${COLORS["Gray B"]}"
+	    foreground = "${COLORS["White"]}"
+	    frame_color = "${COLORS["Gray C"]}"
 	    timeout = 3
 
 	[urgency_normal]
-	    background = "${COLOR_DARK_GRAY}"
-	    foreground = "${COLOR_WHITE}"
-	    frame_color = "${COLOR_MEDIUM_GRAY}"
+	    background = "${COLORS["Gray B"]}"
+	    foreground = "${COLORS["White"]}"
+	    frame_color = "${COLORS["Gray C"]}"
 	    timeout = 10
 
 	[urgency_critical]
-	    background = "${COLOR_DARK_GRAY}"
-	    foreground = "${COLOR_WHITE}"
-	    frame_color = "${COLOR_MEDIUM_GRAY}"
+	    background = "${COLORS["Gray B"]}"
+	    foreground = "${COLORS["White"]}"
+	    frame_color = "${COLORS["Gray C"]}"
 	    timeout = 0
 EOF
 
@@ -887,52 +894,52 @@ blinking = "Always"
 EOF
 tee "${HOME}/.config/alacritty/colors.toml" <<- EOF
 [colors.primary]
-foreground = "#f7f7f7"
-background = "#282828"
+foreground = "${COLORS["White"]}"
+background = "${COLORS["Gray A"]}"
 
 [colors.search.matches]
-foreground = "#282828"
-background = "#f7f7f7"
+foreground = "${COLORS["Gray A"]}"
+background = "${COLORS["White"]}"
 
 [colors.search.focused_match]
-foreground = "#f7f7f7"
-background = "#2aa198"
+foreground = "${COLORS["White"]}"
+background = "${COLORS["Teal"]}"
 
 [colors.hints.start]
-background = "#2aa198"
-foreground = "#f7f7f7"
+background = "${COLORS["Teal"]}"
+foreground = "${COLORS["White"]}"
 
 [colors.hints.end]
-background = "#f7f7f7"
-foreground = "#2aa198"
+background = "${COLORS["White"]}"
+foreground = "${COLORS["Teal"]}"
 
 [colors.footer_bar]
-background = "#f7f7f7"
-foreground = "#282828"
+background = "${COLORS["White"]}"
+foreground = "${COLORS["Gray A"]}"
 
 [colors.selection]
-background = "#f7f7f7"
-text = "#282828"
+background = "${COLORS["White"]}"
+text = "${COLORS["Gray A"]}"
 
 [colors.normal]
-black = "#6f6f6f"
-blue = "#67d8ef"
-cyan = "#2aa198"
-green = "#a6e22c"
-magenta = "#ac80ff"
-red = "#f92472"
-white = "#f7f7f7"
-yellow = "#e7db74"
+black = "${COLORS["Gray C"]}"
+blue = "${COLORS["Blue"]}"
+cyan = "${COLORS["Teal"]}"
+green = "${COLORS["Green"]}"
+magenta = "${COLORS["Purple"]}"
+red = "${COLORS["Pink"]}"
+white = "${COLORS["White"]}"
+yellow = "${COLORS["Yellow"]}"
 
 [colors.bright]
-black = "#6f6f6f"
-blue = "#67d8ef"
-cyan = "#2aa198"
-green = "#a6e22c"
-magenta = "#ac80ff"
-red = "#f92472"
-white = "#f7f7f7"
-yellow = "#e7db74"
+black = "${COLORS["Gray C"]}"
+blue = "${COLORS["Blue"]}"
+cyan = "${COLORS["Teal"]}"
+green = "${COLORS["Green"]}"
+magenta = "${COLORS["Purple"]}"
+red = "${COLORS["Pink"]}"
+white = "${COLORS["White"]}"
+yellow = "${COLORS["Yellow"]}"
 EOF
 tee "${HOME}/.config/alacritty/hints.toml" <<- EOF
 [hints]
