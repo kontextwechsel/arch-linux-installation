@@ -54,7 +54,7 @@ cert-to-efi-sig-list -g "${GUID}" "${unified_kernel_image_certificate}" "${unifi
 
 signatures=("${unified_kernel_image_signature}")
 
-read -r -p "Add Microsoft Windows Production signature? [Y/n] "
+read -r -p "Add Microsoft Windows Production signature? [y/N] "
 if [[ "${REPLY}" =~ ^[Yy]$ ]]; then
   readonly microsoft_production_certificate_binary="$(create_temporary_file)"
   readonly microsoft_production_certificate="$(create_temporary_file)"
@@ -68,7 +68,7 @@ if [[ "${REPLY}" =~ ^[Yy]$ ]]; then
   signatures+=("${microsoft_production_signature}")
 fi
 
-read -r -p "Add Microsoft Microsoft UEFI signature? [Y/n] "
+read -r -p "Add Microsoft Microsoft UEFI signature? [y/N] "
 if [[ "${REPLY}" =~ ^[Yy]$ ]]; then
   readonly microsoft_uefi_certificate_binary="$(create_temporary_file)"
   readonly microsoft_uefi_certificate="$(create_temporary_file)"
