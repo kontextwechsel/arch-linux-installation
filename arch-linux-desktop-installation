@@ -44,14 +44,10 @@ sudo tee /etc/pacman.d/hooks/slock.hook <<- EOF
 EOF
 
 packages=(
-  arc-gtk-theme
-  arc-icon-theme
   dmenu
   dunst
   feh
   flatpak
-  gnome-themes-extra # Arc theme dependency
-  gtk-engine-murrine # Arc theme dependency
   gvfs
   gvfs-mtp
   gvfs-nfs
@@ -126,6 +122,29 @@ packages+=(
 readonly packages
 
 sudo pacman --noconfirm --sync --refresh "${packages[@]}"
+
+readonly arc_theme_version="20221218"
+readonly arc_theme_directory="$(mktemp -d)"
+sudo pacman --noconfirm --sync gnome-themes-extra gtk-engine-murrine meson sassc
+wget --directory-prefix "${arc_theme_directory}/" "https://github.com/jnsh/arc-theme/releases/download/${arc_theme_version}/arc-theme-${arc_theme_version}.tar.xz"
+tar --extract --file "${arc_theme_directory}/arc-theme-${arc_theme_version}.tar.xz" --directory "${arc_theme_directory}/"
+meson setup --prefix="${arc_theme_directory}/arc-theme-${arc_theme_version}/install/" -Dthemes=gtk2,gtk3,gtk4 -Dvariants=lighter -Dtransparency=false "${arc_theme_directory}/arc-theme-${arc_theme_version}/build/" "${arc_theme_directory}/arc-theme-${arc_theme_version}/"
+meson install -C "${arc_theme_directory}/arc-theme-${arc_theme_version}/build/"
+sudo cp --recursive "${arc_theme_directory}/arc-theme-${arc_theme_version}/install/share/themes/Arc-Lighter-solid/" /usr/share/themes/Arc/
+sudo sed --in-place "s/Arc-Lighter-solid/Arc/g" /usr/share/themes/Arc/index.theme
+sudo chmod --recursive u=rwX,go=rX /usr/share/themes/Arc/
+sudo pacman --noconfirm --remove meson sassc
+rm --recursive "${arc_theme_directory:?}/"
+
+readonly arc_icon_theme_version="20161122"
+readonly arc_icon_theme_directory="$(mktemp -d)"
+wget --directory-prefix "${arc_icon_theme_directory}/" "https://github.com/horst3180/arc-icon-theme/archive/refs/tags/${arc_icon_theme_version}.zip"
+unzip -q "${arc_icon_theme_directory}/${arc_icon_theme_version}.zip" -d "${arc_icon_theme_directory}/"
+sudo cp --recursive "${arc_icon_theme_directory}/arc-icon-theme-${arc_icon_theme_version}/Arc/" /usr/share/icons/
+sudo mkdir --parents /usr/share/icons/Arc/symbolic/legacy/
+sudo ln --symbolic /usr/share/icons/Arc/categories/symbolic/applications-system-symbolic.svg /usr/share/icons/Arc/symbolic/legacy/gtk-preferences.svg
+sudo chmod --recursive u=rwX,go=rX /usr/share/icons/Arc/
+rm --recursive "${arc_icon_theme_directory:?}/"
 
 sudo tee /usr/share/X11/xkb/symbols/default <<-EOF
 	default partial alphanumeric_keys
