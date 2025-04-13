@@ -92,7 +92,7 @@ sudo mkinitcpio --preset linux
 ### Backlight
 
 ```bash
-sudo pacman --sync --refresh acpilight
+sudo pacman --sync --refresh brightnessctl
 sudo usermod --append --groups video "${USER}"
 
 mkdir --parents "${HOME}/.local/bin/"
@@ -100,62 +100,54 @@ mkdir --parents "${HOME}/.local/share/bash-completion/completions/"
 tee "${HOME}/.local/bin/backlight" << EOF
 #!/bin/bash
 
-readonly brightness="\$(xbacklight -get)"
+if [[ -n "\${DISPLAY}" ]]; then
+  readonly brightness="\$(( "\$(brightnessctl get)" / ("\$(brightnessctl max)" / 100) ))"
 
-function help() {
-  printf "Usage: %s [--increment|--decrement|--reset]\n" "\$(basename \${BASH_SOURCE[0]})"
-  exit 1
-}
+  function set() {
+    brightnessctl --quiet set "\$1%"
+    printf "%s\n" "\$1" > "\${HOME}/.brightness"
+    killall -USR1 i3status
+  }
 
-function set_brightness() {
-  xbacklight -set "\$1"
-  printf "%s\n" "\$1" > "\${HOME}/.brightness"
-  killall -USR1 i3status
-}
+  function reset() {
+    if [[ ! -f "\${HOME}/.brightness" ]]; then
+      return 1
+    fi
+    local value="\$(< "\${HOME}/.brightness")"
+    if [[ ! "\${value}" =~ ^([1-9]?[0-9]|100)\$ ]]; then
+      return 1
+    fi
+    set "\${value}"
+  }
 
-if [[ "\$#" -ne 1 ]]; then
-  help
+  case "\$1" in
+    -i | --increment)
+      set "\$(( "\${brightness}" > 90 ? 100 : "\${brightness}" + 10 ))"
+      ;;
+    -d | --decrement)
+      set "\$(( "\${brightness}" < 10 ? 0 : "\${brightness}" - 10 ))"
+      ;;
+    -r | --reset)
+      if ! reset; then
+        set "\${brightness}"
+      fi
+      ;;
+    *)
+      printf "Usage: %s [--increment|--decrement|--reset]\n" "\$(basename \${BASH_SOURCE[0]})"
+      exit 1
+      ;;
+  esac
 fi
-
-case "\$1" in
-  -i | --increment)
-    set_brightness "\$(( "\${brightness}" > 90 ? 100 : "\${brightness}" + 10 ))"
-    ;;
-  -d | --decrement)
-    set_brightness "\$(( "\${brightness}" < 10 ? 0 : "\${brightness}" - 10 ))"
-    ;;
-  -r | --reset)
-    set -x
-    if [[ -f "\${HOME}/.brightness" ]]; then
-      value="\$(< "\${HOME}/.brightness")"
-    else
-      value="\${brightness}"
-    fi
-    if [[ "\${value}" =~ ^([1-9]?[0-9]|100)\$ ]]; then
-      set_brightness "\${value}"
-    else
-      set_brightness "\${brightness}"
-    fi
-    set +x
-    ;;
-  *)
-    help
-    ;;
-esac
 EOF
 tee "${HOME}/.local/share/bash-completion/completions/backlight" << EOF
 function _backlight() {
   if [[ "\${COMP_CWORD}" -eq 1 ]]; then
-    readarray -t COMPREPLY < <(compgen -W "--increment --decrement --reset" -- "\${COMP_WORDS[\${COMP_CWORD}]}")
+    readarray -t COMPREPLY < <(compgen -W "--increment --decrement --reset" -- "\${COMP_WORDS["\${COMP_CWORD}"]}")
   fi
 }
 complete -F _backlight backlight
 EOF
 chmod +x "${HOME}/.local/bin/backlight"
-
-tee "${HOME}/.brightness" << EOF
-"$(xbacklight -get)"
-EOF
 
 tee "${HOME}/.config/i3.d/41-backlight" << EOF
 bindsym XF86MonBrightnessUp exec --no-startup-id backlight --increment

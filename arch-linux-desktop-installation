@@ -146,6 +146,179 @@ sudo ln --symbolic /usr/share/icons/Arc/categories/symbolic/applications-system-
 sudo chmod --recursive u=rwX,go=rX /usr/share/icons/Arc/
 rm --recursive "${arc_icon_theme_directory:?}/"
 
+sudo mkdir --parents /usr/local/bin/
+sudo tee /usr/local/bin/application-launcher <<- EOF
+	#!/bin/bash
+
+	if [[ -n "\${DISPLAY}" ]]; then
+	  readonly file="\${HOME}/.config/application-launcher/config"
+
+	  declare -A applications
+	  if [[ -f "\${file}" ]]; then
+	    while IFS="=" read -r application executable; do
+	      applications["\${application}"]="\${executable}"
+	    done < "\${file}"
+	  fi
+
+	  function print() {
+	    case "\$1" in
+	      -k | --keys)
+	        printf "%s\n" "\${!applications[@]}" | sort
+	        ;;
+	      *)
+	        for application in "\${!applications[@]}"; do
+	          printf "%s=%s\n" "\${application}" "\${applications[\${application}]}"
+	        done | sort
+	        ;;
+	    esac
+	  }
+
+	  if [[ "\$#" -gt 0 ]]; then
+	    case "\$1" in
+	      -a | --add)
+	        if [[ ! "\$2" =~ ^[a-z0-9\ -._]+\$ ]]; then
+	          printf "Invalid application\n"
+	          exit 1
+	        fi
+	        if [[ ! -f "\$3" || ! -x "\$3" ]]; then
+	          printf "Invalid executable\n"
+	          exit 1
+	        fi
+	        readonly executable="\$(realpath --no-symlinks "\$3")"
+	        readonly args="\${*:4}"
+	        if [[ -z "\${args}" ]]; then
+	            applications["\$2"]="\${executable/#\${HOME}/~}"
+	        else
+	            applications["\$2"]="\${executable/#\${HOME}/~} \${*:4}"
+	        fi
+	        print > "\${file}"
+	        ;;
+	      -r | --remove)
+	        if [[ -z "\${applications["\$2"]+application}" ]]; then
+	          printf "Unknown application\n"
+	          exit 1
+	        fi
+	        unset applications["\$2"]
+	        print > "\${file}"
+	        ;;
+	      -l | --list)
+	        print | column --table --separator "="
+	        ;;
+	      *)
+	        printf "Usage: %s [--add|--remove|--list] [APPLICATION] [EXECUTABLE] [ARGUMENTS...]\n" "\$(basename \${BASH_SOURCE[0]})"
+	        exit 1
+	        ;;
+	    esac
+	  else
+	    readonly selection="\$(dmenu -i -sb "#6f6f6f" <<< "\$(print --keys)")"
+	    if [[ -n "\${selection}" ]]; then
+	      i3-msg "exec --no-startup-id \${applications[\${selection}]}"
+	    fi
+	  fi
+	fi
+EOF
+sudo tee /usr/local/bin/display-configuration <<- EOF
+	#!/bin/bash
+
+	if [[ -n "\${DISPLAY}" ]]; then
+	  readonly file="\${HOME}/.config/display-configuration/xrandr"
+
+	  if [[ -f "\${file}" ]]; then
+	    source "\${file}"
+	  else
+	    while IFS= read -r screen; do
+	      xrandr --output "\${screen}" --auto
+	    done < <(xrandr | awk '\$2 == "connected" { print \$1 }')
+	  fi
+
+	  if feh --loadable "\${HOME}/.local/share/backgrounds/" > /dev/null 2>&1; then
+	    feh --bg-fill --no-fehbg --randomize "\${HOME}/.local/share/backgrounds/"
+	  else
+	    xsetroot -grey
+	  fi
+	fi
+EOF
+sudo tee /usr/local/bin/screenshot <<- EOF
+	#!/bin/bash
+
+	if [[ -n "\${DISPLAY}" ]]; then
+	  filename="%Y-%m-%d-%H-%M-%S.png"
+
+	  args=("--overwrite")
+	  while [[ "\$#" -gt 0 ]]; do
+	    case "\$1" in
+	      -s | --select)
+	        args+=("--select")
+	        shift
+	        ;;
+	      -c | --clipboard)
+	        filename="\$(mktemp --suffix=".png")"
+	        trap "{ xclip -selection clipboard -target image/png -in \${filename}; rm -rf \${filename}; }" EXIT
+	        shift
+	        ;;
+	      *)
+	        printf "Usage: %s [-s|--select] [-c|--clipboard]\n" "\$(basename \${BASH_SOURCE[0]})"
+	        exit 1
+	        ;;
+	    esac
+	  done
+	  readonly filename args
+
+	  scrot "\${args[@]}" "\${filename}"
+	fi
+EOF
+
+sudo chmod +x /usr/local/bin/application-launcher
+sudo chmod +x /usr/local/bin/display-configuration
+sudo chmod +x /usr/local/bin/screenshot
+
+sudo mkdir --parents /usr/local/share/bash-completion/completions/
+sudo tee /usr/local/share/bash-completion/completions/application-launcher <<-EOF
+	function _application-launcher() {
+	  if [[ "\${COMP_CWORD}" -eq 1 ]]; then
+	    for option in \$(compgen -W "--add --remove --list" -- "\${COMP_WORDS["\${COMP_CWORD}"]}"); do
+	      COMPREPLY+=("\${option} ")
+	    done
+	  else
+	    if [[ "\${COMP_WORDS[1]}" == "--add" ]]; then
+	      if [[ "\${COMP_CWORD}" -eq 2 ]]; then
+	        if [[ -n "\${COMP_WORDS[2]}" ]]; then
+	          COMPREPLY=("\${COMP_WORDS[2]} ")
+	        fi
+	      elif [[ "\${COMP_CWORD}" -eq 3 ]]; then
+	        for file in \$(compgen -f -- "\${COMP_WORDS["\${COMP_CWORD}"]}"); do
+	          if [[ -d "\${file}" ]]; then
+	            COMPREPLY+=("\${file}/")
+	          elif [[ -x "\${file}" ]]; then
+	            COMPREPLY+=("\${file} ")
+	          fi
+	        done
+	      else
+	        if [[ -n "\${COMP_WORDS["\${COMP_CWORD}"]}" ]]; then
+	          COMPREPLY=("\${COMP_WORDS["\${COMP_CWORD}"]} ")
+	        fi
+	      fi
+	    elif [[ "\${COMP_WORDS[1]}" == "--remove" ]]; then
+	      if [[ "\${COMP_CWORD}" -eq 2 ]]; then
+	        for application in \$(compgen -W "\$(application-launcher --list | awk '{ print \$1 }')" -- "\${COMP_WORDS["\${COMP_CWORD}"]}"); do
+	          COMPREPLY+=("\${application} ")
+	        done
+	      fi
+	    fi
+	  fi
+	}
+	complete -o nospace -F _application-launcher application-launcher
+EOF
+sudo tee /usr/local/share/bash-completion/completions/display-configuration <<-EOF
+	complete display-configuration
+EOF
+sudo tee /usr/local/share/bash-completion/completions/screenshot <<-EOF
+	function _screenshot() {
+	  readarray -t COMPREPLY < <(compgen -W "--clipboard --select" -- "\${COMP_WORDS["\${COMP_CWORD}"]}")
+	}
+	complete -F _screenshot screenshot
+EOF
+
 sudo tee /usr/share/X11/xkb/symbols/default <<-EOF
 	default partial alphanumeric_keys
 	xkb_symbols "us" {
@@ -263,165 +436,6 @@ sudo tee /etc/xdg/mimeapps.list <<- EOF
 	x-scheme-handler/about=firefox.desktop
 	x-scheme-handler/unknown=firefox.desktop
 EOF
-
-mkdir --parents "${HOME}/.local/bin/"
-mkdir --parents "${HOME}/.local/share/bash-completion/completions/"
-tee "${HOME}/.local/bin/application-launcher" <<- EOF
-	#!/bin/bash
-
-	readonly CONFIGURATION_FILE="\${HOME}/.config/application-launcher/config"
-	readonly BACKGROUND_COLOR="#6f6f6f"
-
-	function help() {
-	  printf "Usage: %s [--add|--remove|--list] [APPLICATION] [EXECUTABLE] [ARGUMENTS...]\n" "\$(basename \${BASH_SOURCE[0]})"
-	  exit 1
-	}
-
-	if [[ "\$#" -gt 0 ]]; then
-	  case "\$1" in
-	    -a | --add)
-	      if [[ ! "\$2" =~ ^[a-z0-9\ -._]+\$ ]]; then
-	        printf "Invalid application\n"
-	        exit 1
-	      fi
-	      if [[ ! -f "\$3" || ! -x "\$3" ]]; then
-	        printf "Invalid executable\n"
-	        exit 1
-	      fi
-	      readonly temporary_file="\$(mktemp)"
-	      awk --assign "application=\$2" --field-separator "=" '\$1 != application' "\${CONFIGURATION_FILE}" > "\${temporary_file}"
-	      readonly executable="\$(realpath "\$(dirname "\$3")" | sed "s/^\/home\/\${USER}\//~\//g")/\$(basename "\$3")"
-	      readonly args="\${*:4}"
-	      if [[ -n "\${args}" ]]; then
-	          printf "%s=%s %s\n" "\$2" "\${executable}" "\${args}" >> "\${temporary_file}"
-	      else
-	          printf "%s=%s\n" "\$2" "\${executable}" >> "\${temporary_file}"
-	      fi
-	      sort "\${temporary_file}" > "\${CONFIGURATION_FILE}"
-	      rm "\${temporary_file}"
-	      ;;
-	    -r | --remove)
-	      readonly temporary_file="\$(mktemp)"
-	      awk --assign "application=\$2" --field-separator "=" '\$1 != application' "\${CONFIGURATION_FILE}" > "\${temporary_file}"
-	      mv "\${temporary_file}" "\${CONFIGURATION_FILE}"
-	      ;;
-	    -l | --list)
-	      column --table --separator "=" "\${CONFIGURATION_FILE}"
-	      ;;
-	    *)
-	      help
-	      ;;
-	  esac
-	else
-	  declare -A buffer
-	  while IFS="=" read -r application executable; do
-	    buffer+=(["\${application}"]="\${executable}")
-	  done < "\${CONFIGURATION_FILE}"
-	  while IFS="=" read -r application executable; do
-	    buffer+=(["\${application}"]="\${executable}")
-	  done < <(flatpak list --app | awk --field-separator "\t" '{ n = split(\$2, a, "."); printf "%s=/usr/bin/flatpak run %s\n", tolower(a[n]), \$2 }')
-	  readonly buffer
-
-	  readonly selection="\$(dmenu -i -sb "\${BACKGROUND_COLOR}" <<< "\$(printf "%s\n" "\${!buffer[@]}" | sort)")"
-	  if [[ -n "\${selection}" ]]; then
-	    i3-msg "exec --no-startup-id \${buffer[\${selection}]}"
-	  fi
-	fi
-EOF
-tee "${HOME}/.local/share/bash-completion/completions/application-launcher" <<-EOF
-	function _application-launcher() {
-	  if [[ "\${COMP_CWORD}" -eq 1 ]]; then
-	    for option in \$(compgen -W "--add --remove --list" -- "\${COMP_WORDS[\${COMP_CWORD}]}"); do
-	      COMPREPLY+=("\${option} ")
-	    done
-	  else
-	    if [[ "\${COMP_WORDS[1]}" == "--add" ]]; then
-	      if [[ "\${COMP_CWORD}" -eq 2 ]]; then
-	        if [[ -n "\${COMP_WORDS[2]}" ]]; then
-	          COMPREPLY=("\${COMP_WORDS[2]} ")
-	        fi
-	      elif [[ "\${COMP_CWORD}" -eq 3 ]]; then
-	        for file in \$(compgen -f -- "\${COMP_WORDS[\${COMP_CWORD}]}"); do
-	          if [[ -d "\${file}" ]]; then
-	            COMPREPLY+=("\${file}/")
-	          elif [[ -x "\${file}" ]]; then
-	            COMPREPLY+=("\${file} ")
-	          fi
-	        done
-	      else
-	        if [[ -n "\${COMP_WORDS[\${COMP_CWORD}]}" ]]; then
-	          COMPREPLY=("\${COMP_WORDS[\${COMP_CWORD}]} ")
-	        fi
-	      fi
-	    elif [[ "\${COMP_WORDS[1]}" == "--remove" ]]; then
-	      if [[ "\${COMP_CWORD}" -eq 2 ]]; then
-	        for application in \$(compgen -W "\$(application-launcher --list | awk '{ print \$1 }')" -- "\${COMP_WORDS[\${COMP_CWORD}]}"); do
-	          COMPREPLY+=("\${application} ")
-	        done
-	      fi
-	    fi
-	  fi
-	}
-	complete -o nospace -F _application-launcher application-launcher
-EOF
-chmod +x "${HOME}/.local/bin/application-launcher"
-
-tee "${HOME}/.local/bin/display-configuration" <<- EOF
-	#!/bin/bash
-
-	while IFS= read -r screen; do
-	  xrandr --output "\${screen}" --auto
-	done < <(xrandr | awk '\$2 == "connected" { print \$1 }')
-
-	if feh --loadable "\${HOME}/.local/share/backgrounds/" > /dev/null 2>&1; then
-	  feh --bg-fill --no-fehbg --randomize "\${HOME}/.local/share/backgrounds/"
-	else
-	  xsetroot -grey
-	fi
-EOF
-tee "${HOME}/.local/share/bash-completion/completions/display-configuration" <<-EOF
-	complete display-configuration
-EOF
-chmod +x "${HOME}/.local/bin/display-configuration"
-
-tee "${HOME}/.local/bin/screenshot" <<- EOF
-	#!/bin/bash
-
-	FILENAME="%Y-%m-%d-%H-%M-%S.png"
-
-	function help() {
-	  printf "Usage: %s [-s|--select] [-c|--clipboard]\n" "\$(basename \${BASH_SOURCE[0]})"
-	  exit 1
-	}
-
-	args=("--overwrite")
-	while [[ "\$#" -gt 0 ]]; do
-	  case "\$1" in
-	    -s | --select)
-	      args+=("--select")
-	      shift
-	      ;;
-	    -c | --clipboard)
-	      FILENAME="\$(mktemp --suffix=".png")"
-	      trap "{ xclip -selection clipboard -target image/png -in \${FILENAME}; rm -rf \${FILENAME}; }" EXIT
-	      shift
-	      ;;
-	    *)
-	      help
-	      ;;
-	  esac
-	done
-	readonly args
-
-	scrot "\${args[@]}" "\${FILENAME}"
-EOF
-tee "${HOME}/.local/share/bash-completion/completions/screenshot" <<-EOF
-	function _screenshot() {
-	  readarray -t COMPREPLY < <(compgen -W "--clipboard --select" -- "\${COMP_WORDS[\${COMP_CWORD}]}")
-	}
-	complete -F _screenshot screenshot
-EOF
-chmod +x "${HOME}/.local/bin/screenshot"
 
 mkdir --parents "${HOME}/.config/application-launcher/"
 tee "${HOME}/.config/application-launcher/config" <<- EOF
