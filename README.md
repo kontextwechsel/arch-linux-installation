@@ -336,19 +336,30 @@ sudo pacman --sync --refresh sublime-text
 application-launcher --add sublime-text /usr/bin/subl --new-window
 
 mkdir --parents "${HOME}/.config/sublime-text/Packages/User/"
-unzip -p "/opt/sublime_text/Packages/Color Scheme - Default.sublime-package" Monokai.sublime-color-scheme |
-  sed -E "s/\"(name)\"(\s*):(\s*)\"Monokai\"/\"\1\"\2:\3\"Auf zum Atem\!\"/g" |
-  sed -E "s/\"(author)\"(\s*):(\s*)\".*?\"/\"\1\"\2:\3\"Me\"/g" |
-  sed -E "s/\"(black2)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(32, 32, 32)\"/g" |
-  sed -E "s/\"(black3)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(40, 40, 40)\"/g" |
-  sed -E "s/\"(grey)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(70, 70, 70)\"/g" |
-  sed -E "s/\"(white)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(247, 247, 247)\"/g" |
-  sed -E "s/\"(white2)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(248, 248, 248)\"/g" |
-  sed -E "s/\"(white3)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(247, 247, 247)\"/g" |
-  sed -E "s/\"(yellow3)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(206, 206, 206)\"/g" |
-  sed -E "s/\"(yellow4)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(60, 60, 60)\"/g" |
-  sed -E "s/\"(yellow5)\"(\s*):(\s*)\"hsl\(.*?\)\"/\"\1\"\2:\3\"rgb(111, 111, 111)\"/g" |
-  tee "${HOME}/.config/sublime-text/Packages/User/Auf zum Atem"'!'".sublime-color-scheme"
+unzip -p "/opt/sublime_text/Packages/Color Scheme - Default.sublime-package" Monokai.sublime-color-scheme \
+  | sed -E ':a;N;$!ba;s/,(\s*)(}|])/\1\2/g' \
+  | jq '.name = "Auf zum Atem!"' \
+  | jq '.author = "Me"' \
+  | jq '.variables.black = "#000000"' \
+  | jq '.variables.black2 = "#202020"' \
+  | jq '.variables.black3 = "#282828"' \
+  | jq '.variables.blue = "#67d8ef"' \
+  | jq '.variables.grey = "#535353b3"' \
+  | jq '.variables.orange = "#fd9621"' \
+  | jq '.variables.orange2 = "#9f570f"' \
+  | jq '.variables.orange3 = "#ffe894"' \
+  | jq '.variables.purple = "#ac80ff"' \
+  | jq '.variables.red = "#f83535"' \
+  | jq '.variables.red2 = "#f92472"' \
+  | jq '.variables.white = "#f7f7f7"' \
+  | jq '.variables.white2 = "#f7f7f7"' \
+  | jq '.variables.white3 = "#f7f7f7"' \
+  | jq '.variables.yellow = "#ffe894"' \
+  | jq '.variables.yellow2 = "#a6e22c"' \
+  | jq '.variables.yellow3 = "#cecece"' \
+  | jq '.variables.yellow4 = "#3c3c3c"' \
+  | jq '.variables.yellow5 = "#6f6f6f"' \
+  | tee "${HOME}/.config/sublime-text/Packages/User/Auf zum Atem"'!'".sublime-color-scheme"
 tee "${HOME}/.config/sublime-text/Packages/User/Preferences.sublime-settings" <<- EOF
 	{
 	    "always_prompt_for_file_reload": true,
