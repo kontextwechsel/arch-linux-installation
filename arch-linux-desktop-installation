@@ -316,17 +316,17 @@ sudo tee /usr/local/share/bash-completion/completions/application-launcher <<-EO
 	}
 	complete -o nospace -F _application-launcher application-launcher
 EOF
-sudo tee /usr/local/share/bash-completion/completions/display-configuration <<-EOF
+sudo tee /usr/local/share/bash-completion/completions/display-configuration <<- EOF
 	complete display-configuration
 EOF
-sudo tee /usr/local/share/bash-completion/completions/screenshot <<-EOF
+sudo tee /usr/local/share/bash-completion/completions/screenshot <<- EOF
 	function _screenshot() {
 	  readarray -t COMPREPLY < <(compgen -W "--clipboard --select" -- "\${COMP_WORDS["\${COMP_CWORD}"]}")
 	}
 	complete -F _screenshot screenshot
 EOF
 
-sudo tee /usr/share/X11/xkb/symbols/default <<-EOF
+sudo tee /usr/share/X11/xkb/symbols/default <<- EOF
 	default partial alphanumeric_keys
 	xkb_symbols "us" {
 	    include "us(basic)"
@@ -384,135 +384,7 @@ sudo tee /etc/X11/xorg.conf.d/90-default.conf <<- EOF
 	EndSection
 EOF
 
-sudo mkdir --parents /usr/share/icons/default/
-sudo tee /usr/share/icons/default/index.theme <<- EOF
-	[Icon Theme]
-	Inherits=Vanilla-DMZ
-EOF
-
-readarray -t icons < <(find /usr/share/icons/Arc/ -type f -name applications-system.png -o -name applications-system-symbolic.svg)
-for icon in "${icons[@]}"; do
-    sudo ln --symbolic --force --relative "${icon}" "${icon/applications-system/gtk-preferences}"
-done
-sudo gtk-update-icon-cache --force /usr/share/icons/Arc/
-
-sudo mkdir --parents /etc/gtk-2.0/
-sudo tee /etc/gtk-2.0/gtkrc <<- EOF
-	gtk-theme-name = "Arc-Lighter"
-	gtk-icon-theme-name = "Arc"
-	gtk-cursor-theme-name = "Vanilla-DMZ"
-	gtk-font-name = "Source Sans 3 12"
-EOF
-
-sudo mkdir --parents /etc/gtk-{3,4}.0/
-sudo tee /etc/gtk-{3,4}.0/settings.ini <<- EOF
-	[Settings]
-	gtk-theme-name = Arc-Lighter
-	gtk-icon-theme-name = Arc
-	gtk-cursor-theme-name = Vanilla-DMZ
-	gtk-font-name = Source Sans 3 12
-	gtk-decoration-layout = menu:
-EOF
-
-sudo mkdir --parents /etc/xdg/
-sudo tee /etc/xdg/mimeapps.list <<- EOF
-	[Default Applications]
-	application/javascript=leafpad.desktop
-	application/json=leafpad.desktop
-	application/sql=leafpad.desktop
-	application/pdf=firefox.desktop
-	application/xml=leafpad.desktop
-	application/x-shellscript=leafpad.desktop
-	image/bmp=gpicview.desktop
-	image/gif=gpicview.desktop
-	image/jpeg=gpicview.desktop
-	image/png=gpicview.desktop
-	image/tiff=gpicview.desktop
-	image/svg+xml=gpicview.desktop
-	text/css=leafpad.desktop
-	text/csv=leafpad.desktop
-	text/html=leafpad.desktop
-	text/markdown=leafpad.desktop
-	text/plain=leafpad.desktop
-	text/x-c=leafpad.desktop
-	text/x-c++=leafpad.desktop
-	text/x-java=leafpad.desktop
-	text/x-python=leafpad.desktop
-	x-scheme-handler/http=firefox.desktop
-	x-scheme-handler/https=firefox.desktop
-	x-scheme-handler/about=firefox.desktop
-	x-scheme-handler/unknown=firefox.desktop
-EOF
-
-mkdir --parents "${HOME}/.config/application-launcher/"
-tee "${HOME}/.config/application-launcher/config" <<- EOF
-	alacritty=/usr/bin/alacritty
-	firefox=/usr/bin/firefox
-	gimp=/usr/bin/gimp
-	gpicview=/usr/bin/gpicview
-	leafpad=/usr/bin/leafpad
-	libreoffice=/usr/bin/libreoffice
-	pavucontrol=/usr/bin/pavucontrol
-	pcmanfm=/usr/bin/pcmanfm
-	thunderbird=/usr/bin/thunderbird
-EOF
-
-tee "${HOME}/.xinitrc" <<- EOF
-	dbus-update-activation-environment --systemd DBUS_SESSION_BUS_ADDRESS DISPLAY XAUTHORITY
-	xrdb -merge "\${HOME}/.Xresources"
-	mkdir --parents "/run/user/\${UID}/i3/"
-	mkdir --parents "/run/user/\${UID}/i3status/"
-	awk 'NR != 1 && FNR == 1 { printf "\n" } { print }' "\${HOME}/.config/i3.d/"* > "/run/user/\${UID}/i3/config"
-	awk 'NR != 1 && FNR == 1 { printf "\n" } { print }' "\${HOME}/.config/i3status.d/"* > "/run/user/\${UID}/i3status/config"
-	exec /usr/bin/i3 -c "/run/user/\${UID}/i3/config" > /dev/null 2>&1
-EOF
-
-tee "${HOME}/.Xauthority" <<- EOF
-EOF
-
-tee "${HOME}/.Xresources" <<- EOF
-	Xft.dpi: 96
-	XTerm.termName: xterm-256color
-	XTerm.title: Terminal
-	XTerm.VT100.faceName: Source Code Pro
-	XTerm.VT100.faceSize: 16
-	XTerm.VT100.allowBoldFonts: false
-	XTerm.VT100.background: ${COLORS["Gray A"]}
-	XTerm.VT100.foreground: ${COLORS["White"]}
-	XTerm.VT100.color0: ${COLORS["Gray C"]}
-	XTerm.VT100.color1: ${COLORS["Pink"]}
-	XTerm.VT100.color2: ${COLORS["Green"]}
-	XTerm.VT100.color3: ${COLORS["Yellow"]}
-	XTerm.VT100.color4: ${COLORS["Blue"]}
-	XTerm.VT100.color5: ${COLORS["Purple"]}
-	XTerm.VT100.color6: ${COLORS["Teal"]}
-	XTerm.VT100.color7: ${COLORS["White"]}
-	XTerm.VT100.color8: ${COLORS["Gray C"]}
-	XTerm.VT100.color9: ${COLORS["Pink"]}
-	XTerm.VT100.color10: ${COLORS["Green"]}
-	XTerm.VT100.color11: ${COLORS["Yellow"]}
-	XTerm.VT100.color12: ${COLORS["Blue"]}
-	XTerm.VT100.color13: ${COLORS["Purple"]}
-	XTerm.VT100.color14: ${COLORS["Teal"]}
-	XTerm.VT100.color15: ${COLORS["White"]}
-	XTerm.VT100.alternateScroll: true
-	XTerm.VT100.fastScroll: true
-	XTerm.VT100.jumpScroll: true
-	XTerm.VT100.multiScroll: true
-	XTerm.VT100.on2Clicks: regex (https?:)?[a-zA-Z0-9$%&/()?@~*+#,._-]+
-	XTerm.VT100.on3Clicks: line
-	XTerm.VT100.saveLines: 16384
-	XTerm.VT100.translations: #override \n\\
-	    Shift Ctrl <Key> c: copy-selection(CLIPBOARD) \n\\
-	    Shift Ctrl <Key> v: insert-selection(CLIPBOARD)
-EOF
-
-mkdir --parents "${HOME}/.gnupg/"
-tee "${HOME}/.gnupg/gpg-agent.conf" <<- EOF
-	pinentry-program /usr/bin/pinentry-curses
-EOF
-
-tee "${HOME}/.bash_profile" <<- EOF
+sudo tee /etc/skel/.bash_profile <<- EOF
 	umask g-rwx,o-rwx
 	if [[ -n "\${BASH_VERSION}" && -f "\${HOME}/.bashrc" ]]; then
 	  source "\${HOME}/.bashrc"
@@ -525,7 +397,7 @@ tee "${HOME}/.bash_profile" <<- EOF
 	fi
 EOF
 
-tee "${HOME}/.bashrc" <<- EOF
+sudo tee /etc/skel/.bashrc <<- EOF
 	if [[ "\$-" == *i* ]]; then
 	  if [[ -z "\${SSH_CLIENT:+substitution}" ]]; then
 	    PS1="\[\e[32m\]\u@\h\[\e[m\]:\[\e[34m\]\w\[\e[m\]\\\$ "
@@ -611,14 +483,154 @@ tee "${HOME}/.bashrc" <<- EOF
 	fi
 EOF
 
-tee "${HOME}/.bash_logout" <<- EOF
+sudo tee /etc/skel/.bash_logout <<- EOF
 EOF
 
-tee "${HOME}/.hushlogin" <<- EOF
+sudo tee /etc/skel/.hushlogin <<- EOF
 EOF
 
-mkdir --parents "${HOME}/.config/i3.d/"
-tee "${HOME}/.config/i3.d/10-default" <<- EOF
+sudo tee /etc/skel/.xinitrc <<- EOF
+	dbus-update-activation-environment --systemd DBUS_SESSION_BUS_ADDRESS DISPLAY XAUTHORITY
+	xrdb -merge "\${HOME}/.Xresources"
+	mkdir --parents "/run/user/\${UID}/i3/"
+	mkdir --parents "/run/user/\${UID}/i3status/"
+	awk 'NR != 1 && FNR == 1 { printf "\n" } { print }' "\${HOME}/.config/i3.d/"* > "/run/user/\${UID}/i3/config"
+	awk 'NR != 1 && FNR == 1 { printf "\n" } { print }' "\${HOME}/.config/i3status.d/"* > "/run/user/\${UID}/i3status/config"
+	exec /usr/bin/i3 -c "/run/user/\${UID}/i3/config" > /dev/null 2>&1
+EOF
+
+sudo tee /etc/skel/.Xresources <<- EOF
+	Xft.dpi: 96
+
+	Xcursor.theme: Vanilla-DMZ
+	Xcursor.size: 16
+
+	XTerm.termName: xterm-256color
+	XTerm.title: Terminal
+	XTerm.VT100.faceName: Source Code Pro
+	XTerm.VT100.faceSize: 16
+	XTerm.VT100.allowBoldFonts: false
+	XTerm.VT100.background: ${COLORS["Gray A"]}
+	XTerm.VT100.foreground: ${COLORS["White"]}
+	XTerm.VT100.color0: ${COLORS["Gray C"]}
+	XTerm.VT100.color1: ${COLORS["Pink"]}
+	XTerm.VT100.color2: ${COLORS["Green"]}
+	XTerm.VT100.color3: ${COLORS["Yellow"]}
+	XTerm.VT100.color4: ${COLORS["Blue"]}
+	XTerm.VT100.color5: ${COLORS["Purple"]}
+	XTerm.VT100.color6: ${COLORS["Teal"]}
+	XTerm.VT100.color7: ${COLORS["White"]}
+	XTerm.VT100.color8: ${COLORS["Gray C"]}
+	XTerm.VT100.color9: ${COLORS["Pink"]}
+	XTerm.VT100.color10: ${COLORS["Green"]}
+	XTerm.VT100.color11: ${COLORS["Yellow"]}
+	XTerm.VT100.color12: ${COLORS["Blue"]}
+	XTerm.VT100.color13: ${COLORS["Purple"]}
+	XTerm.VT100.color14: ${COLORS["Teal"]}
+	XTerm.VT100.color15: ${COLORS["White"]}
+	XTerm.VT100.alternateScroll: true
+	XTerm.VT100.fastScroll: true
+	XTerm.VT100.jumpScroll: true
+	XTerm.VT100.multiScroll: true
+	XTerm.VT100.on2Clicks: regex (https?:)?[a-zA-Z0-9$%&/()?@~*+#,._-]+
+	XTerm.VT100.on3Clicks: line
+	XTerm.VT100.saveLines: 16384
+	XTerm.VT100.translations: #override \n\\
+	    Shift Ctrl <Key> c: copy-selection(CLIPBOARD) \n\\
+	    Shift Ctrl <Key> v: insert-selection(CLIPBOARD)
+EOF
+
+sudo tee /etc/skel/.vimrc <<- EOF
+	runtime! archlinux.vim
+	let skip_defaults_vim=1
+	set expandtab
+	set hlsearch
+	set ignorecase
+	set incsearch
+	set ruler
+	set scrolloff=1
+	set smartcase
+	set shiftwidth=4
+	set softtabstop=4
+	set tabstop=4
+	set title
+	set wrap
+	syntax on
+EOF
+
+sudo mkdir --parents /etc/skel/.gnupg/
+sudo tee /etc/skel/.gnupg/gpg-agent.conf <<- EOF
+	pinentry-program /usr/bin/pinentry-curses
+EOF
+
+sudo mkdir --parents /etc/skel/.config/application-launcher/
+sudo tee /etc/skel/.config/application-launcher/config <<- EOF
+	alacritty=/usr/bin/alacritty
+	firefox=/usr/bin/firefox
+	gimp=/usr/bin/gimp
+	gpicview=/usr/bin/gpicview
+	leafpad=/usr/bin/leafpad
+	libreoffice=/usr/bin/libreoffice
+	pavucontrol=/usr/bin/pavucontrol
+	pcmanfm=/usr/bin/pcmanfm
+	thunderbird=/usr/bin/thunderbird
+EOF
+
+sudo mkdir --parents /etc/skel/.local/share/applications/
+for application in feh vim; do
+  sudo tee "/etc/skel/.local/share/applications/${application}.desktop" <<- EOF
+		[Desktop Entry]
+		Hidden=true
+	EOF
+done
+
+sudo mkdir --parents /etc/skel/.config/
+sudo tee /etc/skel/.config/mimeapps.list <<- EOF
+	[Default Applications]
+	application/javascript=leafpad.desktop
+	application/json=leafpad.desktop
+	application/sql=leafpad.desktop
+	application/pdf=firefox.desktop
+	application/xml=leafpad.desktop
+	application/x-shellscript=leafpad.desktop
+	image/bmp=gpicview.desktop
+	image/gif=gpicview.desktop
+	image/jpeg=gpicview.desktop
+	image/png=gpicview.desktop
+	image/tiff=gpicview.desktop
+	image/svg+xml=gpicview.desktop
+	text/css=leafpad.desktop
+	text/csv=leafpad.desktop
+	text/html=leafpad.desktop
+	text/markdown=leafpad.desktop
+	text/plain=leafpad.desktop
+	text/x-c=leafpad.desktop
+	text/x-c++=leafpad.desktop
+	text/x-java=leafpad.desktop
+	text/x-python=leafpad.desktop
+	x-scheme-handler/http=firefox.desktop
+	x-scheme-handler/https=firefox.desktop
+	x-scheme-handler/about=firefox.desktop
+	x-scheme-handler/unknown=firefox.desktop
+EOF
+
+sudo tee /etc/skel/.gtkrc-2.0 <<- EOF
+	gtk-theme-name = "Arc"
+	gtk-icon-theme-name = "Arc"
+	gtk-font-name = "Source Sans 3 12"
+EOF
+
+sudo mkdir --parents /etc/skel/.config/gtk-{3,4}.0/
+sudo tee /etc/skel/.config/gtk-{3,4}.0/settings.ini <<- EOF
+	[Settings]
+	gtk-theme-name = Arc
+	gtk-icon-theme-name = Arc
+	gtk-font-name = Source Sans 3 12
+	gtk-decoration-layout = menu:
+EOF
+
+sudo mkdir --parents /etc/skel/.config/i3.d/
+sudo tee /etc/skel/.config/i3.d/10-default <<- EOF
 	set \$mod Mod4
 	floating_modifier \$mod
 
@@ -718,11 +730,11 @@ tee "${HOME}/.config/i3.d/10-default" <<- EOF
 	    bindsym Escape mode default
 	}
 EOF
-tee "${HOME}/.config/i3.d/20-display" <<- EOF
+sudo tee /etc/skel/.config/i3.d/20-display <<- EOF
 	exec --no-startup-id display-configuration
 	bindsym \$mod+Shift+d exec --no-startup-id display-configuration
 EOF
-tee "${HOME}/.config/i3.d/30-status" <<- EOF
+sudo tee /etc/skel/.config/i3.d/30-status <<- EOF
 	bar {
 	    status_command i3status -c "/run/user/\${UID}/i3status/config"
 	    position bottom
@@ -739,7 +751,7 @@ tee "${HOME}/.config/i3.d/30-status" <<- EOF
 	    }
 	}
 EOF
-tee "${HOME}/.config/i3.d/40-volume" <<- EOF
+sudo tee /etc/skel/.config/i3.d/40-volume <<- EOF
 	bindsym XF86AudioLowerVolume exec --no-startup-id wpctl set-volume @DEFAULT_AUDIO_SINK@ 1%-
 	bindcode \$mod+59 exec --no-startup-id wpctl set-volume @DEFAULT_AUDIO_SINK@ 1%-
 	bindcode \$mod+Shift+59 exec --no-startup-id wpctl set-volume @DEFAULT_AUDIO_SINK@ 10%-
@@ -749,24 +761,24 @@ tee "${HOME}/.config/i3.d/40-volume" <<- EOF
 	bindsym XF86AudioMute exec --no-startup-id wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
 	bindcode \$mod+61 exec --no-startup-id wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
 EOF
-tee "${HOME}/.config/i3.d/60-slock" <<- EOF
+sudo tee /etc/skel/.config/i3.d/60-slock <<- EOF
 	exec --no-startup-id xss-lock slock
 	bindsym --release \$mod+l exec --no-startup-id loginctl lock-session
 EOF
-tee "${HOME}/.config/i3.d/61-numlockx" <<- EOF
+sudo tee /etc/skel/.config/i3.d/61-numlockx <<- EOF
 	exec --no-startup-id numlockx on
 EOF
-tee "${HOME}/.config/i3.d/62-screenshot" <<- EOF
+sudo tee /etc/skel/.config/i3.d/62-screenshot <<- EOF
 	bindsym Print exec --no-startup-id screenshot
 	bindsym --release Shift+Print exec --no-startup-id screenshot --select --clipboard
 EOF
-tee "${HOME}/.config/i3.d/63-dunst" <<- EOF
+sudo tee /etc/skel/.config/i3.d/63-dunst <<- EOF
 	exec --no-startup-id dunst
 	bindsym \$mod+j exec --no-startup-id dunstctl history-pop
 EOF
 
-mkdir --parents "${HOME}/.config/i3status.d/"
-tee "${HOME}/.config/i3status.d/10-default" <<- EOF
+sudo mkdir --parents /etc/skel/.config/i3status.d/
+sudo tee /etc/skel/.config/i3status.d/10-default <<- EOF
 	general {
 	    colors = true
 	    color_good = "${COLORS["Green"]}"
@@ -775,7 +787,7 @@ tee "${HOME}/.config/i3status.d/10-default" <<- EOF
 	    interval = 5
 	}
 EOF
-tee "${HOME}/.config/i3status.d/20-volume" <<- EOF
+sudo tee /etc/skel/.config/i3status.d/20-volume <<- EOF
 	order += "volume pulse"
 	volume pulse {
 	    format = "🔊 %volume"
@@ -783,7 +795,7 @@ tee "${HOME}/.config/i3status.d/20-volume" <<- EOF
 	    device = "pulse"
 	}
 EOF
-tee "${HOME}/.config/i3status.d/30-disk" <<- EOF
+sudo tee /etc/skel/.config/i3status.d/30-disk <<- EOF
 	order += "disk /"
 	disk / {
 	    format = "%free"
@@ -791,7 +803,7 @@ tee "${HOME}/.config/i3status.d/30-disk" <<- EOF
 EOF
 readonly interface="$(ip -brief link show | awk '$2 == "UP" { print $1; exit }')"
 if [[ "${interface}" == w* ]]; then
-  tee "${HOME}/.config/i3status.d/60-wlan" <<- EOF
+  sudo tee /etc/skel/.config/i3status.d/60-wlan <<- EOF
 		order += "wireless ${interface}"
 		wireless ${interface} {
 		    format_up = "%essid"
@@ -799,7 +811,7 @@ if [[ "${interface}" == w* ]]; then
 		}
 	EOF
 else
-  tee "${HOME}/.config/i3status.d/70-ethernet" <<- EOF
+  sudo tee /etc/skel/.config/i3status.d/70-ethernet <<- EOF
 		order += "ethernet ${interface}"
 		ethernet ${interface} {
 		    format_up = "%ip"
@@ -807,15 +819,15 @@ else
 		}
 	EOF
 fi
-tee "${HOME}/.config/i3status.d/90-time" <<- EOF
+sudo tee /etc/skel/.config/i3status.d/90-time <<- EOF
 	order += "tztime local"
 	tztime local {
 	    format = "%Y-%m-%d %H:%M"
 	}
 EOF
 
-mkdir --parents "${HOME}/.config/dunst/"
-tee "${HOME}/.config/dunst/dunstrc" <<- EOF
+sudo mkdir --parents /etc/skel/.config/dunst/
+sudo tee /etc/skel/.config/dunst/dunstrc <<- EOF
 	[global]
 	    width = 300
 	    height = 100
@@ -851,112 +863,112 @@ tee "${HOME}/.config/dunst/dunstrc" <<- EOF
 	    timeout = 0
 EOF
 
-mkdir --parents "${HOME}/.config/alacritty/"
-tee "${HOME}/.config/alacritty/alacritty.toml" <<- EOF
-[general]
-import = [
-  "~/.config/alacritty/colors.toml",
-  "~/.config/alacritty/hints.toml"
-]
-live_config_reload = false
+sudo mkdir --parents /etc/skel/.config/alacritty/
+sudo tee /etc/skel/.config/alacritty/alacritty.toml <<- EOF
+	[general]
+	import = [
+	  "~/.config/alacritty/colors.toml",
+	  "~/.config/alacritty/hints.toml"
+	]
+	live_config_reload = false
 
-[env]
-TERM = "xterm-256color"
+	[env]
+	TERM = "xterm-256color"
 
-[window]
-title = "Terminal"
+	[window]
+	title = "Terminal"
 
-[scrolling]
-history = 16384
-multiplier = 8
+	[scrolling]
+	history = 16384
+	multiplier = 8
 
-[font]
-size = 16.0
+	[font]
+	size = 16.0
 
-[font.normal]
-family = "Source Code Pro"
-style = "Regular"
+	[font.normal]
+	family = "Source Code Pro"
+	style = "Regular"
 
-[font.bold]
-style = "Regular"
+	[font.bold]
+	style = "Regular"
 
-[font.italic]
-style = "Regular"
+	[font.italic]
+	style = "Regular"
 
-[font.bold_italic]
-style = "Regular"
+	[font.bold_italic]
+	style = "Regular"
 
-[selection]
-save_to_clipboard = false
+	[selection]
+	save_to_clipboard = false
 
-[cursor.style]
-blinking = "Always"
+	[cursor.style]
+	blinking = "Always"
 EOF
-tee "${HOME}/.config/alacritty/colors.toml" <<- EOF
-[colors.primary]
-foreground = "${COLORS["White"]}"
-background = "${COLORS["Gray A"]}"
+sudo tee /etc/skel/.config/alacritty/colors.toml <<- EOF
+	[colors.primary]
+	foreground = "${COLORS["White"]}"
+	background = "${COLORS["Gray A"]}"
 
-[colors.search.matches]
-foreground = "${COLORS["Gray A"]}"
-background = "${COLORS["White"]}"
+	[colors.search.matches]
+	foreground = "${COLORS["Gray A"]}"
+	background = "${COLORS["White"]}"
 
-[colors.search.focused_match]
-foreground = "${COLORS["White"]}"
-background = "${COLORS["Teal"]}"
+	[colors.search.focused_match]
+	foreground = "${COLORS["White"]}"
+	background = "${COLORS["Teal"]}"
 
-[colors.hints.start]
-background = "${COLORS["Teal"]}"
-foreground = "${COLORS["White"]}"
+	[colors.hints.start]
+	background = "${COLORS["Teal"]}"
+	foreground = "${COLORS["White"]}"
 
-[colors.hints.end]
-background = "${COLORS["White"]}"
-foreground = "${COLORS["Teal"]}"
+	[colors.hints.end]
+	background = "${COLORS["White"]}"
+	foreground = "${COLORS["Teal"]}"
 
-[colors.footer_bar]
-background = "${COLORS["White"]}"
-foreground = "${COLORS["Gray A"]}"
+	[colors.footer_bar]
+	background = "${COLORS["White"]}"
+	foreground = "${COLORS["Gray A"]}"
 
-[colors.selection]
-background = "${COLORS["White"]}"
-text = "${COLORS["Gray A"]}"
+	[colors.selection]
+	background = "${COLORS["White"]}"
+	text = "${COLORS["Gray A"]}"
 
-[colors.normal]
-black = "${COLORS["Gray C"]}"
-blue = "${COLORS["Blue"]}"
-cyan = "${COLORS["Teal"]}"
-green = "${COLORS["Green"]}"
-magenta = "${COLORS["Purple"]}"
-red = "${COLORS["Pink"]}"
-white = "${COLORS["White"]}"
-yellow = "${COLORS["Yellow"]}"
+	[colors.normal]
+	black = "${COLORS["Gray C"]}"
+	blue = "${COLORS["Blue"]}"
+	cyan = "${COLORS["Teal"]}"
+	green = "${COLORS["Green"]}"
+	magenta = "${COLORS["Purple"]}"
+	red = "${COLORS["Pink"]}"
+	white = "${COLORS["White"]}"
+	yellow = "${COLORS["Yellow"]}"
 
-[colors.bright]
-black = "${COLORS["Gray C"]}"
-blue = "${COLORS["Blue"]}"
-cyan = "${COLORS["Teal"]}"
-green = "${COLORS["Green"]}"
-magenta = "${COLORS["Purple"]}"
-red = "${COLORS["Pink"]}"
-white = "${COLORS["White"]}"
-yellow = "${COLORS["Yellow"]}"
+	[colors.bright]
+	black = "${COLORS["Gray C"]}"
+	blue = "${COLORS["Blue"]}"
+	cyan = "${COLORS["Teal"]}"
+	green = "${COLORS["Green"]}"
+	magenta = "${COLORS["Purple"]}"
+	red = "${COLORS["Pink"]}"
+	white = "${COLORS["White"]}"
+	yellow = "${COLORS["Yellow"]}"
 EOF
-tee "${HOME}/.config/alacritty/hints.toml" <<- EOF
-[hints]
-alphabet = "1234567890"
+sudo tee /etc/skel/.config/alacritty/hints.toml <<- EOF
+	[hints]
+	alphabet = "1234567890"
 
-[[hints.enabled]]
-regex = "(https?://)[a-zA-Z0-9#$%&()*+,./?@_~-]+"
-post_processing = true
-action = "Copy"
+	[[hints.enabled]]
+	regex = "(https?://)[a-zA-Z0-9#$%&()*+,./?@_~-]+"
+	post_processing = true
+	action = "Copy"
 
-[hints.enabled.binding]
-key = "U"
-mods = "Control|Shift"
+	[hints.enabled.binding]
+	key = "U"
+	mods = "Control|Shift"
 EOF
 
-mkdir --parents "${HOME}/.config/pcmanfm/default/"
-tee "${HOME}/.config/pcmanfm/default/pcmanfm.conf" <<- EOF
+sudo mkdir --parents /etc/skel/.config/pcmanfm/default/
+sudo tee /etc/skel/.config/pcmanfm/default/pcmanfm.conf <<- EOF
 	[volume]
 	autorun=0
 	mount_on_startup=0
@@ -965,8 +977,8 @@ tee "${HOME}/.config/pcmanfm/default/pcmanfm.conf" <<- EOF
 	[ui]
 	view_mode=compact
 EOF
-mkdir --parents "${HOME}/.config/libfm/"
-tee "${HOME}/.config/libfm/libfm.conf" <<- EOF
+sudo mkdir --parents /etc/skel/.config/libfm/
+sudo tee /etc/skel/.config/libfm/libfm.conf <<- EOF
 	[config]
 	terminal=alacritty
 
@@ -981,11 +993,19 @@ tee "${HOME}/.config/libfm/libfm.conf" <<- EOF
 	places_unmounted=1
 EOF
 
-chmod --recursive go= "${HOME}/"
+readonly gimp_version="$(pacman -Q gimp | awk '{ print $2 }' | awk --field-separator "." '{ print $1 "." $2 }')"
+sudo mkdir --parents "/etc/skel/.config/GIMP/${gimp_version}/"
+sudo tee "/etc/skel/.config/GIMP/${gimp_version}/gimprc" <<- EOF
+	(theme "System")
+	(theme-color-scheme light)
+EOF
 
 if [[ "$(< /sys/devices/virtual/dmi/id/sys_vendor)" == "QEMU" ]]; then
   sudo pacman --noconfirm --sync --refresh spice-vdagent
-  tee "${HOME}/.config/i3.d/21-spice" <<- EOF
+  sudo tee /etc/skel/.config/i3.d/21-spice <<- EOF
 		exec --no-startup-id spice-vdagent
 	EOF
 fi
+
+rsync --recursive --links --verbose /etc/skel/ "${HOME}/"
+chmod --recursive go= "${HOME}/"
