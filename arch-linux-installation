@@ -381,24 +381,6 @@ chroot /mnt ln --symbolic --force /run/systemd/resolve/stub-resolv.conf /etc/res
 
 arch-chroot /mnt systemctl enable fstrim.timer
 
-arch-chroot /mnt tee /etc/vimrc <<- EOF
-	runtime! archlinux.vim
-	let skip_defaults_vim=1
-	set expandtab
-	set hlsearch
-	set ignorecase
-	set incsearch
-	set ruler
-	set scrolloff=1
-	set smartcase
-	set shiftwidth=4
-	set softtabstop=4
-	set tabstop=4
-	set title
-	set wrap
-	syntax on
-EOF
-
 arch-chroot /mnt useradd --create-home --shell /bin/bash "${user}"
 arch-chroot /mnt passwd "${user}" <<- EOF
 	${user_password}
