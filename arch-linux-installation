@@ -2,8 +2,6 @@
 
 # Installation script for Arch Linux system.
 
-# TODO: Check return values (https://google.github.io/styleguide/shellguide.html#s8.1-checking-return-values)!
-
 if [[ "${UID}" != 0 ]]; then
   exit 1
 fi
@@ -171,7 +169,9 @@ if whiptail --title "${TITLE}" --yesno "Enable logging?" "${DEFAULT_HEIGHT}" "${
   exec &> >(tee --append "${BASH_SOURCE[0]}.log")
 fi
 
-set -x
+set -xe
+
+trap 'printf "%s\n" "Failed to install Arch Linux system"' ERR
 
 if [[ "${disk}" == *nvm* ]]; then
   readonly boot_partition="${disk}p1"

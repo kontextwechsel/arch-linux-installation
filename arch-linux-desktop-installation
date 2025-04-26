@@ -2,8 +2,6 @@
 
 # Installation script for i3 desktop environment.
 
-# TODO: Check return values (https://google.github.io/styleguide/shellguide.html#s8.1-checking-return-values)!
-
 if ! sudo true; then
   exit 1
 fi
@@ -25,7 +23,9 @@ if whiptail --title "${TITLE}" --yesno "Enable logging?" "${DEFAULT_HEIGHT}" "${
   exec &> >(tee --append "${BASH_SOURCE[0]}.log")
 fi
 
-set -x
+set -xe
+
+trap 'printf "%s\n" "Failed to install i3 desktop environment"' ERR
 
 sudo tee /etc/pacman.d/conf/noto-fonts <<- EOF
 	NoExtract = usr/share/fonts/noto/Noto*.ttf
