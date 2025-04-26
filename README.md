@@ -149,6 +149,10 @@ sudo tee /usr/local/share/bash-completion/completions/backlight <<- EOF
 	complete -F _backlight backlight
 EOF
 
+tee "${HOME}/.brightness" <<- EOF
+	$(( "$(brightnessctl get)" / ("$(brightnessctl max)" / 100) ))
+EOF
+
 sudo tee /etc/skel/.config/i3.d/41-backlight <<- EOF
 	bindsym XF86MonBrightnessUp exec --no-startup-id backlight --increment
 	bindsym XF86MonBrightnessDown exec --no-startup-id backlight --decrement
