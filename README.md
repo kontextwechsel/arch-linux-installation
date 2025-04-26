@@ -115,7 +115,7 @@ sudo tee /usr/local/bin/backlight <<- EOF
 	    if [[ ! "\${value}" =~ ^([1-9]?[0-9]|100)\$ ]]; then
 	      return 1
 	    fi
-	    set "\${value}"
+	    brightnessctl --quiet set "\${value}%"
 	  }
 
 	  case "\$1" in
