@@ -91,6 +91,8 @@ sudo mkinitcpio --preset linux
 
 ### Backlight
 
+FIXME: Write into temporary file! Or Check brightness!
+
 ```bash
 sudo pacman --sync --refresh brightnessctl
 sudo usermod --append --groups video "${USER}"
@@ -115,7 +117,7 @@ sudo tee /usr/local/bin/backlight <<- EOF
 	    if [[ ! "\${value}" =~ ^([1-9]?[0-9]|100)\$ ]]; then
 	      return 1
 	    fi
-	    set "\${value}"
+	    brightnessctl --quiet set "\${value}%"
 	  }
 
 	  case "\$1" in
