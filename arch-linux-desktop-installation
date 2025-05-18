@@ -108,6 +108,7 @@ packages+=(
   fwupd
   git
   htop
+  jq
   lsof
   nmap
   openssl

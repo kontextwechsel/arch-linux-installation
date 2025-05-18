@@ -343,7 +343,8 @@ EOF
 
 sudo pacman --sync --refresh sublime-text
 
-application-launcher --add sublime-text /usr/bin/subl --new-window
+# Environment variable DISPLAY required for remote installation!
+DISPLAY=":0" application-launcher --add sublime-text /usr/bin/subl --new-window
 
 sudo mkdir --parents /etc/skel/.config/sublime-text/Packages/User/
 unzip -p "/opt/sublime_text/Packages/Color Scheme - Default.sublime-package" Monokai.sublime-color-scheme \
@@ -380,7 +381,7 @@ sudo tee /etc/skel/.config/sublime-text/Packages/User/Preferences.sublime-settin
 	    "ensure_newline_at_eof_on_save": true,
 	    "fallback_encoding": "ISO 8859-1",
 	    "font_face": "Source Code Pro",
-	    "font_size": 14,
+	    "font_size": 16,
 	    "hardware_acceleration": "opengl", // Requires OpenGL support!
 	    "highlight_line": true,
 	    "highlight_modified_tabs": true,
