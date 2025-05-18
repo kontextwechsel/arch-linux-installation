@@ -133,7 +133,7 @@ sudo pacman --noconfirm --sync --refresh "${packages[@]}"
 readonly arc_theme_version="20221218"
 readonly arc_theme_directory="$(mktemp -d)"
 sudo pacman --noconfirm --sync gnome-themes-extra gtk-engine-murrine meson sassc
-wget --directory-prefix "${arc_theme_directory}/" "https://github.com/jnsh/arc-theme/releases/download/${arc_theme_version}/arc-theme-${arc_theme_version}.tar.xz"
+wget --directory-prefix "${arc_theme_directory}/" "https://github.com/kontextwechsel/arc-theme/releases/download/${arc_theme_version}/arc-theme-${arc_theme_version}.tar.xz"
 tar --extract --file "${arc_theme_directory}/arc-theme-${arc_theme_version}.tar.xz" --directory "${arc_theme_directory}/"
 meson setup --prefix="${arc_theme_directory}/arc-theme-${arc_theme_version}/install/" -Dthemes=gtk2,gtk3,gtk4 -Dvariants=lighter -Dtransparency=false "${arc_theme_directory}/arc-theme-${arc_theme_version}/build/" "${arc_theme_directory}/arc-theme-${arc_theme_version}/"
 meson install -C "${arc_theme_directory}/arc-theme-${arc_theme_version}/build/"
@@ -145,8 +145,8 @@ rm --recursive "${arc_theme_directory:?}/"
 
 readonly arc_icon_theme_version="20161122"
 readonly arc_icon_theme_directory="$(mktemp -d)"
-wget --directory-prefix "${arc_icon_theme_directory}/" "https://github.com/horst3180/arc-icon-theme/archive/refs/tags/${arc_icon_theme_version}.zip"
-unzip -q "${arc_icon_theme_directory}/${arc_icon_theme_version}.zip" -d "${arc_icon_theme_directory}/"
+wget --directory-prefix "${arc_icon_theme_directory}/" "https://github.com/kontextwechsel/arc-icon-theme/archive/refs/tags/${arc_icon_theme_version}.tar.gz"
+tar --extract --file "${arc_icon_theme_directory}/${arc_icon_theme_version}.tar.gz" --directory "${arc_icon_theme_directory}/"
 sudo cp --recursive "${arc_icon_theme_directory}/arc-icon-theme-${arc_icon_theme_version}/Arc/" /usr/share/icons/
 sudo mkdir --parents /usr/share/icons/Arc/symbolic/legacy/
 sudo ln --symbolic /usr/share/icons/Arc/categories/symbolic/applications-system-symbolic.svg /usr/share/icons/Arc/symbolic/legacy/gtk-preferences.svg
