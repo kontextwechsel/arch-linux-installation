@@ -195,9 +195,9 @@ sudo tee /usr/local/bin/application-launcher <<- EOF
 	        readonly executable="\$(realpath --no-symlinks "\$3")"
 	        readonly args="\${*:4}"
 	        if [[ -z "\${args}" ]]; then
-	            applications["\$2"]="\${executable/#\${HOME}/~}"
+	            applications["\$2"]="\${executable/#\${HOME}/\~}"
 	        else
-	            applications["\$2"]="\${executable/#\${HOME}/~} \${*:4}"
+	            applications["\$2"]="\${executable/#\${HOME}/\~} \${*:4}"
 	        fi
 	        print > "\${file}"
 	        ;;
@@ -474,12 +474,6 @@ sudo tee /etc/skel/.bashrc <<- EOF
 
 	  if [[ -f "\${HOME}/.bash_aliases" ]]; then
 	    source "\${HOME}/.bash_aliases"
-	  fi
-
-	  if [[ -d "\${HOME}/.bash_scripts/" ]]; then
-	    while IFS= read -r file; do
-	      alias "\$(basename "\${file}")"="\${file}"
-	    done < <(find "\${HOME}/.bash_scripts/" -maxdepth 1 -type f -executable)
 	  fi
 	fi
 EOF
