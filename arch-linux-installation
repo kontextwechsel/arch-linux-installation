@@ -162,6 +162,18 @@ if [[ "${boot_mode}" == "uefi" ]]; then
   fi
 fi
 
+if whiptail --title "Firmware" --yesno "Install all firmware packages?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3; then
+  readonly selected_firmware_packages=(linux-firmware)
+else
+  readonly available_firmwares=(amdgpu atheros broadcom cirrus intel mediatek nvidia other radeon realtek)
+  buffer=()
+  for firmware in "${available_firmwares[@]}"; do
+    buffer+=("linux-firmware-${firmware}" "$(printf "%-${DEFAULT_PADDING}s" "linux-firmware-${firmware}")" "OFF")
+  done
+  readarray -t selected_firmware_packages < <(whiptail --separate-output --title "Packages" --checklist --notags "" "$(( "${DEFAULT_HEIGHT}" -1 + ${#buffer[@]} / 3 ))" "${DEFAULT_WIDTH}" "$(( ${#buffer[@]} / 3 ))" "${buffer[@]}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")
+fi
+readonly selected_firmware_packages
+
 if whiptail --title "Logging" --yesno "Enable logging?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" --defaultno 3>&1 1>&2 2>&3; then
   echo exec &> >(tee --append "${BASH_SOURCE[0]}.log")
 fi
@@ -236,7 +248,7 @@ readonly packages=(
   base
   base-devel
   linux
-  linux-firmware
+  "${selected_firmware_packages[@]}"
   mkinitcpio
   nftables
   iptables-nft
@@ -408,6 +420,8 @@ if [[ "${interface}" == w* ]]; then
 fi
 
 arch-chroot /mnt tee /etc/nftables.conf <<- EOF
+	#!/usr/bin/nft -f
+
 	destroy table inet default
 	table inet default {
 	    chain input {
