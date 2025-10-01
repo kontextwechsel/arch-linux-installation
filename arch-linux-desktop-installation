@@ -19,7 +19,10 @@ readonly -A COLORS=(
   ["White"]="#f7f7f7"
 )
 
-if whiptail --title "${TITLE}" --yesno "Enable logging?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" --defaultno 3>&1 1>&2 2>&3; then
+readonly DEFAULT_HEIGHT=7
+readonly DEFAULT_WIDTH=74
+
+if whiptail --title "Logging" --yesno "Enable logging?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" --defaultno 3>&1 1>&2 2>&3; then
   exec &> >(tee --append "${BASH_SOURCE[0]}.log")
 fi
 
