@@ -26,7 +26,7 @@ if whiptail --title "Logging" --yesno "Enable logging?" "${DEFAULT_HEIGHT}" "${D
   exec &> >(tee --append "${BASH_SOURCE[0]}.log")
 fi
 
-set -xe
+set -xue
 
 trap 'printf "%s\n" "Failed to install i3 desktop environment"' ERR
 
@@ -443,10 +443,6 @@ sudo tee /etc/skel/.bashrc <<- EOF
 
 	  alias bc="/usr/bin/bc --mathlib"
 	  alias cal="/usr/bin/cal --months 9 --span"
-
-	  for command in poweroff reboot suspend hibernate; do
-	    alias "\${command}"="/usr/bin/systemctl \${command}"
-	  done
 
 	  function toggle_history() {
 	    if [[ -z "\${HISTFILE:+substitution}" ]]; then

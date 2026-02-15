@@ -452,7 +452,7 @@ EOF
 
 ```bash
 sudo pacman --sync --refresh docker docker-buildx docker-compose
-sudo systemctl enable docker.service
+sudo systemctl enable docker.socket
 sudo usermod --append --groups docker "${USER}"
 ```
 
@@ -468,7 +468,7 @@ packages=(
   virt-manager
 )
 sudo pacman --sync --refresh "${packages[@]}"
-sudo systemctl enable libvirtd.service
+sudo systemctl enable libvirtd.socket
 sudo usermod --append --groups libvirt "${USER}"
 
 application-launcher --add "virt-manager" "/usr/bin/virt-manager"

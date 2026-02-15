@@ -178,7 +178,7 @@ if whiptail --title "Logging" --yesno "Enable logging?" "${DEFAULT_HEIGHT}" "${D
   echo exec &> >(tee --append "${BASH_SOURCE[0]}.log")
 fi
 
-set -xe
+set -xue
 
 trap 'printf "%s\n" "Failed to install Arch Linux system"' ERR
 
@@ -307,10 +307,7 @@ arch-chroot /mnt locale-gen
 arch-chroot /mnt tee /etc/locale.conf <<- EOF
 	LANG=en_US.UTF-8
 EOF
-arch-chroot /mnt ln --symbolic --force "/usr/share/zoneinfo/${tz}" /etc/localtime
-arch-chroot /mnt tee /etc/timezone <<- EOF
-	${tz}
-EOF
+arch-chroot /mnt timedatectl set-timezone "${tz}"
 
 arch-chroot /mnt mkdir --parents /usr/local/share/kbd/keymaps/
 arch-chroot /mnt tee /usr/local/share/kbd/keymaps/us.map <<- EOF
