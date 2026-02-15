@@ -54,32 +54,32 @@ cert-to-efi-sig-list -g "${GUID}" "${unified_kernel_image_certificate}" "${unifi
 
 signatures=("${unified_kernel_image_signature}")
 
-read -r -p "Add Microsoft Windows Production signature? [y/N] "
+read -r -p "Add Microsoft Windows signature? [y/N] "
 if [[ "${REPLY}" =~ ^[Yy]$ ]]; then
-  readonly microsoft_production_certificate_binary="$(create_temporary_file)"
-  readonly microsoft_production_certificate="$(create_temporary_file)"
-  readonly microsoft_production_signature="$(create_temporary_file)"
-  if ! curl -f -L -s "https://go.microsoft.com/fwlink/p/?linkid=321192" > "${microsoft_production_certificate_binary}"; then
+  readonly microsoft_windows_certificate_binary="$(create_temporary_file)"
+  readonly microsoft_windows_certificate="$(create_temporary_file)"
+  readonly microsoft_windows_signature="$(create_temporary_file)"
+  if ! curl -f -L -s "https://go.microsoft.com/fwlink/?linkid=2239776" > "${microsoft_windows_certificate_binary}"; then
     printf "Failed to download Microsoft Windows Production certificate\n"
     exit 1
   fi
-  openssl x509 -in "${microsoft_production_certificate_binary}" -inform DER -out "${microsoft_production_certificate}" -outform PEM
-  cert-to-efi-sig-list -g "${MICROSOFT_GUID}" "${microsoft_production_certificate}" "${microsoft_production_signature}"
-  signatures+=("${microsoft_production_signature}")
+  openssl x509 -in "${microsoft_windows_certificate_binary}" -inform DER -out "${microsoft_windows_certificate}" -outform PEM
+  cert-to-efi-sig-list -g "${MICROSOFT_GUID}" "${microsoft_windows_certificate}" "${microsoft_windows_signature}"
+  signatures+=("${microsoft_windows_signature}")
 fi
 
-read -r -p "Add Microsoft Microsoft UEFI signature? [y/N] "
+read -r -p "Add Microsoft Option ROM signature? [y/N] "
 if [[ "${REPLY}" =~ ^[Yy]$ ]]; then
-  readonly microsoft_uefi_certificate_binary="$(create_temporary_file)"
-  readonly microsoft_uefi_certificate="$(create_temporary_file)"
-  readonly micrososft_uefi_signature="$(create_temporary_file)"
-  if ! curl -f -L -s https://go.microsoft.com/fwlink/p/?linkid=321194 > "${microsoft_uefi_certificate_binary}"; then
+  readonly microsoft_option_rom_certificate_binary="$(create_temporary_file)"
+  readonly microsoft_option_rom_certificate="$(create_temporary_file)"
+  readonly microsoft_option_rom_signature="$(create_temporary_file)"
+  if ! curl -f -L -s "https://go.microsoft.com/fwlink/?linkid=2284009" > "${microsoft_option_rom_certificate_binary}"; then
     printf "Failed to download Microsoft UEFI certificate\n"
     exit 1
   fi
-  openssl x509 -in "${microsoft_uefi_certificate_binary}" -inform DER -out "${microsoft_uefi_certificate}" -outform PEM
-  cert-to-efi-sig-list -g "${MICROSOFT_GUID}" "${microsoft_uefi_certificate}" "${micrososft_uefi_signature}"
-  signatures+=("${micrososft_uefi_signature}")
+  openssl x509 -in "${microsoft_option_rom_certificate_binary}" -inform DER -out "${microsoft_option_rom_certificate}" -outform PEM
+  cert-to-efi-sig-list -g "${MICROSOFT_GUID}" "${microsoft_option_rom_certificate}" "${microsoft_option_rom_signature}"
+  signatures+=("${microsoft_option_rom_signature}")
 fi
 
 readonly all_signatures="$(create_temporary_file)"
