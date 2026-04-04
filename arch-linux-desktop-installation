@@ -161,70 +161,73 @@ sudo mkdir --parents /usr/local/bin/
 sudo tee /usr/local/bin/application-launcher <<- EOF
 	#!/bin/bash
 
-	if [[ -n "\${DISPLAY}" ]]; then
-	  readonly file="\${HOME}/.config/application-launcher/config"
+	readonly file="\${HOME}/.config/application-launcher/config"
 
-	  declare -A applications
-	  if [[ -f "\${file}" ]]; then
-	    while IFS="=" read -r application executable; do
-	      applications["\${application}"]="\${executable}"
-	    done < "\${file}"
-	  fi
+	declare -A applications
+	if [[ -f "\${file}" ]]; then
+	  while IFS="=" read -r application executable; do
+	    applications["\${application}"]="\${executable}"
+	  done < "\${file}"
+	fi
 
-	  function print() {
-	    case "\$1" in
-	      -k | --keys)
-	        printf "%s\n" "\${!applications[@]}" | sort
-	        ;;
-	      *)
-	        for application in "\${!applications[@]}"; do
-	          printf "%s=%s\n" "\${application}" "\${applications[\${application}]}"
-	        done | sort
-	        ;;
-	    esac
-	  }
+	function print() {
+	  case "\$1" in
+	    -k | --keys)
+	      printf "%s\n" "\${!applications[@]}" | sort
+	      ;;
+	    *)
+	      for application in "\${!applications[@]}"; do
+	        printf "%s=%s\n" "\${application}" "\${applications[\${application}]}"
+	      done | sort
+	      ;;
+	  esac
+	}
 
-	  if [[ "\$#" -gt 0 ]]; then
-	    case "\$1" in
-	      -a | --add)
-	        if [[ ! "\$2" =~ ^[a-z0-9\ -._]+\$ ]]; then
-	          printf "Invalid application\n"
-	          exit 1
-	        fi
-	        if [[ ! -f "\$3" || ! -x "\$3" ]]; then
-	          printf "Invalid executable\n"
-	          exit 1
-	        fi
-	        readonly executable="\$(realpath --no-symlinks "\$3")"
-	        readonly args="\${*:4}"
-	        if [[ -z "\${args}" ]]; then
-	            applications["\$2"]="\${executable/#\${HOME}/\~}"
-	        else
-	            applications["\$2"]="\${executable/#\${HOME}/\~} \${*:4}"
-	        fi
-	        print > "\${file}"
-	        ;;
-	      -r | --remove)
-	        if [[ -z "\${applications["\$2"]+application}" ]]; then
-	          printf "Unknown application\n"
-	          exit 1
-	        fi
-	        unset applications["\$2"]
-	        print > "\${file}"
-	        ;;
-	      -l | --list)
-	        print | column --table --separator "="
-	        ;;
-	      *)
-	        printf "Usage: %s [--add|--remove|--list] [APPLICATION] [EXECUTABLE] [ARGUMENTS...]\n" "\$(basename \${BASH_SOURCE[0]})"
+	if [[ "\$#" -gt 0 ]]; then
+	  case "\$1" in
+	    -a | --add)
+	      if [[ ! "\$2" =~ ^[a-z0-9\ -._]+\$ ]]; then
+	        printf "Invalid application\n"
 	        exit 1
-	        ;;
-	    esac
-	  else
+	      fi
+	      if [[ ! -f "\$3" || ! -x "\$3" ]]; then
+	        printf "Invalid executable\n"
+	        exit 1
+	      fi
+	      readonly executable="\$(realpath --no-symlinks "\$3")"
+	      readonly args="\${*:4}"
+	      if [[ -z "\${args}" ]]; then
+	          applications["\$2"]="\${executable/#\${HOME}/\~}"
+	      else
+	          applications["\$2"]="\${executable/#\${HOME}/\~} \${*:4}"
+	      fi
+	      print > "\${file}"
+	      ;;
+	    -r | --remove)
+	      if [[ -z "\${applications["\$2"]+application}" ]]; then
+	        printf "Unknown application\n"
+	        exit 1
+	      fi
+	      unset applications["\$2"]
+	      print > "\${file}"
+	      ;;
+	    -l | --list)
+	      print | column --table --separator "="
+	      ;;
+	    *)
+	      printf "Usage: %s [--add|--remove|--list] [APPLICATION] [EXECUTABLE] [ARGUMENTS...]\n" "\$(basename \${BASH_SOURCE[0]})"
+	      exit 1
+	      ;;
+	  esac
+	else
+	  if [[ -n "\${DISPLAY}" ]]; then
 	    readonly selection="\$(dmenu -i -sb "${COLORS["Gray C"]}" <<< "\$(print --keys)")"
 	    if [[ -n "\${selection}" ]]; then
 	      i3-msg "exec --no-startup-id \${applications[\${selection}]}"
 	    fi
+	  else
+	    printf "DISPLAY required\n"
+	    exit 1
 	  fi
 	fi
 EOF

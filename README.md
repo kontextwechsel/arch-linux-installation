@@ -343,8 +343,7 @@ EOF
 
 sudo pacman --sync --refresh sublime-text
 
-# Environment variable DISPLAY required for remote installation!
-DISPLAY=":0" application-launcher --add sublime-text /usr/bin/subl --new-window
+application-launcher --add sublime-text /usr/bin/subl --new-window
 
 sudo mkdir --parents /etc/skel/.config/sublime-text/Packages/User/
 unzip -p "/opt/sublime_text/Packages/Color Scheme - Default.sublime-package" Monokai.sublime-color-scheme \
