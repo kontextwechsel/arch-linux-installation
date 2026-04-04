@@ -103,7 +103,9 @@ sudo tee /usr/local/bin/backlight <<- EOF
 
 	  function set() {
 	    brightnessctl --quiet set "\$1%"
-	    printf "%s\n" "\$1" > "\${HOME}/.brightness"
+	    local file="\$(mktemp "\${HOME}/.brightness.XXXXXX")"
+	    printf "%s\n" "\$1" > "\${file}"
+	    mv "\${file}" "\${HOME}/.brightness"
 	    killall -USR1 i3status
 	  }
 
@@ -131,7 +133,7 @@ sudo tee /usr/local/bin/backlight <<- EOF
 	      fi
 	      ;;
 	    *)
-	      printf "Usage: %s [--increment|--decrement|--reset]\n" "\$(basename \${BASH_SOURCE[0]})"
+	      printf "Usage: %s [--increment|--decrement|--reset]\n" "\$(basename "\${BASH_SOURCE[0]}")"
 	      exit 1
 	      ;;
 	  esac
