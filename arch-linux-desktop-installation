@@ -70,6 +70,7 @@ packages=(
   pipewire
   pipewire-pulse
   polkit
+  qt6ct # FeatherPad requirement
   scrot
   slock
   wireplumber
@@ -89,7 +90,7 @@ packages+=(
   firefox
   gimp
   gpicview
-  leafpad
+  featherpad
   libreoffice-fresh
   mpv
   pavucontrol
@@ -154,7 +155,9 @@ wget --directory-prefix "${arc_icon_theme_directory}/" "https://github.com/konte
 tar --extract --file "${arc_icon_theme_directory}/${arc_icon_theme_version}.tar.gz" --directory "${arc_icon_theme_directory}/"
 sudo cp --recursive "${arc_icon_theme_directory}/arc-icon-theme-${arc_icon_theme_version}/Arc/" /usr/share/icons/
 sudo mkdir --parents /usr/share/icons/Arc/symbolic/legacy/
-sudo ln --symbolic /usr/share/icons/Arc/categories/symbolic/applications-system-symbolic.svg /usr/share/icons/Arc/symbolic/legacy/gtk-preferences.svg
+sudo find /usr/share/icons/Arc/ -name applications-system.png -execdir ln -s {} gtk-preferences.png \; # GPicView requirement
+sudo find /usr/share/icons/Arc/ -name folder.png -execdir ln -s -f -n {} application-menu.png \; # FeatherPad requirement
+sudo find /usr/share/icons/Arc/ -name view-list-details-symbolic.png -execdir ln -s {} sidebar-expand-left.png \; # FeatherPad requirement
 sudo chmod --recursive u=rwX,go=rX /usr/share/icons/Arc/
 rm --recursive "${arc_icon_theme_directory:?}/"
 
@@ -401,6 +404,7 @@ sudo tee /etc/skel/.bash_profile <<- EOF
 	  PATH="\${HOME}/.local/bin:\${PATH}"
 	fi
 	if [[ -z "\${DISPLAY}" && "\${XDG_VTNR}" -eq 1 ]]; then
+	  export QT_QPA_PLATFORMTHEME="qt6ct"
 	  exec startx
 	fi
 EOF
@@ -567,7 +571,7 @@ sudo tee /etc/skel/.config/application-launcher/config <<- EOF
 	firefox=/usr/bin/firefox
 	gimp=/usr/bin/gimp
 	gpicview=/usr/bin/gpicview
-	leafpad=/usr/bin/leafpad
+	featherpad=/usr/bin/featherpad
 	libreoffice=/usr/bin/libreoffice
 	pavucontrol=/usr/bin/pavucontrol
 	pcmanfm=/usr/bin/pcmanfm
@@ -585,27 +589,27 @@ done
 sudo mkdir --parents /etc/skel/.config/
 sudo tee /etc/skel/.config/mimeapps.list <<- EOF
 	[Default Applications]
-	application/javascript=leafpad.desktop
-	application/json=leafpad.desktop
-	application/sql=leafpad.desktop
+	application/javascript=featherpad.desktop
+	application/json=featherpad.desktop
+	application/sql=featherpad.desktop
 	application/pdf=firefox.desktop
-	application/xml=leafpad.desktop
-	application/x-shellscript=leafpad.desktop
+	application/xml=featherpad.desktop
+	application/x-shellscript=featherpad.desktop
 	image/bmp=gpicview.desktop
 	image/gif=gpicview.desktop
 	image/jpeg=gpicview.desktop
 	image/png=gpicview.desktop
 	image/tiff=gpicview.desktop
 	image/svg+xml=gpicview.desktop
-	text/css=leafpad.desktop
-	text/csv=leafpad.desktop
-	text/html=leafpad.desktop
-	text/markdown=leafpad.desktop
-	text/plain=leafpad.desktop
-	text/x-c=leafpad.desktop
-	text/x-c++=leafpad.desktop
-	text/x-java=leafpad.desktop
-	text/x-python=leafpad.desktop
+	text/css=featherpad.desktop
+	text/csv=featherpad.desktop
+	text/html=featherpad.desktop
+	text/markdown=featherpad.desktop
+	text/plain=featherpad.desktop
+	text/x-c=featherpad.desktop
+	text/x-c++=featherpad.desktop
+	text/x-java=featherpad.desktop
+	text/x-python=featherpad.desktop
 	x-scheme-handler/http=firefox.desktop
 	x-scheme-handler/https=firefox.desktop
 	x-scheme-handler/about=firefox.desktop
@@ -625,6 +629,16 @@ sudo tee /etc/skel/.config/gtk-{3,4}.0/settings.ini <<- EOF
 	gtk-icon-theme-name = Arc
 	gtk-font-name = Source Sans 3 12
 	gtk-decoration-layout = menu:
+EOF
+
+sudo mkdir --parents /etc/skel/.config/qt6ct/
+sudo tee /etc/skel/.config/qt6ct/qt6ct.conf <<- EOF
+	[Appearance]
+	icon_theme=Arc
+
+	[Fonts]
+	fixed="Source Code Pro,16"
+	general="Source Sans 3,16"
 EOF
 
 sudo mkdir --parents /etc/skel/.config/i3.d/
@@ -999,6 +1013,19 @@ sudo tee /etc/skel/.config/libfm/libfm.conf <<- EOF
 	places_root=1
 	places_trash=1
 	places_unmounted=1
+EOF
+
+sudo mkdir --parents /etc/skel/.config/featherpad/
+sudo tee /etc/skel/.config/featherpad/fp.conf <<- EOF
+	[text]
+	font="Source Code Pro,16"
+
+	[window]
+	hideSearchbar=true
+	hideSingleTab=true
+	noMenubar=true
+	showStatusbar=false
+	sysIcons=true
 EOF
 
 readonly gimp_version="$(pacman -Q gimp | awk '{ print $2 }' | awk --field-separator "." '{ print $1 "." $2 }')"
