@@ -138,10 +138,10 @@ sudo pacman --noconfirm --sync --refresh "${packages[@]}"
 
 readonly arc_theme_version="20221218"
 readonly arc_theme_directory="$(mktemp -d)"
-sudo pacman --noconfirm --sync gnome-themes-extra gtk-engine-murrine meson sassc
+sudo pacman --noconfirm --sync meson sassc
 wget --directory-prefix "${arc_theme_directory}/" "https://github.com/kontextwechsel/arc-theme/releases/download/${arc_theme_version}/arc-theme-${arc_theme_version}.tar.xz"
 tar --extract --file "${arc_theme_directory}/arc-theme-${arc_theme_version}.tar.xz" --directory "${arc_theme_directory}/"
-meson setup --prefix="${arc_theme_directory}/arc-theme-${arc_theme_version}/install/" -Dthemes=gtk2,gtk3,gtk4 -Dvariants=lighter -Dtransparency=false "${arc_theme_directory}/arc-theme-${arc_theme_version}/build/" "${arc_theme_directory}/arc-theme-${arc_theme_version}/"
+meson setup --prefix="${arc_theme_directory}/arc-theme-${arc_theme_version}/install/" -Dthemes=gtk3,gtk4 -Dvariants=lighter -Dtransparency=false "${arc_theme_directory}/arc-theme-${arc_theme_version}/build/" "${arc_theme_directory}/arc-theme-${arc_theme_version}/"
 meson install -C "${arc_theme_directory}/arc-theme-${arc_theme_version}/build/"
 sudo cp --recursive "${arc_theme_directory}/arc-theme-${arc_theme_version}/install/share/themes/Arc-Lighter-solid/" /usr/share/themes/Arc/
 sudo sed --in-place "s/Arc-Lighter-solid/Arc/g" /usr/share/themes/Arc/index.theme
@@ -614,12 +614,6 @@ sudo tee /etc/skel/.config/mimeapps.list <<- EOF
 	x-scheme-handler/https=firefox.desktop
 	x-scheme-handler/about=firefox.desktop
 	x-scheme-handler/unknown=firefox.desktop
-EOF
-
-sudo tee /etc/skel/.gtkrc-2.0 <<- EOF
-	gtk-theme-name = "Arc"
-	gtk-icon-theme-name = "Arc"
-	gtk-font-name = "Source Sans 3 12"
 EOF
 
 sudo mkdir --parents /etc/skel/.config/gtk-{3,4}.0/
