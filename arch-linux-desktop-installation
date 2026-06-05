@@ -66,6 +66,7 @@ packages=(
   i3status
   libnotify
   numlockx
+  picom
   pipewire
   pipewire-pulse
   polkit
@@ -773,6 +774,9 @@ sudo tee /etc/skel/.config/i3.d/63-dunst <<- EOF
 	exec --no-startup-id dunst
 	bindsym \$mod+j exec --no-startup-id dunstctl history-pop
 EOF
+sudo tee /etc/skel/.config/i3.d/64-picom <<- EOF
+	exec --no-startup-id picom
+EOF
 
 sudo mkdir --parents /etc/skel/.config/i3status.d/
 sudo tee /etc/skel/.config/i3status.d/10-default <<- EOF
@@ -858,6 +862,13 @@ sudo tee /etc/skel/.config/dunst/dunstrc <<- EOF
 	    foreground = "${COLORS["White"]}"
 	    frame_color = "${COLORS["Gray C"]}"
 	    timeout = 0
+EOF
+
+sudo mkdir --parents /etc/skel/.config/picom/
+sudo tee /etc/skel/.config/picom/picom.conf <<- EOF
+	backend = "glx";
+	shadow = false;
+	fading = false;
 EOF
 
 sudo mkdir --parents /etc/skel/.config/alacritty/
@@ -1002,6 +1013,7 @@ if [[ "$(< /sys/devices/virtual/dmi/id/sys_vendor)" == "QEMU" ]]; then
   sudo tee /etc/skel/.config/i3.d/21-spice <<- EOF
 		exec --no-startup-id spice-vdagent
 	EOF
+	sudo ln --symbolic /usr/bin/true /usr/local/bin/picom
 fi
 
 rsync --recursive --links --verbose /etc/skel/ "${HOME}/"
