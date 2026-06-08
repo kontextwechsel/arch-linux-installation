@@ -2,10 +2,10 @@
 
 Arch Linux installation scripts for base system and desktop environment with i3 window manager.
 
-1. Boot Arch ISO (https://archlinux.org/download/) and connect to network.
-2. Execute `arch-linux-installation` to install base system and reboot.
-3. Execute `arch-linux-desktop-installation` to install desktop environment and reboot.
-4. Press **Super** + **Enter** to open new terminal.
+1. Boot Arch ISO (https://archlinux.org/download/) and connect to your network.
+2. Execute `arch-linux-installation` to install the base system and reboot.
+3. Execute `arch-linux-desktop-installation` to install the desktop environment and reboot.
+4. Press **Super** + **Enter** to open a new terminal.
 
 ## Applications
 
@@ -15,7 +15,7 @@ Applications in `dmenu` can be maintained with `application-launcher`:
 
 ## Color scheme
 
-Generates uniform Monokai color scheme for Sublime Text and xterm. Colors with less standard deviation in Sublime Text theme are converted to gray scale and simliar colors in xterm theme are replaced.
+Generates a uniform Monokai color scheme for Sublime Text and xterm. Colors with lower standard deviation in the Sublime Text theme are converted to grayscale, and similar colors in the xterm theme are replaced.
 
 ```bash
 pacman --sync --refresh python python-numpy python-requests python-yaml
@@ -26,13 +26,13 @@ python color_scheme.py
 
 1. Delete all keys in UEFI.
 2. Execute `secure-boot-installation`.
-2. Enable Secure Boot in UEFI.
+3. Enable Secure Boot in UEFI.
 
-Microsoft UEFI signature may be required for dedicated graphics cards. Microsoft Production signature is required for booting Windows.
+Microsoft Option ROM signature may be required for dedicated graphics cards. Microsoft Production signature is required for booting Windows.
 
 ### Secure Boot status
 
-Prints Secure Boot status before password prompt for disk encryption.
+Prints the Secure Boot status before the password prompt for disk encryption.
 
 ```bash
 sudo tee /etc/initcpio/install/secure-boot-status <<- EOF
@@ -65,11 +65,11 @@ sudo tee /etc/initcpio/hooks/secure-boot-status <<- EOF
 EOF
 
 buffer=()
-while IFS="=" read -r key value; do
-  IFS=" " read -r -a variables <<< "$(sed -r "s/\((.*)\)/\1/g" <<< "${value}")"
-  if [[ "${key}" == "HOOKS" ]]; then
+while IFS= read -r line || [[ -n "${line}" ]]; do
+  if [[ "${line}" =~ ^HOOKS= ]]; then
+    IFS=" " read -r -a entries <<< "$(sed --regexp-extended "s/\((.*)\)/\1/g" <<< "${line#*=}")"
     hooks=()
-    for hook in "${variables[@]}"; do
+    for hook in "${entries[@]}"; do
       if [[ "${hook}" != "secure-boot-status" ]]; then
         hooks+=("${hook}")
         if [[ "${hook}" == "base" ]]; then
@@ -77,9 +77,9 @@ while IFS="=" read -r key value; do
         fi
       fi
     done
-    buffer+=("${key}=(${hooks[*]})")
+    buffer+=("HOOKS=(${hooks[*]})")
   else
-    buffer+=("${key}=(${variables[*]})")
+    buffer+=("${line}")
   fi
 done < /etc/mkinitcpio.conf
 printf "%s\n" "${buffer[@]}" | sudo tee /etc/mkinitcpio.conf
@@ -101,7 +101,7 @@ sudo tee /usr/local/bin/backlight <<- EOF
 	if [[ -n "\${DISPLAY}" ]]; then
 	  readonly brightness="\$(( "\$(brightnessctl get)" / ("\$(brightnessctl max)" / 100) ))"
 
-	  function set() {
+	  set_brightness() {
 	    brightnessctl --quiet set "\$1%"
 	    local file="\$(mktemp "\${HOME}/.brightness.XXXXXX")"
 	    printf "%s\n" "\$1" > "\${file}"
@@ -109,7 +109,7 @@ sudo tee /usr/local/bin/backlight <<- EOF
 	    killall -USR1 i3status
 	  }
 
-	  function reset() {
+	  reset_brightness() {
 	    if [[ ! -f "\${HOME}/.brightness" ]]; then
 	      return 1
 	    fi
@@ -122,14 +122,14 @@ sudo tee /usr/local/bin/backlight <<- EOF
 
 	  case "\$1" in
 	    -i | --increment)
-	      set "\$(( "\${brightness}" > 90 ? 100 : "\${brightness}" + 10 ))"
+	      set_brightness "\$(( "\${brightness}" > 90 ? 100 : "\${brightness}" + 10 ))"
 	      ;;
 	    -d | --decrement)
-	      set "\$(( "\${brightness}" < 10 ? 0 : "\${brightness}" - 10 ))"
+	      set_brightness "\$(( "\${brightness}" < 10 ? 0 : "\${brightness}" - 10 ))"
 	      ;;
 	    -r | --reset)
-	      if ! reset; then
-	        set "\${brightness}"
+	      if ! reset_brightness; then
+	        set_brightness "\${brightness}"
 	      fi
 	      ;;
 	    *)
@@ -143,7 +143,7 @@ EOF
 sudo chmod +x /usr/local/bin/backlight
 
 sudo tee /usr/local/share/bash-completion/completions/backlight <<- EOF
-	function _backlight() {
+	_backlight() {
 	  if [[ "\${COMP_CWORD}" -eq 1 ]]; then
 	    readarray -t COMPREPLY < <(compgen -W "--increment --decrement --reset" -- "\${COMP_WORDS["\${COMP_CWORD}"]}")
 	  fi
@@ -209,11 +209,11 @@ sudo tee /etc/initcpio/hooks/banner <<- EOF
 EOF
 
 buffer=()
-while IFS="=" read -r key value; do
-  IFS=" " read -r -a variables <<< "$(sed -r "s/\((.*)\)/\1/g" <<< "${value}")"
-  if [[ "${key}" == "HOOKS" ]]; then
+while IFS= read -r line || [[ -n "${line}" ]]; do
+  if [[ "${line}" =~ ^HOOKS= ]]; then
+    IFS=" " read -r -a entries <<< "$(sed -r "s/\((.*)\)/\1/g" <<< "${line#*=}")"
     hooks=()
-    for hook in "${variables[@]}"; do
+    for hook in "${entries[@]}"; do
       if [[ "${hook}" != "banner" ]]; then
         hooks+=("${hook}")
         if [[ "${hook}" == "base" ]]; then
@@ -221,9 +221,9 @@ while IFS="=" read -r key value; do
         fi
       fi
     done
-    buffer+=("${key}=(${hooks[*]})")
+    buffer+=("HOOKS=(${hooks[*]})")
   else
-    buffer+=("${key}=(${variables[*]})")
+    buffer+=("${line}")
   fi
 done < /etc/mkinitcpio.conf
 printf "%s\n" "${buffer[@]}" | sudo tee /etc/mkinitcpio.conf
@@ -298,11 +298,11 @@ sudo tee /etc/cmdline.d/hibernate.conf <<- EOF
 EOF
 
 buffer=()
-while IFS="=" read -r key value; do
-  IFS=" " read -r -a variables <<< "$(sed -r "s/\((.*)\)/\1/g" <<< ${value})"
-  if [[ "${key}" == "HOOKS" ]]; then
+while IFS= read -r line || [[ -n "${line}" ]]; do
+  if [[ "${line}" =~ ^HOOKS= ]]; then
+    IFS=" " read -r -a entries <<< "$(sed --regexp-extended "s/\((.*)\)/\1/g" <<< "${line#*=}")"
     hooks=()
-    for hook in "${variables[@]}"; do
+    for hook in "${entries[@]}"; do
       if [[ "${hook}" != "resume" ]]; then
         hooks+=("${hook}")
         if [[ "${hook}" == "filesystems" ]]; then
@@ -310,9 +310,9 @@ while IFS="=" read -r key value; do
         fi
       fi
     done
-    buffer+=("${key}=(${hooks[*]})")
+    buffer+=("HOOKS=(${hooks[*]})")
   else
-    buffer+=("${key}=(${variables[*]})")
+    buffer+=("${line}")
   fi
 done < /etc/mkinitcpio.conf
 printf "%s\n" "${buffer[@]}" | sudo tee /etc/mkinitcpio.conf
@@ -347,7 +347,7 @@ application-launcher --add sublime-text /usr/bin/subl --new-window
 
 sudo mkdir --parents /etc/skel/.config/sublime-text/Packages/User/
 unzip -p "/opt/sublime_text/Packages/Color Scheme - Default.sublime-package" Monokai.sublime-color-scheme \
-  | sed -E ':a;N;$!ba;s/,(\s*)(}|])/\1\2/g' \
+  | sed --regexp-extended ':a;N;$!ba;s/,(\s*)(}|])/\1\2/g' \
   | jq '.name = "Auf zum Atem!"' \
   | jq '.author = "Me"' \
   | jq '.variables.black = "#000000"' \

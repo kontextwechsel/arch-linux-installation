@@ -2,12 +2,20 @@
 
 # Installation script for Arch Linux system.
 
-if [[ "${UID}" != 0 ]]; then
+error() {
+  printf "%s\n" "Failed to install Arch Linux system" >&2
   exit 1
+}
+
+set -Ee -o pipefail
+
+trap error ERR SIGUSR1
+
+if [[ "${EUID}" -ne 0 ]]; then
+  error
 fi
 
 readonly PROCESS_ID="$$"
-trap 'exit 1' SIGUSR1
 
 readonly DEFAULT_HEIGHT=7
 readonly DEFAULT_WIDTH=74
@@ -22,7 +30,7 @@ fi
 buffer=()
 while IFS= read -r disk; do
   if lsblk --noheadings --list --output MOUNTPOINT "${disk}" | awk 'length($1) != 0 { exit 1 }'; then
-    buffer+=("${disk}" "$(printf "%-${DEFAULT_PADDING}s" "${disk}")")
+    buffer+=("${disk}" "$(printf "%-*s" "${DEFAULT_PADDING}" "${disk}")")
     if (( "${#buffer[@]}" > 3 )); then
       buffer+=("OFF")
     else
@@ -34,14 +42,14 @@ if (( "${#buffer[@]}" == 0 )); then
   whiptail --title "Installation disk" --msgbox "No disk detected" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
   exit 1
 fi
-readonly disk="$(whiptail --title "Installation disk" --radiolist --notags "" "$(( "${DEFAULT_HEIGHT}" - 1 + ${#buffer[@]} / 3 ))" "${DEFAULT_WIDTH}" "$(( ${#buffer[@]} / 3 ))" "${buffer[@]}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
+disk="$(whiptail --title "Installation disk" --radiolist --notags "" "$(( "${DEFAULT_HEIGHT}" - 1 + ${#buffer[@]} / 3 ))" "${DEFAULT_WIDTH}" "$(( ${#buffer[@]} / 3 ))" "${buffer[@]}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"; readonly disk
 
 buffer=()
 while IFS= read -r interface; do
   unset name
   case "${interface}" in
     e*)
-      # Use predictable network interface name for ethernet interfaces
+      # Use predictable network interface name for Ethernet interfaces
       if [[ -e "/sys/class/net/${interface}" ]]; then
         unset ID_NET_NAME_FROM_DATABASE ID_NET_NAME_ONBOARD ID_NET_NAME_SLOT ID_NET_NAME_PATH ID_NET_NAME_MAC
         source <(udevadm info --query=property --export "/sys/class/net/${interface}")
@@ -70,7 +78,7 @@ if (( "${#buffer[@]}" == 0 )); then
   whiptail --title "Network interface" --msgbox "No interface detected" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}"
   exit 1
 fi
-readonly interface="$(whiptail --title "Network interface" --radiolist --notags "" "$(( "${DEFAULT_HEIGHT}" - 1 + ${#buffer[@]} / 3 ))" "${DEFAULT_WIDTH}" "$(( ${#buffer[@]} / 3 ))" "${buffer[@]}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
+interface="$(whiptail --title "Network interface" --radiolist --notags "" "$(( "${DEFAULT_HEIGHT}" - 1 + ${#buffer[@]} / 3 ))" "${DEFAULT_WIDTH}" "$(( ${#buffer[@]} / 3 ))" "${buffer[@]}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"; readonly interface
 
 unset hostname
 while true; do
@@ -135,7 +143,7 @@ buffer=(
   "us" "$(printf "%-${DEFAULT_PADDING}s" "English (ANSI)")" "ON"
   "de" "$(printf "%-${DEFAULT_PADDING}s" "German (ISO)")" "OFF"
 )
-readonly keymap="$(whiptail --title "Keyboard layout" --radiolist --notags "" "$(( "${DEFAULT_HEIGHT}" -1 + ${#buffer[@]} / 3 ))" "${DEFAULT_WIDTH}" "$(( ${#buffer[@]} / 3 ))" "${buffer[@]}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"
+keymap="$(whiptail --title "Keyboard layout" --radiolist --notags "" "$(( "${DEFAULT_HEIGHT}" -1 + ${#buffer[@]} / 3 ))" "${DEFAULT_WIDTH}" "$(( ${#buffer[@]} / 3 ))" "${buffer[@]}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")"; readonly keymap
 
 if whiptail --title "SSH" --yesno "Enable SSH daemon?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3; then
   readonly selection_enable_sshd="yes"
@@ -152,8 +160,9 @@ if [[ "${boot_mode}" == "uefi" ]]; then
 fi
 
 if [[ "${boot_mode}" == "uefi" ]]; then
+  selection_options=()
   if [[ "${selection_default_efi}" == "yes" ]]; then
-    readonly selection_options=("--defaultno")
+    selection_options+=("--defaultno")
   fi
   if whiptail --title "EFI" --yesno "Add EFI image to boot manager?" "${selection_options[@]}" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3; then
     readonly selection_boot_entry="yes"
@@ -170,17 +179,14 @@ else
   for firmware in "${available_firmwares[@]}"; do
     buffer+=("linux-firmware-${firmware}" "$(printf "%-${DEFAULT_PADDING}s" "linux-firmware-${firmware}")" "OFF")
   done
-  readarray -t selected_firmware_packages < <(whiptail --separate-output --title "Packages" --checklist --notags "" "$(( "${DEFAULT_HEIGHT}" -1 + ${#buffer[@]} / 3 ))" "${DEFAULT_WIDTH}" "$(( ${#buffer[@]} / 3 ))" "${buffer[@]}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}")
+  readarray -t selected_firmware_packages < <(whiptail --separate-output --title "Packages" --checklist --notags "" "$(( "${DEFAULT_HEIGHT}" -1 + ${#buffer[@]} / 3 ))" "${DEFAULT_WIDTH}" "$(( ${#buffer[@]} / 3 ))" "${buffer[@]}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}"); readonly selected_firmware_packages
 fi
-readonly selected_firmware_packages
 
 if whiptail --title "Logging" --yesno "Enable logging?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" --defaultno 3>&1 1>&2 2>&3; then
-  echo exec &> >(tee --append "${BASH_SOURCE[0]}.log")
+  exec &> >(tee --append "${BASH_SOURCE[0]}.log")
 fi
 
-set -xue
-
-trap 'printf "%s\n" "Failed to install Arch Linux system"' ERR
+set -ux
 
 if [[ "${disk}" == *nvm* ]]; then
   readonly boot_partition="${disk}p1"
@@ -207,9 +213,8 @@ else
 fi
 cryptsetup --batch-mode luksFormat "${system_partition}" <<- EOF
 	${disk_encryption_password}
-	${disk_encryption_password}
 EOF
-readonly crypt_partition_id="$(uuidgen)"
+crypt_partition_id="$(uuidgen)"; readonly crypt_partition_id
 cryptsetup open "${system_partition}" "${crypt_partition_id}" <<- EOF
 	${disk_encryption_password}
 EOF
@@ -224,11 +229,11 @@ else
   mount "${boot_partition}" /mnt/boot
 fi
 
-function unmount_filesystems() {
+unmount_filesystems() {
   umount --force --recursive --verbose /mnt
   cryptsetup close "${crypt_partition_id}"
 }
-trap 'unmount_filesystems' EXIT
+trap unmount_filesystems EXIT
 
 readonly reflector_options=(
   "--completion-percent" "100.0"
@@ -307,7 +312,7 @@ arch-chroot /mnt locale-gen
 arch-chroot /mnt tee /etc/locale.conf <<- EOF
 	LANG=en_US.UTF-8
 EOF
-arch-chroot /mnt timedatectl set-timezone "${tz}"
+arch-chroot /mnt ln --symbolic --force "/usr/share/zoneinfo/${tz}" /etc/localtime
 
 arch-chroot /mnt mkdir --parents /usr/local/share/kbd/keymaps/
 arch-chroot /mnt tee /usr/local/share/kbd/keymaps/us.map <<- EOF
@@ -366,13 +371,13 @@ arch-chroot /mnt tee "/etc/systemd/network/10-${interface}.network" <<- EOF
 	[DHCP]
 	UseDomains=yes
 EOF
-arch-chroot /mnt systemctl enable systemd-networkd.service
+systemctl --root=/mnt enable systemd-networkd.service
 
 arch-chroot /mnt tee /etc/systemd/timesyncd.conf <<- EOF
 	[Time]
 	NTP=de.pool.ntp.org
 EOF
-arch-chroot /mnt systemctl enable systemd-timesyncd.service
+systemctl --root=/mnt enable systemd-timesyncd.service
 
 arch-chroot /mnt tee /etc/systemd/resolved.conf <<- EOF
 	[Resolve]
@@ -381,17 +386,14 @@ arch-chroot /mnt tee /etc/systemd/resolved.conf <<- EOF
 	LLMNR=no
 	MulticastDNS=no
 EOF
-arch-chroot /mnt systemctl enable systemd-resolved.service
+systemctl --root=/mnt enable systemd-resolved.service
 # Use plain chroot since arch-chroot mounts resolv.conf of the host system
 chroot /mnt ln --symbolic --force /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 
-arch-chroot /mnt systemctl enable fstrim.timer
+systemctl --root=/mnt enable fstrim.timer
 
 arch-chroot /mnt useradd --create-home --shell /bin/bash "${username}"
-arch-chroot /mnt passwd "${username}" <<- EOF
-	${password}
-	${password}
-EOF
+printf "%s:%s" "${username}" "${password}" | arch-chroot /mnt chpasswd
 arch-chroot /mnt tee "/etc/sudoers.d/${username}" <<- EOF
 	${username} ALL=(ALL) ALL
 EOF
@@ -410,9 +412,11 @@ if [[ "${interface}" == w* ]]; then
 		[General]
 		EnableNetworkConfiguration=false
 	EOF
-  arch-chroot /mnt mkdir --parents --mode=u=rwX,go= /var/lib/iwd/
-  find /var/lib/iwd/ -type f -name "*.psk" -exec cp -- {} /mnt/var/lib/iwd/ \;
-  arch-chroot /mnt systemctl enable iwd.service
+  if [[ -d /var/lib/iwd/ ]]; then
+    arch-chroot /mnt mkdir --parents --mode=u=rwX,go= /var/lib/iwd/
+    find /var/lib/iwd/ -type f -name "*.psk" -exec cp -- {} /mnt/var/lib/iwd/ \;
+  fi
+  systemctl --root=/mnt enable iwd.service
   arch-chroot /mnt usermod --append --groups network "${username}"
 fi
 
@@ -444,12 +448,13 @@ arch-chroot /mnt tee -a /etc/nftables.conf <<- EOF
 	    }
 	}
 EOF
-arch-chroot /mnt systemctl enable nftables.service
+systemctl --root=/mnt enable nftables.service
 
 arch-chroot /mnt tee /etc/ssh/ssh_config <<- EOF
 	HostKeyAlgorithms ssh-ed25519
+	PubkeyAcceptedAlgorithms ssh-ed25519
 
-	KexAlgorithms curve25519-sha256@libssh.org
+	KexAlgorithms mlkem768x25519-sha256
 	Ciphers aes256-gcm@openssh.com
 	MACs hmac-sha2-512-etm@openssh.com
 
@@ -460,7 +465,10 @@ EOF
 arch-chroot /mnt tee /etc/ssh/sshd_config <<- EOF
 	HostKey /etc/ssh/ssh_host_ed25519_key
 
-	KexAlgorithms curve25519-sha256@libssh.org
+	HostKeyAlgorithms ssh-ed25519
+	PubkeyAcceptedAlgorithms ssh-ed25519
+
+	KexAlgorithms mlkem768x25519-sha256
 	Ciphers aes256-gcm@openssh.com
 	MACs hmac-sha2-512-etm@openssh.com
 
@@ -482,7 +490,7 @@ arch-chroot /mnt tee /etc/ssh/sshd_config <<- EOF
 EOF
 
 if [[ "${selection_enable_sshd}" == "yes" ]]; then
-  arch-chroot /mnt systemctl enable sshd.service
+  systemctl --root=/mnt enable sshd.service
 fi
 
 unset microcode
@@ -499,8 +507,8 @@ if [[ "$(< /sys/devices/virtual/dmi/id/sys_vendor)" != "QEMU" ]]; then
   esac
 fi
 
-readonly system_partition_id="$(blkid --match-tag UUID --output value "${system_partition}")"
-readonly virtual_block_device_id="$(blkid --match-tag UUID --output value "${virtual_block_device}")"
+system_partition_id="$(blkid --match-tag UUID --output value "${system_partition}")"; readonly system_partition_id
+virtual_block_device_id="$(blkid --match-tag UUID --output value "${virtual_block_device}")"; readonly virtual_block_device_id
 readonly default_kernel_options=("cryptdevice=UUID=${system_partition_id}:${crypt_partition_id}:allow-discards")
 readonly security_kernel_options=("lockdown=integrity")
 

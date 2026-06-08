@@ -1,23 +1,33 @@
 #!/bin/bash
 
-if ! sudo true; then
+# Installation script for Secure Boot certificates.
+
+error() {
+  printf "%s\n" "Failed to install Secure Boot certificates" >&2
+  exit 1
+}
+
+set -Ee -o pipefail
+
+trap error ERR
+
+sudo --validate
+
+if [[ ! -d /sys/firmware/efi/efivars/ ]]; then
+  printf "%s\n" "UEFI mode required" >&2
   exit 1
 fi
 
-if [[ ! -d /sys/firmware/efi/efivars/ ]]; then
-  printf "UEFI mode required\n"
-  exit 1
-fi
+set -ux
 
 sudo pacman --noconfirm --sync --refresh efitools sbsigntools
 
-readonly GUID="$(uuidgen --random)"
+GUID="$(uuidgen --random)"; readonly GUID
 readonly MICROSOFT_GUID="77fa9abd-0359-4d32-bd60-28f4e78f784b"
 
 temporary_files=()
-trap "{ rm -f \${temporary_files[@]}; }" EXIT
 
-function create_temporary_file() {
+create_temporary_file() {
   local file
 
   file="$(mktemp)"
@@ -25,7 +35,13 @@ function create_temporary_file() {
   printf "%s" "${file}"
 }
 
-function create_certificate() {
+remove_temporary_files() {
+  rm --force "${temporary_files[@]}"
+}
+
+trap remove_temporary_files EXIT
+
+create_certificate() {
   local name="$1"
   local certificate="$2"
   local key="$3"
@@ -33,22 +49,22 @@ function create_certificate() {
   openssl req -newkey rsa:4096 -nodes -keyout "${key}" -new -x509 -sha256 -days 3650 -subj "/CN=${name}" -out "${certificate}" 2> /dev/null
 }
 
-readonly platform_certificate="$(create_temporary_file)"
-readonly platform_key="$(create_temporary_file)"
-readonly platform_signature="$(create_temporary_file)"
-readonly platform_signature_signed="$(create_temporary_file)"
+platform_certificate="$(create_temporary_file)"; readonly platform_certificate
+platform_key="$(create_temporary_file)"; readonly platform_key
+platform_signature="$(create_temporary_file)"; readonly platform_signature
+platform_signature_signed="$(create_temporary_file)"; readonly platform_signature_signed
 create_certificate "Arch Linux Platform Key" "${platform_certificate}" "${platform_key}"
 cert-to-efi-sig-list -g "${GUID}" "${platform_certificate}" "${platform_signature}"
 sign-efi-sig-list -g "${GUID}" -k "${platform_key}" -c "${platform_certificate}" PK "${platform_signature}" "${platform_signature_signed}"
 
 if ! sudo efi-updatevar -f "${platform_signature_signed}" PK; then
-  printf "Failed to update platform key\n"
+  printf "%s\n" "Failed to update platform key" >&2
   exit 1
 fi
 
-readonly unified_kernel_image_certificate="$(create_temporary_file)"
-readonly unified_kernel_image_key="$(create_temporary_file)"
-readonly unified_kernel_image_signature="$(create_temporary_file)"
+unified_kernel_image_certificate="$(create_temporary_file)"; readonly unified_kernel_image_certificate
+unified_kernel_image_key="$(create_temporary_file)"; readonly unified_kernel_image_key
+unified_kernel_image_signature="$(create_temporary_file)"; readonly unified_kernel_image_signature
 create_certificate "Arch Linux Signature Key" "${unified_kernel_image_certificate}" "${unified_kernel_image_key}"
 cert-to-efi-sig-list -g "${GUID}" "${unified_kernel_image_certificate}" "${unified_kernel_image_signature}"
 
@@ -56,11 +72,11 @@ signatures=("${unified_kernel_image_signature}")
 
 read -r -p "Add Microsoft Windows signature? [y/N] "
 if [[ "${REPLY}" =~ ^[Yy]$ ]]; then
-  readonly microsoft_windows_certificate_binary="$(create_temporary_file)"
-  readonly microsoft_windows_certificate="$(create_temporary_file)"
-  readonly microsoft_windows_signature="$(create_temporary_file)"
-  if ! curl -f -L -s "https://go.microsoft.com/fwlink/?linkid=2239776" > "${microsoft_windows_certificate_binary}"; then
-    printf "Failed to download Microsoft Windows Production certificate\n"
+  microsoft_windows_certificate_binary="$(create_temporary_file)"; readonly microsoft_windows_certificate_binary
+  microsoft_windows_certificate="$(create_temporary_file)"; readonly microsoft_windows_certificate
+  microsoft_windows_signature="$(create_temporary_file)"; readonly microsoft_windows_signature
+  if ! curl --fail --location --silent "https://go.microsoft.com/fwlink/?linkid=2239776" > "${microsoft_windows_certificate_binary}"; then
+    printf "%s\n" "Failed to download Microsoft Windows Production certificate" >&2
     exit 1
   fi
   openssl x509 -in "${microsoft_windows_certificate_binary}" -inform DER -out "${microsoft_windows_certificate}" -outform PEM
@@ -70,11 +86,11 @@ fi
 
 read -r -p "Add Microsoft Option ROM signature? [y/N] "
 if [[ "${REPLY}" =~ ^[Yy]$ ]]; then
-  readonly microsoft_option_rom_certificate_binary="$(create_temporary_file)"
-  readonly microsoft_option_rom_certificate="$(create_temporary_file)"
-  readonly microsoft_option_rom_signature="$(create_temporary_file)"
-  if ! curl -f -L -s "https://go.microsoft.com/fwlink/?linkid=2284009" > "${microsoft_option_rom_certificate_binary}"; then
-    printf "Failed to download Microsoft UEFI certificate\n"
+  microsoft_option_rom_certificate_binary="$(create_temporary_file)"; readonly microsoft_option_rom_certificate_binary
+  microsoft_option_rom_certificate="$(create_temporary_file)"; readonly microsoft_option_rom_certificate
+  microsoft_option_rom_signature="$(create_temporary_file)"; readonly microsoft_option_rom_signature
+  if ! curl --fail --location --silent "https://go.microsoft.com/fwlink/?linkid=2284009" > "${microsoft_option_rom_certificate_binary}"; then
+    printf "%s\n" "Failed to download Microsoft Option ROM certificate" >&2
     exit 1
   fi
   openssl x509 -in "${microsoft_option_rom_certificate_binary}" -inform DER -out "${microsoft_option_rom_certificate}" -outform PEM
@@ -82,13 +98,13 @@ if [[ "${REPLY}" =~ ^[Yy]$ ]]; then
   signatures+=("${microsoft_option_rom_signature}")
 fi
 
-readonly all_signatures="$(create_temporary_file)"
-readonly all_signatures_signed="$(create_temporary_file)"
+all_signatures="$(create_temporary_file)"; readonly all_signatures
+all_signatures_signed="$(create_temporary_file)"; readonly all_signatures_signed
 cat "${signatures[@]}" > "${all_signatures}"
 sign-efi-sig-list -g "${GUID}" -k "${platform_key}" -c "${platform_certificate}" db "${all_signatures}" "${all_signatures_signed}"
 
 if ! sudo efi-updatevar -f "${all_signatures_signed}" db; then
-  printf "Failed to update signature database\n"
+  printf "%s\n" "Failed to update signature database" >&2
   exit 1
 fi
 
@@ -97,7 +113,8 @@ readonly secure_boot_key="/etc/secure-boot/db.key"
 sudo mkdir --parents /etc/secure-boot/
 sudo cp "${unified_kernel_image_certificate}" "${secure_boot_certificate}"
 sudo cp "${unified_kernel_image_key}" "${secure_boot_key}"
-sudo chmod u=r,go= "${secure_boot_certificate}" "${secure_boot_key}"
+sudo chmod a=r "${secure_boot_certificate}"
+sudo chmod u=r,go= "${secure_boot_key}"
 
 sudo tee /etc/initcpio/post/sign-unified-kernel-image <<- EOF
 	#!/bin/bash
@@ -109,4 +126,4 @@ sudo tee /etc/initcpio/post/sign-unified-kernel-image <<- EOF
 EOF
 sudo chmod +x /etc/initcpio/post/sign-unified-kernel-image
 
-sudo mkinitcpio -p linux
+sudo mkinitcpio --preset linux

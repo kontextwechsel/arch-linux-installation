@@ -1,10 +1,17 @@
 #!/bin/bash
 
-# Installation script for i3 desktop environment.
+# Installation script for Arch Linux desktop environment.
 
-if ! sudo true; then
+error() {
+  printf "%s\n" "Failed to install Arch Linux desktop environment" >&2
   exit 1
-fi
+}
+
+set -Ee -o pipefail
+
+trap error ERR
+
+sudo --validate
 
 readonly -A COLORS=(
   ["Gray A"]="#282828"
@@ -26,16 +33,14 @@ if whiptail --title "Logging" --yesno "Enable logging?" "${DEFAULT_HEIGHT}" "${D
   exec &> >(tee --append "${BASH_SOURCE[0]}.log")
 fi
 
-set -xue
+set -ux
 
-trap 'printf "%s\n" "Failed to install i3 desktop environment"' ERR
-
+sudo mkdir --parents /etc/pacman.d/conf/
 sudo tee /etc/pacman.d/conf/noto-fonts <<- EOF
 	NoExtract = usr/share/fonts/noto/Noto*.ttf
 	NoExtract = !usr/share/fonts/noto/NotoColorEmoji.ttf
 	NoExtract = !usr/share/fonts/noto/NotoSans-*.ttf
 	NoExtract = !usr/share/fonts/noto/NotoSansMono-*.ttf
-	NoExtract = !usr/share/fonts/noto/NotoSansSymbols
 	NoExtract = !usr/share/fonts/noto/NotoSansSymbols-*.ttf
 	NoExtract = !usr/share/fonts/noto/NotoSerif-*.ttf
 EOF
@@ -137,27 +142,28 @@ readonly packages
 sudo pacman --noconfirm --sync --refresh "${packages[@]}"
 
 readonly arc_theme_version="20221218"
-readonly arc_theme_directory="$(mktemp -d)"
+arc_theme_directory="$(mktemp -d)"; readonly arc_theme_directory
 sudo pacman --noconfirm --sync meson sassc
 wget --directory-prefix "${arc_theme_directory}/" "https://github.com/kontextwechsel/arc-theme/releases/download/${arc_theme_version}/arc-theme-${arc_theme_version}.tar.xz"
 tar --extract --file "${arc_theme_directory}/arc-theme-${arc_theme_version}.tar.xz" --directory "${arc_theme_directory}/"
 meson setup --prefix="${arc_theme_directory}/arc-theme-${arc_theme_version}/install/" -Dthemes=gtk3,gtk4 -Dvariants=lighter -Dtransparency=false "${arc_theme_directory}/arc-theme-${arc_theme_version}/build/" "${arc_theme_directory}/arc-theme-${arc_theme_version}/"
 meson install -C "${arc_theme_directory}/arc-theme-${arc_theme_version}/build/"
-sudo cp --recursive "${arc_theme_directory}/arc-theme-${arc_theme_version}/install/share/themes/Arc-Lighter-solid/" /usr/share/themes/Arc/
+sudo mkdir --parents /usr/share/themes/Arc/
+sudo cp --recursive "${arc_theme_directory}/arc-theme-${arc_theme_version}/install/share/themes/Arc-Lighter-solid/"* /usr/share/themes/Arc/
 sudo sed --in-place "s/Arc-Lighter-solid/Arc/g" /usr/share/themes/Arc/index.theme
 sudo chmod --recursive u=rwX,go=rX /usr/share/themes/Arc/
-sudo pacman --noconfirm --remove meson sassc
+sudo pacman --noconfirm --remove --recursive meson sassc
 rm --recursive "${arc_theme_directory:?}/"
 
 readonly arc_icon_theme_version="20161122"
-readonly arc_icon_theme_directory="$(mktemp -d)"
+arc_icon_theme_directory="$(mktemp -d)"; readonly arc_icon_theme_directory
 wget --directory-prefix "${arc_icon_theme_directory}/" "https://github.com/kontextwechsel/arc-icon-theme/archive/refs/tags/${arc_icon_theme_version}.tar.gz"
 tar --extract --file "${arc_icon_theme_directory}/${arc_icon_theme_version}.tar.gz" --directory "${arc_icon_theme_directory}/"
 sudo cp --recursive "${arc_icon_theme_directory}/arc-icon-theme-${arc_icon_theme_version}/Arc/" /usr/share/icons/
 sudo mkdir --parents /usr/share/icons/Arc/symbolic/legacy/
-sudo find /usr/share/icons/Arc/ -name applications-system.png -execdir ln -s {} gtk-preferences.png \; # GPicView requirement
-sudo find /usr/share/icons/Arc/ -name folder.png -execdir ln -s -f -n {} application-menu.png \; # FeatherPad requirement
-sudo find /usr/share/icons/Arc/ -name view-list-details-symbolic.png -execdir ln -s {} sidebar-expand-left.png \; # FeatherPad requirement
+sudo find /usr/share/icons/Arc/ -name applications-system.png -execdir ln --symbolic --force {} gtk-preferences.png \; # GPicView requirement
+sudo find /usr/share/icons/Arc/ -name folder.png -execdir ln --symbolic --force {} application-menu.png \; # FeatherPad requirement
+sudo find /usr/share/icons/Arc/ -name view-list-details-symbolic.png -execdir ln --symbolic --force {} sidebar-expand-left.png \; # FeatherPad requirement
 sudo chmod --recursive u=rwX,go=rX /usr/share/icons/Arc/
 rm --recursive "${arc_icon_theme_directory:?}/"
 
@@ -174,7 +180,7 @@ sudo tee /usr/local/bin/application-launcher <<- EOF
 	  done < "\${file}"
 	fi
 
-	function print() {
+	print_applications() {
 	  case "\$1" in
 	    -k | --keys)
 	      printf "%s\n" "\${!applications[@]}" | sort
@@ -205,7 +211,7 @@ sudo tee /usr/local/bin/application-launcher <<- EOF
 	      else
 	          applications["\$2"]="\${executable/#\${HOME}/\~} \${*:4}"
 	      fi
-	      print > "\${file}"
+	      print_applications > "\${file}"
 	      ;;
 	    -r | --remove)
 	      if [[ -z "\${applications["\$2"]+application}" ]]; then
@@ -213,10 +219,10 @@ sudo tee /usr/local/bin/application-launcher <<- EOF
 	        exit 1
 	      fi
 	      unset applications["\$2"]
-	      print > "\${file}"
+	      print_applications > "\${file}"
 	      ;;
 	    -l | --list)
-	      print | column --table --separator "="
+	      print_applications | column --table --separator "="
 	      ;;
 	    *)
 	      printf "Usage: %s [--add|--remove|--list] [APPLICATION] [EXECUTABLE] [ARGUMENTS...]\n" "\$(basename \${BASH_SOURCE[0]})"
@@ -225,7 +231,7 @@ sudo tee /usr/local/bin/application-launcher <<- EOF
 	  esac
 	else
 	  if [[ -n "\${DISPLAY}" ]]; then
-	    readonly selection="\$(dmenu -i -sb "${COLORS["Gray C"]}" <<< "\$(print --keys)")"
+	    readonly selection="\$(dmenu -i -sb "${COLORS["Gray C"]}" <<< "\$(print_applications --keys)")"
 	    if [[ -n "\${selection}" ]]; then
 	      i3-msg "exec --no-startup-id \${applications[\${selection}]}"
 	    fi
@@ -271,7 +277,7 @@ sudo tee /usr/local/bin/screenshot <<- EOF
 	        ;;
 	      -c | --clipboard)
 	        filename="\$(mktemp --suffix=".png")"
-	        trap "{ xclip -selection clipboard -target image/png -in \${filename}; rm -rf \${filename}; }" EXIT
+	        trap "{ xclip -selection clipboard -target image/png -in \${filename}; rm -f \${filename}; }" EXIT
 	        shift
 	        ;;
 	      *)
@@ -292,7 +298,7 @@ sudo chmod +x /usr/local/bin/screenshot
 
 sudo mkdir --parents /usr/local/share/bash-completion/completions/
 sudo tee /usr/local/share/bash-completion/completions/application-launcher <<-EOF
-	function _application-launcher() {
+	_application-launcher() {
 	  if [[ "\${COMP_CWORD}" -eq 1 ]]; then
 	    for option in \$(compgen -W "--add --remove --list" -- "\${COMP_WORDS["\${COMP_CWORD}"]}"); do
 	      COMPREPLY+=("\${option} ")
@@ -331,7 +337,7 @@ sudo tee /usr/local/share/bash-completion/completions/display-configuration <<- 
 	complete display-configuration
 EOF
 sudo tee /usr/local/share/bash-completion/completions/screenshot <<- EOF
-	function _screenshot() {
+	_screenshot() {
 	  readarray -t COMPREPLY < <(compgen -W "--clipboard --select" -- "\${COMP_WORDS["\${COMP_CWORD}"]}")
 	}
 	complete -F _screenshot screenshot
@@ -435,10 +441,9 @@ sudo tee /etc/skel/.bashrc <<- EOF
 	  shopt -s histappend
 	  tabs 4
 
-	  eval "\$(dircolors -b)"
+	  eval "\$(dircolors --bourne-shell)"
 
-	  pgrep -u "\${USER}" ssh-agent > /dev/null
-	  if [[ "\$?" -ne 0 ]]; then
+	  if ! pgrep --euid "\$(id --user)" ssh-agent > /dev/null; then
 	    ssh-agent -s > "\${HOME}/.sshrc"
 	  fi
 	  source "\${HOME}/.sshrc" > /dev/null
@@ -452,7 +457,7 @@ sudo tee /etc/skel/.bashrc <<- EOF
 	  alias bc="/usr/bin/bc --mathlib"
 	  alias cal="/usr/bin/cal --months 9 --span"
 
-	  function toggle_history() {
+	toggle_history() {
 	    if [[ -z "\${HISTFILE:+substitution}" ]]; then
 	      HISTFILE="\${HOME}/.bash_history"
 	      printf "\e[30mHistory enabled\e[0m\n"
@@ -463,7 +468,7 @@ sudo tee /etc/skel/.bashrc <<- EOF
 	  }
 	  bind -x '"\eh": toggle_history'
 
-	  function prettify_git() {
+	prettify_git() {
 	    args=("\$@")
 	    case "\$1" in
 	      log)
@@ -742,7 +747,7 @@ sudo tee /etc/skel/.config/i3.d/20-display <<- EOF
 EOF
 sudo tee /etc/skel/.config/i3.d/30-status <<- EOF
 	bar {
-	    status_command i3status -c "/run/user/\${UID}/i3status/config"
+	    status_command i3status --config "/run/user/\${UID}/i3status/config"
 	    position bottom
 	    strip_workspace_numbers yes
 
@@ -810,23 +815,25 @@ sudo tee /etc/skel/.config/i3status.d/30-disk <<- EOF
 	    format = "%free"
 	}
 EOF
-readonly interface="$(ip -brief link show | awk '$2 == "UP" { print $1; exit }')"
-if [[ "${interface}" == w* ]]; then
-  sudo tee /etc/skel/.config/i3status.d/60-wlan <<- EOF
-		order += "wireless ${interface}"
-		wireless ${interface} {
-		    format_up = "%essid"
-		    format_down = "—"
-		}
-	EOF
-else
-  sudo tee /etc/skel/.config/i3status.d/70-ethernet <<- EOF
-		order += "ethernet ${interface}"
-		ethernet ${interface} {
-		    format_up = "%ip"
-		    format_down = "—"
-		}
-	EOF
+interface="$(ip -brief link show | awk '$2 == "UP" { print $1; exit }')"; readonly interface
+if [[ -n "${interface}" ]]; then
+  if [[ "${interface}" == w* ]]; then
+    sudo tee /etc/skel/.config/i3status.d/60-wlan <<- EOF
+			order += "wireless ${interface}"
+			wireless ${interface} {
+			    format_up = "%essid"
+			    format_down = "—"
+			}
+		EOF
+  else
+    sudo tee /etc/skel/.config/i3status.d/70-ethernet <<- EOF
+			order += "ethernet ${interface}"
+			ethernet ${interface} {
+			    format_up = "%ip"
+			    format_down = "—"
+			}
+		EOF
+  fi
 fi
 sudo tee /etc/skel/.config/i3status.d/90-time <<- EOF
 	order += "tztime local"
@@ -1022,11 +1029,12 @@ sudo tee /etc/skel/.config/featherpad/fp.conf <<- EOF
 	sysIcons=true
 EOF
 
-readonly gimp_version="$(pacman -Q gimp | awk '{ print $2 }' | awk --field-separator "." '{ print $1 "." $2 }')"
+gimp_version="$(pacman --query gimp | awk '{ print $2 }' | awk --field-separator "." '{ print $1 "." $2 }')"; readonly gimp_version
 sudo mkdir --parents "/etc/skel/.config/GIMP/${gimp_version}/"
 sudo tee "/etc/skel/.config/GIMP/${gimp_version}/gimprc" <<- EOF
 	(theme "System")
 	(theme-color-scheme light)
+	(show-welcome-dialog no)
 EOF
 
 if [[ "$(< /sys/devices/virtual/dmi/id/sys_vendor)" == "QEMU" ]]; then
@@ -1034,7 +1042,7 @@ if [[ "$(< /sys/devices/virtual/dmi/id/sys_vendor)" == "QEMU" ]]; then
   sudo tee /etc/skel/.config/i3.d/21-spice <<- EOF
 		exec --no-startup-id spice-vdagent
 	EOF
-	sudo ln --symbolic /usr/bin/true /usr/local/bin/picom
+  sudo ln --symbolic /usr/bin/true /usr/local/bin/picom # Disable picom in QEMU environment
 fi
 
 rsync --recursive --links --verbose /etc/skel/ "${HOME}/"
