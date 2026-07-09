@@ -559,6 +559,9 @@ sudo tee /etc/skel/.vimrc <<- EOF
 	set title
 	set wrap
 	syntax on
+
+	set listchars=eol:$,tab:>-,space:.,trail:·,extends:>,precedes:<,nbsp:+
+	nnoremap <F2> :set list!<CR>
 EOF
 
 sudo mkdir --parents /etc/skel/.gnupg/
