@@ -75,7 +75,6 @@ packages=(
   pipewire
   pipewire-pulse
   polkit
-  qt6ct # FeatherPad requirement
   scrot
   slock
   wireplumber
@@ -93,9 +92,9 @@ packages=(
 packages+=(
   alacritty
   firefox
+  geany
   gimp
   gpicview
-  featherpad
   libreoffice-fresh
   mpv
   pavucontrol
@@ -162,8 +161,6 @@ tar --extract --file "${arc_icon_theme_directory}/${arc_icon_theme_version}.tar.
 sudo cp --recursive "${arc_icon_theme_directory}/arc-icon-theme-${arc_icon_theme_version}/Arc/" /usr/share/icons/
 sudo mkdir --parents /usr/share/icons/Arc/symbolic/legacy/
 sudo find /usr/share/icons/Arc/ -name applications-system.png -execdir ln --symbolic --force {} gtk-preferences.png \; # GPicView requirement
-sudo find /usr/share/icons/Arc/ -name folder.png -execdir ln --symbolic --force {} application-menu.png \; # FeatherPad requirement
-sudo find /usr/share/icons/Arc/ -name view-list-details-symbolic.png -execdir ln --symbolic --force {} sidebar-expand-left.png \; # FeatherPad requirement
 sudo chmod --recursive u=rwX,go=rX /usr/share/icons/Arc/
 rm --recursive "${arc_icon_theme_directory:?}/"
 
@@ -410,7 +407,6 @@ sudo tee /etc/skel/.bash_profile <<- EOF
 	  PATH="\${HOME}/.local/bin:\${PATH}"
 	fi
 	if [[ -z "\${DISPLAY}" && "\${XDG_VTNR}" -eq 1 ]]; then
-	  export QT_QPA_PLATFORMTHEME="qt6ct"
 	  exec startx
 	fi
 EOF
@@ -574,9 +570,9 @@ sudo mkdir --parents /etc/skel/.config/application-launcher/
 sudo tee /etc/skel/.config/application-launcher/config <<- EOF
 	alacritty=/usr/bin/alacritty
 	firefox=/usr/bin/firefox
+	geany=/usr/bin/geany
 	gimp=/usr/bin/gimp
 	gpicview=/usr/bin/gpicview
-	featherpad=/usr/bin/featherpad
 	libreoffice=/usr/bin/libreoffice
 	pavucontrol=/usr/bin/pavucontrol
 	pcmanfm=/usr/bin/pcmanfm
@@ -594,27 +590,27 @@ done
 sudo mkdir --parents /etc/skel/.config/
 sudo tee /etc/skel/.config/mimeapps.list <<- EOF
 	[Default Applications]
-	application/javascript=featherpad.desktop
-	application/json=featherpad.desktop
-	application/sql=featherpad.desktop
+	application/javascript=geany.desktop
+	application/json=geany.desktop
+	application/sql=geany.desktop
 	application/pdf=firefox.desktop
-	application/xml=featherpad.desktop
-	application/x-shellscript=featherpad.desktop
+	application/xml=geany.desktop
+	application/x-shellscript=geany.desktop
 	image/bmp=gpicview.desktop
 	image/gif=gpicview.desktop
 	image/jpeg=gpicview.desktop
 	image/png=gpicview.desktop
 	image/tiff=gpicview.desktop
 	image/svg+xml=gpicview.desktop
-	text/css=featherpad.desktop
-	text/csv=featherpad.desktop
-	text/html=featherpad.desktop
-	text/markdown=featherpad.desktop
-	text/plain=featherpad.desktop
-	text/x-c=featherpad.desktop
-	text/x-c++=featherpad.desktop
-	text/x-java=featherpad.desktop
-	text/x-python=featherpad.desktop
+	text/css=geany.desktop
+	text/csv=geany.desktop
+	text/html=geany.desktop
+	text/markdown=geany.desktop
+	text/plain=geany.desktop
+	text/x-c=geany.desktop
+	text/x-c++=geany.desktop
+	text/x-java=geany.desktop
+	text/x-python=geany.desktop
 	x-scheme-handler/http=firefox.desktop
 	x-scheme-handler/https=firefox.desktop
 	x-scheme-handler/about=firefox.desktop
@@ -628,16 +624,6 @@ sudo tee /etc/skel/.config/gtk-{3,4}.0/settings.ini <<- EOF
 	gtk-icon-theme-name = Arc
 	gtk-font-name = Source Sans 3 12
 	gtk-decoration-layout = menu:
-EOF
-
-sudo mkdir --parents /etc/skel/.config/qt6ct/
-sudo tee /etc/skel/.config/qt6ct/qt6ct.conf <<- EOF
-	[Appearance]
-	icon_theme=Arc
-
-	[Fonts]
-	fixed="Source Code Pro,16"
-	general="Source Sans 3,16"
 EOF
 
 sudo mkdir --parents /etc/skel/.config/i3.d/
@@ -1016,17 +1002,67 @@ sudo tee /etc/skel/.config/libfm/libfm.conf <<- EOF
 	places_unmounted=1
 EOF
 
-sudo mkdir --parents /etc/skel/.config/featherpad/
-sudo tee /etc/skel/.config/featherpad/fp.conf <<- EOF
-	[text]
-	font="Source Code Pro,16"
+sudo mkdir --parents /etc/skel/.config/geany/
+sudo tee /etc/skel/.config/geany/geany.conf <<- EOF
+	[geany]
+	check_detect_indent=true
+	detect_indent_width=true
+	editor_font=Source Code Pro 16
+	indent_type=1
+	msgwin_font=Source Code Pro 12
+	msgwindow_visible=false
+	pref_editor_ensure_convert_line_endings=true
+	pref_editor_tab_width=2
+	pref_editor_trail_space=true
+	pref_main_load_session=false
+	pref_main_save_wingeom=false
+	pref_main_save_winpos=false
+	pref_template_developer=
+	pref_template_initial=
+	pref_template_mail=
+	pref_toolbar_icon_size=3
+	pref_toolbar_icon_style=0
+	pref_toolbar_use_gtk_default_icon=false
+	pref_toolbar_use_gtk_default_style=false
+	scribble_pos=13
+	scribble_text=Auf zum Atem!
+	show_white_space=true
+	sidebar_visible=false
+	tab_pos_msgwin=3
+	tagbar_font=Source Sans 3 10
 
-	[window]
-	hideSearchbar=true
-	hideSingleTab=true
-	noMenubar=true
-	showStatusbar=false
-	sysIcons=true
+	[project]
+	project_file_path=/home/fd/Workspace
+
+	[tools]
+	grep_cmd=/usr/bin/grep
+	terminal_cmd=/usr/bin/alacritty -e "/bin/sh %c"
+
+	[plugins]
+	load_plugins=false
+
+	[VTE]
+	load_vte=false
+EOF
+sudo tee /etc/skel/.config/geany/ui_toolbar.xml <<- EOF
+	<ui>
+	  <toolbar name='GeanyToolbar'>
+	    <toolitem action='New' />
+	    <toolitem action='Open' />
+	    <toolitem action='Save' />
+	    <separator/>
+	    <toolitem action='Reload' />
+	    <toolitem action='Close' />
+	    <separator/>
+	    <toolitem action='NavBack' />
+	    <toolitem action='NavFor' />
+	    <separator/>
+	    <toolitem action='SearchEntry' />
+	    <toolitem action='Search' />
+	    <separator/>
+	    <toolitem action='Quit' />
+	  </toolbar>
+	</ui>
 EOF
 
 gimp_version="$(pacman --query gimp | awk '{ print $2 }' | awk --field-separator "." '{ print $1 "." $2 }')"; readonly gimp_version
