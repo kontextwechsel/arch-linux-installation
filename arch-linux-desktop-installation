@@ -67,6 +67,7 @@ packages=(
   gvfs-mtp
   gvfs-nfs
   gvfs-smb
+  hsetroot
   i3-wm
   i3status
   libnotify
@@ -85,7 +86,6 @@ packages=(
   xorg-server
   xorg-xinit
   xorg-xrandr
-  xorg-xsetroot
   xss-lock
   xterm
 )
@@ -255,7 +255,7 @@ sudo tee /usr/local/bin/display-configuration <<- EOF
 	  if feh --loadable "\${HOME}/.local/share/backgrounds/" > /dev/null 2>&1; then
 	    feh --bg-fill --no-fehbg --randomize "\${HOME}/.local/share/backgrounds/"
 	  else
-	    xsetroot -grey
+	    hsetroot -solid "${COLORS["Gray A"]}"
 	  fi
 	fi
 EOF
