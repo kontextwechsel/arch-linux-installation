@@ -182,6 +182,12 @@ else
   readarray -t selected_firmware_packages < <(whiptail --separate-output --title "Packages" --checklist --notags "" "$(( "${DEFAULT_HEIGHT}" -1 + ${#buffer[@]} / 3 ))" "${DEFAULT_WIDTH}" "$(( ${#buffer[@]} / 3 ))" "${buffer[@]}" 3>&1 1>&2 2>&3 || kill -SIGUSR1 "${PROCESS_ID}"); readonly selected_firmware_packages
 fi
 
+if whiptail --title "Kernel lockdown mode" --yesno $'Enable kernel lockdown mode?\n\nWarning: Must be disabled for NVIDIA kernel module or hibernation!' "$(("${DEFAULT_HEIGHT}" + 2))" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3; then
+  readonly selection_enable_lockdown_mode="yes"
+else
+  readonly selection_enable_lockdown_mode="no"
+fi
+
 if whiptail --title "Logging" --yesno "Enable logging?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" --defaultno 3>&1 1>&2 2>&3; then
   exec &> >(tee --append "${BASH_SOURCE[0]}.log")
 fi
@@ -510,7 +516,11 @@ fi
 system_partition_id="$(blkid --match-tag UUID --output value "${system_partition}")"; readonly system_partition_id
 virtual_block_device_id="$(blkid --match-tag UUID --output value "${virtual_block_device}")"; readonly virtual_block_device_id
 readonly default_kernel_options=("cryptdevice=UUID=${system_partition_id}:${crypt_partition_id}:allow-discards")
-readonly security_kernel_options=("lockdown=integrity")
+if [[ "${selection_enable_lockdown_mode}" == "yes" ]]; then
+  readonly security_kernel_options=("lockdown=integrity")
+else
+  readonly security_kernel_options=()
+fi
 
 arch-chroot /mnt tee /etc/mkinitcpio.conf <<- EOF
 	MODULES=()
@@ -524,9 +534,11 @@ if [[ "${boot_mode}" == "uefi" ]]; then
   arch-chroot /mnt tee /etc/cmdline.d/default.conf <<- EOF
 		root=UUID=${virtual_block_device_id} ${default_kernel_options[*]} rw quiet
 	EOF
-  arch-chroot /mnt tee /etc/cmdline.d/security.conf <<- EOF
-		${security_kernel_options[*]}
-	EOF
+  if [[ "${#security_kernel_options[@]}" -gt 0 ]]; then
+    arch-chroot /mnt tee /etc/cmdline.d/security.conf <<- EOF
+			${security_kernel_options[*]}
+		EOF
+  fi
   if [[ "${selection_default_efi}" == "yes" ]]; then
     arch-chroot /mnt mkdir --parents /efi/EFI/BOOT/
     readonly unified_kernel_image="EFI/BOOT/BOOTX64.EFI"
@@ -553,13 +565,14 @@ else
 		default_kver="/boot/vmlinuz-linux"
 		default_image="/boot/initramfs-linux.img"
 	EOF
+  readonly all_kernel_options=("${default_kernel_options[@]}" "${security_kernel_options[@]}")
   arch-chroot /mnt tee /etc/default/grub <<- EOF
 		GRUB_DISTRIBUTOR="Arch"
 		GRUB_DEFAULT=0
 		GRUB_TIMEOUT=0
 		GRUB_TIMEOUT_STYLE=hidden
 		GRUB_DISABLE_RECOVERY=true
-		GRUB_CMDLINE_LINUX="${default_kernel_options[*]} ${security_kernel_options[*]}"
+		GRUB_CMDLINE_LINUX="${all_kernel_options[*]}"
 		GRUB_CMDLINE_LINUX_DEFAULT="quiet"
 	EOF
   arch-chroot /mnt grub-install "${disk}"
