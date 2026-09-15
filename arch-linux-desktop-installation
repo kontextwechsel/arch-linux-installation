@@ -29,6 +29,23 @@ readonly -A COLORS=(
 readonly DEFAULT_HEIGHT=7
 readonly DEFAULT_WIDTH=74
 
+nvidia_device_detected="false"
+selection_install_nvidia_driver="false"
+while IFS= read -r device; do
+  if ! read -r vendor 2>/dev/null < "${device}/vendor" || ! read -r class 2>/dev/null < "${device}/class"; then
+    continue
+  fi
+  if [[ "${vendor}" == "0x10de" && "${class}" == "0x03"* ]]; then
+    nvidia_device_detected="true"
+    if whiptail --title "NVIDIA" --yesno "Install NVIDIA driver?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" 3>&1 1>&2 2>&3; then
+      selection_install_nvidia_driver="true"
+    fi
+    break
+  fi
+done < <(find /sys/bus/pci/devices/ -mindepth 1 -maxdepth 1 2> /dev/null)
+readonly nvidia_device_detected
+readonly selection_install_nvidia_driver
+
 if whiptail --title "Logging" --yesno "Enable logging?" "${DEFAULT_HEIGHT}" "${DEFAULT_WIDTH}" --defaultno 3>&1 1>&2 2>&3; then
   exec &> >(tee --append "${BASH_SOURCE[0]}.log")
 fi
@@ -139,6 +156,29 @@ packages+=(
 readonly packages
 
 sudo pacman --noconfirm --sync --refresh "${packages[@]}"
+
+if [[ "${selection_install_nvidia_driver}" == "true" ]]; then
+  sudo pacman --noconfirm --sync nvidia-open
+
+  lines=()
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    if [[ "${line}" =~ ^MODULES= ]]; then
+      IFS=" " read -r -a modules <<< "$(sed -r "s/\((.*)\)/\1/g" <<< "${line#*=}")"
+      modules+=(
+        nvidia
+        nvidia_modeset
+        nvidia_uvm
+        nvidia_drm
+      )
+      lines+=("MODULES=(${modules[*]})")
+    else
+      lines+=("${line}")
+    fi
+  done < /etc/mkinitcpio.conf
+  printf "%s\n" "${lines[@]}" | sudo tee /etc/mkinitcpio.conf
+
+  mkinitcpio --preset linux
+fi
 
 readonly arc_theme_version="20221218"
 arc_theme_directory="$(mktemp -d)"; readonly arc_theme_directory
@@ -776,9 +816,13 @@ sudo tee /etc/skel/.config/i3.d/63-dunst <<- EOF
 	exec --no-startup-id dunst
 	bindsym \$mod+j exec --no-startup-id dunstctl history-pop
 EOF
-sudo tee /etc/skel/.config/i3.d/64-picom <<- EOF
-	exec --no-startup-id picom
-EOF
+if ! systemd-detect-virt --vm --quiet; then
+  if [[ "${nvidia_device_detected}" == "false" || "${nvidia_device_detected}" == "true" && "${selection_install_nvidia_driver}" == "true" ]]; then
+    sudo tee /etc/skel/.config/i3.d/64-picom <<- EOF
+			exec --no-startup-id picom
+		EOF
+  fi
+fi
 
 sudo mkdir --parents /etc/skel/.config/i3status.d/
 sudo tee /etc/skel/.config/i3status.d/10-default <<- EOF
@@ -1076,12 +1120,11 @@ sudo tee "/etc/skel/.config/GIMP/${gimp_version}/gimprc" <<- EOF
 	(show-welcome-dialog no)
 EOF
 
-if [[ "$(< /sys/devices/virtual/dmi/id/sys_vendor)" == "QEMU" ]]; then
-  sudo pacman --noconfirm --sync --refresh spice-vdagent
+if systemd-detect-virt --vm --quiet; then
+  sudo pacman --noconfirm --sync spice-vdagent
   sudo tee /etc/skel/.config/i3.d/21-spice <<- EOF
 		exec --no-startup-id spice-vdagent
 	EOF
-  sudo ln --symbolic /usr/bin/true /usr/local/bin/picom # Disable picom in QEMU environment
 fi
 
 rsync --recursive --links --verbose /etc/skel/ "${HOME}/"
