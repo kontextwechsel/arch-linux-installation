@@ -399,7 +399,9 @@ chroot /mnt ln --symbolic --force /run/systemd/resolve/stub-resolv.conf /etc/res
 systemctl --root=/mnt enable fstrim.timer
 
 arch-chroot /mnt useradd --create-home --shell /bin/bash "${username}"
-printf "%s:%s" "${username}" "${password}" | arch-chroot /mnt chpasswd
+arch-chroot /mnt chpasswd <<- EOF
+	${username}:${password}
+EOF
 arch-chroot /mnt tee "/etc/sudoers.d/${username}" <<- EOF
 	${username} ALL=(ALL) ALL
 EOF
