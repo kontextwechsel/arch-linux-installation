@@ -62,49 +62,31 @@ sudo tee /etc/pacman.d/conf/noto-fonts <<- EOF
 	NoExtract = !usr/share/fonts/noto/NotoSerif-*.ttf
 EOF
 
-sudo mkdir --parents /etc/pacman.d/hooks/
-sudo tee /etc/pacman.d/hooks/slock.hook <<- EOF
-	[Trigger]
-	Type = Package
-	Operation = Install
-	Operation = Upgrade
-	Target = slock
-
-	[Action]
-	When = PostTransaction
-	Exec = /usr/bin/perl -i -p -e "s/#CC3333/${COLORS["Gray C"]^^}/g;" -e "s/#005577/${COLORS["Green"]^^}/g;" /usr/bin/slock
-EOF
-
 packages=(
-  dmenu
   dunst
-  feh
   flatpak
+  grim
   gvfs
   gvfs-mtp
   gvfs-nfs
   gvfs-smb
-  hsetroot
-  i3-wm
-  i3status
   libnotify
-  numlockx
-  picom
   pipewire
   pipewire-pulse
   polkit
-  scrot
-  slock
+  slurp
+  sway
+  swaybg
+  swayidle
+  waybar
+  waylock
   wireplumber
-  xclip
+  wl-clipboard
+  wmenu
   xcursor-vanilla-dmz
   xdg-desktop-portal # Flatpak dependency
   xdg-desktop-portal-gtk # Flatpak dependency
-  xorg-server
-  xorg-xinit
-  xorg-xrandr
-  xss-lock
-  xterm
+  xorg-xwayland
 )
 packages+=(
   alacritty
@@ -130,6 +112,7 @@ packages+=(
   bc
   bind
   curl
+  dconf
   dmidecode
   fwupd
   git
@@ -177,7 +160,7 @@ if [[ "${selection_install_nvidia_driver}" == "true" ]]; then
   done < /etc/mkinitcpio.conf
   printf "%s\n" "${lines[@]}" | sudo tee /etc/mkinitcpio.conf
 
-  mkinitcpio --preset linux
+  sudo mkinitcpio --preset linux
 fi
 
 readonly arc_theme_version="20221218"
@@ -267,10 +250,10 @@ sudo tee /usr/local/bin/application-launcher <<- EOF
 	      ;;
 	  esac
 	else
-	  if [[ -n "\${DISPLAY}" ]]; then
-	    readonly selection="\$(dmenu -i -sb "${COLORS["Gray C"]}" <<< "\$(print_applications --keys)")"
+	  if [[ -n "\${WAYLAND_DISPLAY}" && -n "\${SWAYSOCK}" ]]; then
+	    readonly selection="\$(wmenu -i -f "Source Code Pro 10" -S "${COLORS["Gray C"]}" <<< "\$(print_applications --keys)")"
 	    if [[ -n "\${selection}" ]]; then
-	      i3-msg "exec --no-startup-id \${applications[\${selection}]}"
+	      swaymsg "exec \${applications[\${selection}]}"
 	    fi
 	  else
 	    printf "DISPLAY required\n"
@@ -278,43 +261,28 @@ sudo tee /usr/local/bin/application-launcher <<- EOF
 	  fi
 	fi
 EOF
-sudo tee /usr/local/bin/display-configuration <<- EOF
-	#!/bin/bash
-
-	if [[ -n "\${DISPLAY}" ]]; then
-	  readonly file="\${HOME}/.config/display-configuration/xrandr"
-
-	  if [[ -f "\${file}" ]]; then
-	    source "\${file}"
-	  else
-	    while IFS= read -r screen; do
-	      xrandr --output "\${screen}" --auto
-	    done < <(xrandr | awk '\$2 == "connected" { print \$1 }')
-	  fi
-
-	  if feh --loadable "\${HOME}/.local/share/backgrounds/" > /dev/null 2>&1; then
-	    feh --bg-fill --no-fehbg --randomize "\${HOME}/.local/share/backgrounds/"
-	  else
-	    hsetroot -solid "${COLORS["Gray A"]}"
-	  fi
-	fi
-EOF
 sudo tee /usr/local/bin/screenshot <<- EOF
 	#!/bin/bash
 
-	if [[ -n "\${DISPLAY}" ]]; then
-	  filename="%Y-%m-%d-%H-%M-%S.png"
+	GRIM_DEFAULT_DIR="\${HOME}"
 
-	  args=("--overwrite")
+	if [[ -n "\${WAYLAND_DISPLAY}" ]]; then
+	  filename="\$(date +%Y-%m-%d-%H-%M-%S).png"
+
+	  args=("-t" "png")
 	  while [[ "\$#" -gt 0 ]]; do
 	    case "\$1" in
 	      -s | --select)
-	        args+=("--select")
+	        if ! geometry="\$(slurp -w 0 2> /dev/null)"; then
+	          printf "No selection\n"
+	          exit 1
+	        fi
+	        args+=("-g" "\${geometry}") || exit 1
 	        shift
 	        ;;
 	      -c | --clipboard)
 	        filename="\$(mktemp --suffix=".png")"
-	        trap "{ xclip -selection clipboard -target image/png -in \${filename}; rm -f \${filename}; }" EXIT
+	        trap "{ wl-copy --type image/png < \${filename}; rm -rf \${filename}; }" EXIT
 	        shift
 	        ;;
 	      *)
@@ -325,12 +293,11 @@ sudo tee /usr/local/bin/screenshot <<- EOF
 	  done
 	  readonly filename args
 
-	  scrot "\${args[@]}" "\${filename}"
+	  grim "\${args[@]}" "\${filename}"
 	fi
 EOF
 
 sudo chmod +x /usr/local/bin/application-launcher
-sudo chmod +x /usr/local/bin/display-configuration
 sudo chmod +x /usr/local/bin/screenshot
 
 sudo mkdir --parents /usr/local/share/bash-completion/completions/
@@ -370,9 +337,6 @@ sudo tee /usr/local/share/bash-completion/completions/application-launcher <<-EO
 	}
 	complete -o nospace -F _application-launcher application-launcher
 EOF
-sudo tee /usr/local/share/bash-completion/completions/display-configuration <<- EOF
-	complete display-configuration
-EOF
 sudo tee /usr/local/share/bash-completion/completions/screenshot <<- EOF
 	_screenshot() {
 	  readarray -t COMPREPLY < <(compgen -W "--clipboard --select" -- "\${COMP_WORDS["\${COMP_CWORD}"]}")
@@ -380,7 +344,8 @@ sudo tee /usr/local/share/bash-completion/completions/screenshot <<- EOF
 	complete -F _screenshot screenshot
 EOF
 
-sudo tee /usr/share/X11/xkb/symbols/default <<- EOF
+sudo mkdir -p /etc/xkb/symbols/
+sudo tee /etc/xkb/symbols/default <<- EOF
 	default partial alphanumeric_keys
 	xkb_symbols "us" {
 	    include "us(basic)"
@@ -414,30 +379,12 @@ else
   variants="de,us"
 fi
 readonly variants
-sudo tee /etc/X11/xorg.conf.d/10-keyboard.conf <<- EOF
-	Section "InputClass"
-	        Identifier "Keyboard configuration"
-	        MatchIsKeyboard "on"
-	        Option "XkbLayout" "default,default"
-	        Option "XkbVariant" "${variants}"
-	        Option "XkbOptions" "caps:escape_shifted_capslock,grp:rctrl_rshift_toggle"
-	EndSection
-EOF
-sudo tee /etc/X11/xorg.conf.d/90-default.conf <<- EOF
-	Section "ServerFlags"
-	        Option "DontVTSwitch"
-	        Option "DontZap"
-	EndSection
 
-	Section "ServerLayout"
-	        Identifier "Display control"
-	        Option "StandbyTime" "0"
-	        Option "SuspendTime" "0"
-	        Option "OffTime" "10"
-	        Option "BlankTime" "5"
-	EndSection
-EOF
-
+if [[ "${nvidia_device_detected}" == "true" ]]; then
+  readonly desktop_environment_executable=("sway" "--unsupported-gpu")
+else
+  readonly desktop_environment_executable=("sway")
+fi
 sudo tee /etc/skel/.bash_profile <<- EOF
 	umask g-rwx,o-rwx
 	if [[ -n "\${BASH_VERSION}" && -f "\${HOME}/.bashrc" ]]; then
@@ -446,8 +393,8 @@ sudo tee /etc/skel/.bash_profile <<- EOF
 	if [[ -d "\${HOME}/.local/bin" ]]; then
 	  PATH="\${HOME}/.local/bin:\${PATH}"
 	fi
-	if [[ -z "\${DISPLAY}" && "\${XDG_VTNR}" -eq 1 ]]; then
-	  exec startx
+	if [[ -z "\${WAYLAND_DISPLAY}" && "\${XDG_VTNR}" -eq 1 ]]; then
+	  exec ${desktop_environment_executable[*]}
 	fi
 EOF
 
@@ -532,57 +479,6 @@ EOF
 sudo tee /etc/skel/.hushlogin <<- EOF
 EOF
 
-sudo tee /etc/skel/.xinitrc <<- EOF
-	dbus-update-activation-environment --systemd DBUS_SESSION_BUS_ADDRESS DISPLAY XAUTHORITY
-	xrdb -merge "\${HOME}/.Xresources"
-	mkdir --parents "/run/user/\${UID}/i3/"
-	mkdir --parents "/run/user/\${UID}/i3status/"
-	awk 'NR != 1 && FNR == 1 { printf "\n" } { print }' "\${HOME}/.config/i3.d/"* > "/run/user/\${UID}/i3/config"
-	awk 'NR != 1 && FNR == 1 { printf "\n" } { print }' "\${HOME}/.config/i3status.d/"* > "/run/user/\${UID}/i3status/config"
-	exec /usr/bin/i3 -c "/run/user/\${UID}/i3/config" > /dev/null 2>&1
-EOF
-
-sudo tee /etc/skel/.Xresources <<- EOF
-	Xft.dpi: 96
-
-	Xcursor.theme: Vanilla-DMZ
-	Xcursor.size: 16
-
-	XTerm.termName: xterm-256color
-	XTerm.title: Terminal
-	XTerm.VT100.faceName: Source Code Pro
-	XTerm.VT100.faceSize: 16
-	XTerm.VT100.allowBoldFonts: false
-	XTerm.VT100.background: ${COLORS["Gray A"]}
-	XTerm.VT100.foreground: ${COLORS["White"]}
-	XTerm.VT100.color0: ${COLORS["Gray C"]}
-	XTerm.VT100.color1: ${COLORS["Pink"]}
-	XTerm.VT100.color2: ${COLORS["Green"]}
-	XTerm.VT100.color3: ${COLORS["Yellow"]}
-	XTerm.VT100.color4: ${COLORS["Blue"]}
-	XTerm.VT100.color5: ${COLORS["Purple"]}
-	XTerm.VT100.color6: ${COLORS["Teal"]}
-	XTerm.VT100.color7: ${COLORS["White"]}
-	XTerm.VT100.color8: ${COLORS["Gray C"]}
-	XTerm.VT100.color9: ${COLORS["Pink"]}
-	XTerm.VT100.color10: ${COLORS["Green"]}
-	XTerm.VT100.color11: ${COLORS["Yellow"]}
-	XTerm.VT100.color12: ${COLORS["Blue"]}
-	XTerm.VT100.color13: ${COLORS["Purple"]}
-	XTerm.VT100.color14: ${COLORS["Teal"]}
-	XTerm.VT100.color15: ${COLORS["White"]}
-	XTerm.VT100.alternateScroll: true
-	XTerm.VT100.fastScroll: true
-	XTerm.VT100.jumpScroll: true
-	XTerm.VT100.multiScroll: true
-	XTerm.VT100.on2Clicks: regex (https?:)?[a-zA-Z0-9$%&/()?@~*+#,._-]+
-	XTerm.VT100.on3Clicks: line
-	XTerm.VT100.saveLines: 16384
-	XTerm.VT100.translations: #override \n\\
-	    Shift Ctrl <Key> c: copy-selection(CLIPBOARD) \n\\
-	    Shift Ctrl <Key> v: insert-selection(CLIPBOARD)
-EOF
-
 sudo tee /etc/skel/.vimrc <<- EOF
 	runtime! archlinux.vim
 	let skip_defaults_vim=1
@@ -623,7 +519,7 @@ sudo tee /etc/skel/.config/application-launcher/config <<- EOF
 EOF
 
 sudo mkdir --parents /etc/skel/.local/share/applications/
-for application in feh vim; do
+for application in vim; do
   sudo tee "/etc/skel/.local/share/applications/${application}.desktop" <<- EOF
 		[Desktop Entry]
 		Hidden=true
@@ -660,29 +556,46 @@ sudo tee /etc/skel/.config/mimeapps.list <<- EOF
 	x-scheme-handler/unknown=firefox.desktop
 EOF
 
-sudo mkdir --parents /etc/skel/.config/gtk-{3,4}.0/
-sudo tee /etc/skel/.config/gtk-{3,4}.0/settings.ini <<- EOF
-	[Settings]
-	gtk-theme-name = Arc
-	gtk-icon-theme-name = Arc
-	gtk-font-name = Source Sans 3 12
-	gtk-decoration-layout = menu:
+sudo mkdir --parents /etc/skel/.config/fontconfig/
+sudo tee /etc/skel/.config/fontconfig/fonts.conf <<- EOF
+	<?xml version="1.0"?>
+	<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
+	<fontconfig>
+	  <alias>
+	    <family>monospace</family>
+	    <prefer>
+	      <family>Source Code Pro</family>
+	    </prefer>
+	  </alias>
+	  <alias>
+	    <family>sans-serif</family>
+	    <prefer>
+	      <family>Source Sans 3</family>
+	    </prefer>
+	  </alias>
+	  <alias>
+	    <family>serif</family>
+	    <prefer>
+	      <family>Source Serif 4</family>
+	    </prefer>
+	  </alias>
+	</fontconfig>
 EOF
 
-sudo mkdir --parents /etc/skel/.config/i3.d/
-sudo tee /etc/skel/.config/i3.d/10-default <<- EOF
+sudo mkdir --parents /etc/skel/.config/sway/
+sudo tee /etc/skel/.config/sway/config <<- EOF
+	bar {
+	  swaybar_command waybar
+	}
+
+	seat * shortcuts_inhibitor enable
+
 	set \$mod Mod4
 	floating_modifier \$mod
 
-	font pango:Source Code Pro 10
-	client.focused ${COLORS["Gray B"]} ${COLORS["Gray B"]} ${COLORS["White"]} ${COLORS["Gray C"]}
-	client.focused_inactive ${COLORS["Gray B"]} ${COLORS["Gray B"]} ${COLORS["Gray C"]} ${COLORS["White"]}
-	client.unfocused ${COLORS["Gray B"]} ${COLORS["Gray B"]} ${COLORS["Gray C"]} ${COLORS["White"]}
-	client.urgent ${COLORS["Gray B"]} ${COLORS["Pink"]} ${COLORS["White"]} ${COLORS["Pink"]}
-
-	bindsym \$mod+Return exec --no-startup-id alacritty
+	bindsym \$mod+Return exec alacritty
 	bindsym \$mod+Shift+q kill
-	bindsym \$mod+d exec --no-startup-id application-launcher
+	bindsym \$mod+d exec application-launcher
 
 	bindsym \$mod+Left focus left
 	bindsym \$mod+Down focus down
@@ -751,172 +664,241 @@ sudo tee /etc/skel/.config/i3.d/10-default <<- EOF
 	bindsym \$mod+Shift+F11 move container to workspace 21:F11
 	bindsym \$mod+Shift+F12 move container to workspace 22:F12
 
-	set \$exit i3 [e]xit [r]estart
+	bindsym XF86AudioLowerVolume exec wpctl set-volume @DEFAULT_AUDIO_SINK@ 1%-
+	bindcode \$mod+59 exec wpctl set-volume @DEFAULT_AUDIO_SINK@ 1%-
+	bindcode \$mod+Shift+59 exec wpctl set-volume @DEFAULT_AUDIO_SINK@ 10%-
+	bindsym XF86AudioRaiseVolume exec wpctl set-volume @DEFAULT_AUDIO_SINK@ 1%+
+	bindcode \$mod+60 exec wpctl set-volume @DEFAULT_AUDIO_SINK@ 1%+
+	bindcode \$mod+Shift+60 exec wpctl set-volume @DEFAULT_AUDIO_SINK@ 10%+
+	bindsym XF86AudioMute exec wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
+	bindcode \$mod+61 exec wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
+
+	set \$exit Sway [e]xit [r]eload
 	bindsym \$mod+Shift+e mode "\$exit"
 	mode "\$exit" {
-	    bindsym e exec i3-msg exit; mode default
-	    bindsym r exec i3-msg restart; mode default
-	    bindsym Escape mode default
+	  bindsym e exec swaymsg exit; mode default
+	  bindsym r exec swaymsg reload; mode default
+	  bindsym Escape mode default
 	}
 
 	set \$resize Resize
 	bindsym \$mod+r mode "\$resize"
 	mode "\$resize" {
-	    bindsym Left resize shrink width 10 px or 10 ppt
-	    bindsym Down resize grow height 10 px or 10 ppt
-	    bindsym Up resize shrink height 10 px or 10 ppt
-	    bindsym Right resize grow width 10 px or 10 ppt
-	    bindsym Return mode default
-	    bindsym Escape mode default
+	  bindsym Left resize shrink width 10 px or 10 ppt
+	  bindsym Down resize grow height 10 px or 10 ppt
+	  bindsym Up resize shrink height 10 px or 10 ppt
+	  bindsym Right resize grow width 10 px or 10 ppt
+	  bindsym Return mode default
+	  bindsym Escape mode default
 	}
-EOF
-sudo tee /etc/skel/.config/i3.d/20-display <<- EOF
-	exec --no-startup-id display-configuration
-	bindsym \$mod+Shift+d exec --no-startup-id display-configuration
-EOF
-sudo tee /etc/skel/.config/i3.d/30-status <<- EOF
-	bar {
-	    status_command i3status --config "/run/user/\${UID}/i3status/config"
-	    position bottom
-	    strip_workspace_numbers yes
 
-	    colors {
-	        background ${COLORS["Gray B"]}
-	        statusline ${COLORS["White"]}
-	        separator ${COLORS["Gray C"]}
-	        focused_workspace ${COLORS["White"]} ${COLORS["Gray C"]} ${COLORS["White"]}
-	        active_workspace ${COLORS["White"]} ${COLORS["Gray C"]} ${COLORS["White"]}
-	        inactive_workspace ${COLORS["Gray C"]} ${COLORS["Gray B"]} ${COLORS["White"]}
-	        urgent_workspace ${COLORS["Gray C"]} ${COLORS["Pink"]} ${COLORS["White"]}
-	    }
+	exec systemctl --user import-environment DISPLAY SWAYSOCK WAYLAND_DISPLAY
+	exec dbus-update-activation-environment --systemd DISPLAY SWAYSOCK WAYLAND_DISPLAY
+
+	set \$lock waylock -fork-on-lock -init-color 0x${COLORS["Gray C"]:1} -input-color 0x${COLORS["Green"]:1} -fail-color 0x${COLORS["Pink"]:1}
+	set \$off swaymsg "output * power off"
+	set \$on swaymsg "output * power on"
+	exec swayidle -w timeout 300 '\$lock' timeout 315 '\$off' resume '\$on' lock '\$lock' before-sleep '\$lock'
+	bindsym --release \$mod+l exec loginctl lock-session
+
+	exec dunst
+	bindsym \$mod+j exec dunstctl history-pop
+
+	bindsym Print exec screenshot
+	bindsym --release Shift+Print exec screenshot --select --clipboard
+
+	include ~/.config/sway/config.d/*
+EOF
+sudo mkdir --parents /etc/skel/.config/sway/config.d/
+sudo tee /etc/skel/.config/sway/config.d/10-display <<- EOF
+EOF
+sudo tee /etc/skel/.config/sway/config.d/20-keyboard <<- EOF
+	input type:keyboard {
+	  xkb_layout  "default,default"
+	  xkb_variant "${variants}"
+	  xkb_options "caps:escape_shifted_capslock,grp:rctrl_rshift_toggle,srvrkeys:none"
+	  xkb_numlock enabled
 	}
 EOF
-sudo tee /etc/skel/.config/i3.d/40-volume <<- EOF
-	bindsym XF86AudioLowerVolume exec --no-startup-id wpctl set-volume @DEFAULT_AUDIO_SINK@ 1%-
-	bindcode \$mod+59 exec --no-startup-id wpctl set-volume @DEFAULT_AUDIO_SINK@ 1%-
-	bindcode \$mod+Shift+59 exec --no-startup-id wpctl set-volume @DEFAULT_AUDIO_SINK@ 10%-
-	bindsym XF86AudioRaiseVolume exec --no-startup-id wpctl set-volume @DEFAULT_AUDIO_SINK@ 1%+
-	bindcode \$mod+60 exec --no-startup-id wpctl set-volume @DEFAULT_AUDIO_SINK@ 1%+
-	bindcode \$mod+Shift+60 exec --no-startup-id wpctl set-volume @DEFAULT_AUDIO_SINK@ 10%+
-	bindsym XF86AudioMute exec --no-startup-id wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
-	bindcode \$mod+61 exec --no-startup-id wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
+sudo tee /etc/skel/.config/sway/config.d/30-theme <<- EOF
+	default_border normal 1
+	default_floating_border normal 1
+
+	client.focused ${COLORS["Gray B"]} ${COLORS["Gray B"]} ${COLORS["White"]} ${COLORS["Gray B"]} ${COLORS["Gray B"]}
+	client.focused_inactive ${COLORS["Gray B"]} ${COLORS["Gray B"]} ${COLORS["Gray C"]} ${COLORS["Gray B"]} ${COLORS["Gray B"]}
+	client.unfocused ${COLORS["Gray B"]} ${COLORS["Gray B"]} ${COLORS["Gray C"]} ${COLORS["Gray B"]} ${COLORS["Gray B"]}
+	client.urgent ${COLORS["Gray B"]} ${COLORS["Pink"]} ${COLORS["White"]} ${COLORS["Gray B"]} ${COLORS["Gray B"]}
+
+	font pango:Source Code Pro 10
+
+	seat * xcursor_theme Vanilla-DMZ 24
+
+	output * bg ${COLORS["Gray A"]} solid_color
+
+	exec {
+	  gsettings set org.gnome.desktop.interface gtk-theme "'Arc'"
+	  gsettings set org.gnome.desktop.interface icon-theme "'Arc'"
+	  gsettings set org.gnome.desktop.interface cursor-theme "'Vanilla-DMZ'"
+	  gsettings set org.gnome.desktop.interface cursor-size 24
+	  gsettings set org.gnome.desktop.interface font-name "'Source Sans 3 12'"
+	  gsettings set org.gnome.desktop.interface monospace-font-name "'Source Code Pro 12'"
+	  gsettings set org.gnome.desktop.interface document-font-name "'Source Serif 4 12'"
+	  gsettings set org.gnome.desktop.wm.preferences button-layout "':'"
+	}
 EOF
-sudo tee /etc/skel/.config/i3.d/60-slock <<- EOF
-	exec --no-startup-id xss-lock slock
-	bindsym --release \$mod+l exec --no-startup-id loginctl lock-session
-EOF
-sudo tee /etc/skel/.config/i3.d/61-numlockx <<- EOF
-	exec --no-startup-id numlockx on
-EOF
-sudo tee /etc/skel/.config/i3.d/62-screenshot <<- EOF
-	bindsym Print exec --no-startup-id screenshot
-	bindsym --release Shift+Print exec --no-startup-id screenshot --select --clipboard
-EOF
-sudo tee /etc/skel/.config/i3.d/63-dunst <<- EOF
-	exec --no-startup-id dunst
-	bindsym \$mod+j exec --no-startup-id dunstctl history-pop
-EOF
-if ! systemd-detect-virt --vm --quiet; then
-  if [[ "${nvidia_device_detected}" == "false" || "${nvidia_device_detected}" == "true" && "${selection_install_nvidia_driver}" == "true" ]]; then
-    sudo tee /etc/skel/.config/i3.d/64-picom <<- EOF
-			exec --no-startup-id picom
-		EOF
+
+sudo mkdir --parents /etc/skel/.config/waybar/
+default_network_interface="$(ip -brief link show | awk '$2 == "UP" { print $1; exit }')"; readonly default_network_interface
+waybar_network_interface="lo"
+waybar_network_format="{ipaddr}"
+if [[ -n "${default_network_interface}" ]]; then
+  waybar_network_interface="${default_network_interface}"
+  if [[ "${default_network_interface}" == w* ]]; then
+    waybar_network_format="{essid}"
   fi
 fi
+readonly waybar_network_interface
+readonly waybar_network_format
+sudo tee /etc/skel/.config/waybar/config.jsonc <<- EOF
+	{
+	  "layer": "top",
+	  "position": "bottom",
+	  "spacing": 10,
+	  "modules-left": [
+	    "sway/workspaces",
+	    "sway/mode"
+	  ],
+	  "modules-right": [
+	    "wireplumber",
+	    "disk",
+	    "network",
+	    "tray",
+	    "clock"
+	  ],
+	  "sway/workspaces": {
+	    "format": "{name}"
+	  },
+	  "wireplumber": {
+	    "format": "🔊 {volume}%",
+	    "format-muted": "🔈",
+	    "tooltip": false
+	  },
+	  "disk": {
+	    "path": "/",
+	    "format": "{specific_free:0.1f} GiB",
+	    "unit": "GiB",
+	    "interval": 5,
+	    "tooltip": false
+	  },
+	  "network": {
+	    "interface": "${waybar_network_interface}",
+	    "format-ethernet": "${waybar_network_format}",
+	    "format-linked": "—",
+	    "format-disconnected": "—",
+	    "interval": 5,
+	    "tooltip": false
+	  },
+	  "tray": {
+	    "icon-size": 16,
+	    "spacing": 4
+	  },
+	  "clock": {
+	    "format": "{:%Y-%m-%d %H:%M}",
+	    "interval": 5,
+	    "tooltip": false
+	  }
+	}
+EOF
+sudo tee /etc/skel/.config/waybar/style.css <<- EOF
+	* {
+	  font-family: "Source Code Pro";
+	  font-size: 14px;
+	}
 
-sudo mkdir --parents /etc/skel/.config/i3status.d/
-sudo tee /etc/skel/.config/i3status.d/10-default <<- EOF
-	general {
-	    colors = true
-	    color_good = "${COLORS["Green"]}"
-	    color_degraded = "${COLORS["Gray C"]}"
-	    color_bad = "${COLORS["Pink"]}"
-	    interval = 5
+	#waybar {
+	  background: ${COLORS["Gray B"]};
+	  color: ${COLORS["White"]};
 	}
-EOF
-sudo tee /etc/skel/.config/i3status.d/20-volume <<- EOF
-	order += "volume pulse"
-	volume pulse {
-	    format = "🔊 %volume"
-	    format_muted = "🔈"
-	    device = "pulse"
+
+	#workspaces button {
+	  background: ${COLORS["Gray B"]};
+	  color: ${COLORS["White"]};
+	  border: 1px solid ${COLORS["Gray C"]};
+	  border-radius: 0;
+	  padding: 0 6px;
+	  min-width: 0;
 	}
-EOF
-sudo tee /etc/skel/.config/i3status.d/30-disk <<- EOF
-	order += "disk /"
-	disk / {
-	    format = "%free"
+
+	#workspaces button.visible {
+	  border: 1px solid ${COLORS["White"]};
 	}
-EOF
-interface="$(ip -brief link show | awk '$2 == "UP" { print $1; exit }')"; readonly interface
-if [[ -n "${interface}" ]]; then
-  if [[ "${interface}" == w* ]]; then
-    sudo tee /etc/skel/.config/i3status.d/60-wlan <<- EOF
-			order += "wireless ${interface}"
-			wireless ${interface} {
-			    format_up = "%essid"
-			    format_down = "—"
-			}
-		EOF
-  else
-    sudo tee /etc/skel/.config/i3status.d/70-ethernet <<- EOF
-			order += "ethernet ${interface}"
-			ethernet ${interface} {
-			    format_up = "%ip"
-			    format_down = "—"
-			}
-		EOF
-  fi
-fi
-sudo tee /etc/skel/.config/i3status.d/90-time <<- EOF
-	order += "tztime local"
-	tztime local {
-	    format = "%Y-%m-%d %H:%M"
+
+	#workspaces button.focused {
+	  background: ${COLORS["Gray C"]};
+	  border: 1px solid ${COLORS["White"]};
+	}
+
+	#workspaces button.urgent {
+	  background: ${COLORS["Pink"]};
+	}
+
+	#mode {
+	  background: ${COLORS["Pink"]};
+	  color: ${COLORS["White"]};
+	  border: 1px solid ${COLORS["White"]};
+	  border-radius: 0;
+	  padding: 0 6px;
+	}
+
+	#clock {
+	  padding-right: 6px;
+	}
+
+	#network.ethernet {
+	  color: ${COLORS["Green"]};
+	}
+
+	#network.linked,
+	#network.disconnected {
+	  color: ${COLORS["Gray C"]};
 	}
 EOF
 
 sudo mkdir --parents /etc/skel/.config/dunst/
 sudo tee /etc/skel/.config/dunst/dunstrc <<- EOF
 	[global]
-	    width = 300
-	    height = 100
-	    notification_limit = 1
-	    origin = "bottom-right"
-	    offset = 10x36
-	    progress_bar = false
-	    padding = 10
-	    horizontal_padding = 10
-	    frame_width = 1
-	    font = "Source Code Pro 10"
-	    line_height = 3
-	    format = "<b>%s</b>\n%b"
-	    word_wrap = true
-	    show_indicators = false
+	  width = (0,300)
+	  height = (0,100)
+	  notification_limit = 1
+	  origin = "bottom-right"
+	  offset = (20,20)
+	  progress_bar = false
+	  padding = 10
+	  horizontal_padding = 10
+	  frame_width = 1
+	  font = "Source Code Pro 10"
+	  line_height = 3
+	  format = "<b>%s</b>\n%b"
+	  word_wrap = true
+	  show_indicators = false
 
 	[urgency_low]
-	    background = "${COLORS["Gray B"]}"
-	    foreground = "${COLORS["White"]}"
-	    frame_color = "${COLORS["Gray C"]}"
-	    timeout = 3
+	  background = "${COLORS["Gray B"]}"
+	  foreground = "${COLORS["White"]}"
+	  frame_color = "${COLORS["Gray C"]}"
+	  timeout = 3
 
 	[urgency_normal]
-	    background = "${COLORS["Gray B"]}"
-	    foreground = "${COLORS["White"]}"
-	    frame_color = "${COLORS["Gray C"]}"
-	    timeout = 10
+	  background = "${COLORS["Gray B"]}"
+	  foreground = "${COLORS["White"]}"
+	  frame_color = "${COLORS["Gray C"]}"
+	  timeout = 10
 
 	[urgency_critical]
-	    background = "${COLORS["Gray B"]}"
-	    foreground = "${COLORS["White"]}"
-	    frame_color = "${COLORS["Gray C"]}"
-	    timeout = 0
-EOF
-
-sudo mkdir --parents /etc/skel/.config/picom/
-sudo tee /etc/skel/.config/picom/picom.conf <<- EOF
-	backend = "glx";
-	shadow = false;
-	fading = false;
+	  background = "${COLORS["Gray B"]}"
+	  foreground = "${COLORS["White"]}"
+	  frame_color = "${COLORS["Gray C"]}"
+	  timeout = 0
 EOF
 
 sudo mkdir --parents /etc/skel/.config/alacritty/
@@ -1116,14 +1098,14 @@ gimp_version="$(pacman --query gimp | awk '{ print $2 }' | awk --field-separator
 sudo mkdir --parents "/etc/skel/.config/GIMP/${gimp_version}/"
 sudo tee "/etc/skel/.config/GIMP/${gimp_version}/gimprc" <<- EOF
 	(theme "System")
-	(theme-color-scheme light)
+	(theme-color-scheme system)
 	(show-welcome-dialog no)
 EOF
 
 if systemd-detect-virt --vm --quiet; then
   sudo pacman --noconfirm --sync spice-vdagent
-  sudo tee /etc/skel/.config/i3.d/21-spice <<- EOF
-		exec --no-startup-id spice-vdagent
+  sudo tee /etc/skel/.config/sway/config.d/90-spice <<- EOF
+		exec spice-vdagent
 	EOF
 fi
 

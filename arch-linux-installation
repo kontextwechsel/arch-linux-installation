@@ -364,6 +364,7 @@ arch-chroot /mnt tee /etc/systemd/logind.conf <<- EOF
 	HandlePowerKey=ignore
 	HandleSuspendKey=ignore
 	HandleHibernateKey=ignore
+	KillUserProcesses=yes
 EOF
 
 arch-chroot /mnt tee "/etc/systemd/network/10-${interface}.network" <<- EOF
@@ -393,7 +394,7 @@ arch-chroot /mnt tee /etc/systemd/resolved.conf <<- EOF
 	MulticastDNS=no
 EOF
 systemctl --root=/mnt enable systemd-resolved.service
-# Use plain chroot since arch-chroot mounts resolv.conf of the host system
+# Use plain chroot since arch-chroot mounts resolv.conf of the host system...
 chroot /mnt ln --symbolic --force /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 
 systemctl --root=/mnt enable fstrim.timer
