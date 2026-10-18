@@ -53,6 +53,11 @@ fi
 set -ux
 
 sudo mkdir --parents /etc/pacman.d/conf/
+sudo tee /etc/pacman.d/conf/kde <<- EOF
+	NoExtract = usr/share/remoteview/*.desktop
+	NoExtract = usr/lib/qt6/plugins/kf6/kfileitemaction/*.so
+	NoExtract = usr/lib/qt6/plugins/kf6/purpose/*.so
+EOF
 sudo tee /etc/pacman.d/conf/noto-fonts <<- EOF
 	NoExtract = usr/share/fonts/noto/Noto*.ttf
 	NoExtract = !usr/share/fonts/noto/NotoColorEmoji.ttf
@@ -83,21 +88,28 @@ packages=(
   wireplumber
   wl-clipboard
   wmenu
-  xcursor-vanilla-dmz
-  xdg-desktop-portal # Flatpak dependency
-  xdg-desktop-portal-gtk # Flatpak dependency
   xorg-xwayland
 )
 packages+=(
+  breeze
+  breeze-cursors
+  breeze-gtk
+  breeze-icons
+  plasma-integration
+  xdg-desktop-portal-kde
+  xdg-desktop-portal-wlr
+)
+packages+=(
   alacritty
+  dolphin
   firefox
-  geany
-  gimp
-  gpicview
+  kate
+  krita
   libreoffice-fresh
+  lximage-qt
   mpv
-  pavucontrol
-  pcmanfm
+  okular
+  pavucontrol-qt
   thunderbird
 )
 packages+=(
@@ -116,6 +128,7 @@ packages+=(
   dmidecode
   fwupd
   git
+  hexedit
   htop
   jq
   lsof
@@ -162,30 +175,6 @@ if [[ "${selection_install_nvidia_driver}" == "true" ]]; then
 
   sudo mkinitcpio --preset linux
 fi
-
-readonly arc_theme_version="20221218"
-arc_theme_directory="$(mktemp -d)"; readonly arc_theme_directory
-sudo pacman --noconfirm --sync meson sassc
-wget --directory-prefix "${arc_theme_directory}/" "https://github.com/kontextwechsel/arc-theme/releases/download/${arc_theme_version}/arc-theme-${arc_theme_version}.tar.xz"
-tar --extract --file "${arc_theme_directory}/arc-theme-${arc_theme_version}.tar.xz" --directory "${arc_theme_directory}/"
-meson setup --prefix="${arc_theme_directory}/arc-theme-${arc_theme_version}/install/" -Dthemes=gtk3,gtk4 -Dvariants=lighter -Dtransparency=false "${arc_theme_directory}/arc-theme-${arc_theme_version}/build/" "${arc_theme_directory}/arc-theme-${arc_theme_version}/"
-meson install -C "${arc_theme_directory}/arc-theme-${arc_theme_version}/build/"
-sudo mkdir --parents /usr/share/themes/Arc/
-sudo cp --recursive "${arc_theme_directory}/arc-theme-${arc_theme_version}/install/share/themes/Arc-Lighter-solid/"* /usr/share/themes/Arc/
-sudo sed --in-place "s/Arc-Lighter-solid/Arc/g" /usr/share/themes/Arc/index.theme
-sudo chmod --recursive u=rwX,go=rX /usr/share/themes/Arc/
-sudo pacman --noconfirm --remove --recursive meson sassc
-rm --recursive "${arc_theme_directory:?}/"
-
-readonly arc_icon_theme_version="20161122"
-arc_icon_theme_directory="$(mktemp -d)"; readonly arc_icon_theme_directory
-wget --directory-prefix "${arc_icon_theme_directory}/" "https://github.com/kontextwechsel/arc-icon-theme/archive/refs/tags/${arc_icon_theme_version}.tar.gz"
-tar --extract --file "${arc_icon_theme_directory}/${arc_icon_theme_version}.tar.gz" --directory "${arc_icon_theme_directory}/"
-sudo cp --recursive "${arc_icon_theme_directory}/arc-icon-theme-${arc_icon_theme_version}/Arc/" /usr/share/icons/
-sudo mkdir --parents /usr/share/icons/Arc/symbolic/legacy/
-sudo find /usr/share/icons/Arc/ -name applications-system.png -execdir ln --symbolic --force {} gtk-preferences.png \; # GPicView requirement
-sudo chmod --recursive u=rwX,go=rX /usr/share/icons/Arc/
-rm --recursive "${arc_icon_theme_directory:?}/"
 
 sudo mkdir --parents /usr/local/bin/
 sudo tee /usr/local/bin/application-launcher <<- EOF
@@ -394,6 +383,7 @@ sudo tee /etc/skel/.bash_profile <<- EOF
 	  PATH="\${HOME}/.local/bin:\${PATH}"
 	fi
 	if [[ -z "\${WAYLAND_DISPLAY}" && "\${XDG_VTNR}" -eq 1 ]]; then
+	  export QT_QPA_PLATFORMTHEME="kde"
 	  exec ${desktop_environment_executable[*]}
 	fi
 EOF
@@ -508,53 +498,67 @@ EOF
 sudo mkdir --parents /etc/skel/.config/application-launcher/
 sudo tee /etc/skel/.config/application-launcher/config <<- EOF
 	alacritty=/usr/bin/alacritty
+	dolphin=/usr/bin/dolphin
 	firefox=/usr/bin/firefox
-	geany=/usr/bin/geany
-	gimp=/usr/bin/gimp
-	gpicview=/usr/bin/gpicview
+	kate=/usr/bin/kate
+	krita=/usr/bin/krita
 	libreoffice=/usr/bin/libreoffice
-	pavucontrol=/usr/bin/pavucontrol
-	pcmanfm=/usr/bin/pcmanfm
+	lximage=/usr/bin/lximage-qt
+	okular=/usr/bin/okular
+	pavucontrol=/usr/bin/pavucontrol-qt
 	thunderbird=/usr/bin/thunderbird
 EOF
-
-sudo mkdir --parents /etc/skel/.local/share/applications/
-for application in vim; do
-  sudo tee "/etc/skel/.local/share/applications/${application}.desktop" <<- EOF
-		[Desktop Entry]
-		Hidden=true
-	EOF
-done
 
 sudo mkdir --parents /etc/skel/.config/
 sudo tee /etc/skel/.config/mimeapps.list <<- EOF
 	[Default Applications]
-	application/javascript=geany.desktop
-	application/json=geany.desktop
-	application/sql=geany.desktop
-	application/pdf=firefox.desktop
-	application/xml=geany.desktop
-	application/x-shellscript=geany.desktop
-	image/bmp=gpicview.desktop
-	image/gif=gpicview.desktop
-	image/jpeg=gpicview.desktop
-	image/png=gpicview.desktop
-	image/tiff=gpicview.desktop
-	image/svg+xml=gpicview.desktop
-	text/css=geany.desktop
-	text/csv=geany.desktop
-	text/html=geany.desktop
-	text/markdown=geany.desktop
-	text/plain=geany.desktop
-	text/x-c=geany.desktop
-	text/x-c++=geany.desktop
-	text/x-java=geany.desktop
-	text/x-python=geany.desktop
+	application/javascript=org.kde.kate.desktop
+	application/json=org.kde.kate.desktop
+	application/sql=org.kde.kate.desktop
+	application/pdf=org.kde.okular.desktop
+	application/xml=org.kde.kate.desktop
+	application/x-shellscript=org.kde.kate.desktop
+	image/bmp=lximage-qt.desktop
+	image/gif=lximage-qt.desktop
+	image/jpeg=lximage-qt.desktop
+	image/png=lximage-qt.desktop
+	image/tiff=lximage-qt.desktop
+	image/svg+xml=lximage-qt.desktop
+	text/css=org.kde.kate.desktop
+	text/csv=org.kde.kate.desktop
+	text/html=org.kde.kate.desktop
+	text/markdown=org.kde.kate.desktop
+	text/plain=org.kde.kate.desktop
+	text/x-c=org.kde.kate.desktop
+	text/x-c++=org.kde.kate.desktop
+	text/x-java=org.kde.kate.desktop
+	text/x-python=org.kde.kate.desktop
 	x-scheme-handler/http=firefox.desktop
 	x-scheme-handler/https=firefox.desktop
 	x-scheme-handler/about=firefox.desktop
 	x-scheme-handler/unknown=firefox.desktop
 EOF
+
+sudo mkdir --parents /etc/skel/.config/xdg-desktop-portal/
+sudo tee /etc/skel/.config/xdg-desktop-portal/portals.conf <<- EOF
+[preferred]
+	default=kde;gtk
+	org.freedesktop.impl.portal.Screenshot=wlr
+	org.freedesktop.impl.portal.ScreenCast=wlr
+EOF
+
+# Force default theme names...
+sudo ln --symbolic --force /usr/share/icons/breeze/ /usr/share/icons/breeze-default
+sudo ln --symbolic --force /usr/share/icons/Breeze_Light/ /usr/share/icons/breeze-cursors-default
+sudo ln --symbolic --force /usr/share/themes/Breeze/ /usr/share/themes/breeze-default
+
+# Fix dead KDE link...
+sudo tee /usr/local/bin/plasma-discover <<- EOF
+	#!/bin/bash
+
+	xdg-open https://apps.kde.org/de/discover/
+EOF
+sudo chmod +x /usr/local/bin/plasma-discover
 
 sudo mkdir --parents /etc/skel/.config/fontconfig/
 sudo tee /etc/skel/.config/fontconfig/fonts.conf <<- EOF
@@ -580,6 +584,13 @@ sudo tee /etc/skel/.config/fontconfig/fonts.conf <<- EOF
 	    </prefer>
 	  </alias>
 	</fontconfig>
+EOF
+
+sudo mkdir --parents /etc/skel/.config/
+sudo tee /etc/skel/.config/kdeglobals <<- EOF
+	[General]
+  TerminalApplication=alacritty
+  TerminalService=Alacritty.desktop
 EOF
 
 sudo mkdir --parents /etc/skel/.config/sway/
@@ -699,13 +710,13 @@ sudo tee /etc/skel/.config/sway/config <<- EOF
 	set \$off swaymsg "output * power off"
 	set \$on swaymsg "output * power on"
 	exec swayidle -w timeout 300 '\$lock' timeout 315 '\$off' resume '\$on' lock '\$lock' before-sleep '\$lock'
-	bindsym --release \$mod+l exec loginctl lock-session
+	bindsym \$mod+l exec loginctl lock-session
 
 	exec dunst
 	bindsym \$mod+j exec dunstctl history-pop
 
 	bindsym Print exec screenshot
-	bindsym --release Shift+Print exec screenshot --select --clipboard
+	bindsym Shift+Print exec screenshot --select --clipboard
 
 	include ~/.config/sway/config.d/*
 EOF
@@ -731,19 +742,14 @@ sudo tee /etc/skel/.config/sway/config.d/30-theme <<- EOF
 
 	font pango:Source Code Pro 10
 
-	seat * xcursor_theme Vanilla-DMZ 24
+	seat * xcursor_theme breeze-cursors-default 24
 
 	output * bg ${COLORS["Gray A"]} solid_color
 
-	exec {
-	  gsettings set org.gnome.desktop.interface gtk-theme "'Arc'"
-	  gsettings set org.gnome.desktop.interface icon-theme "'Arc'"
-	  gsettings set org.gnome.desktop.interface cursor-theme "'Vanilla-DMZ'"
-	  gsettings set org.gnome.desktop.interface cursor-size 24
-	  gsettings set org.gnome.desktop.interface font-name "'Source Sans 3 12'"
-	  gsettings set org.gnome.desktop.interface monospace-font-name "'Source Code Pro 12'"
-	  gsettings set org.gnome.desktop.interface document-font-name "'Source Serif 4 12'"
-	  gsettings set org.gnome.desktop.wm.preferences button-layout "':'"
+	exec_always {
+	  gsettings set org.gnome.desktop.interface gtk-theme 'breeze-default'
+	  gsettings set org.gnome.desktop.interface icon-theme 'breeze-default'
+	  gsettings set org.gnome.desktop.wm.preferences button-layout ':'
 	}
 EOF
 
@@ -1003,103 +1009,6 @@ sudo tee /etc/skel/.config/alacritty/hints.toml <<- EOF
 	[hints.enabled.binding]
 	key = "U"
 	mods = "Control|Shift"
-EOF
-
-sudo mkdir --parents /etc/skel/.config/pcmanfm/default/
-sudo tee /etc/skel/.config/pcmanfm/default/pcmanfm.conf <<- EOF
-	[volume]
-	autorun=0
-	mount_on_startup=0
-	mount_removable=0
-
-	[ui]
-	view_mode=compact
-EOF
-sudo mkdir --parents /etc/skel/.config/libfm/
-sudo tee /etc/skel/.config/libfm/libfm.conf <<- EOF
-	[config]
-	terminal=alacritty
-
-	[places]
-	places_applications=0
-	places_computer=0
-	places_desktop=0
-	places_home=1
-	places_network=0
-	places_root=1
-	places_trash=1
-	places_unmounted=1
-EOF
-
-sudo mkdir --parents /etc/skel/.config/geany/
-sudo tee /etc/skel/.config/geany/geany.conf <<- EOF
-	[geany]
-	check_detect_indent=true
-	detect_indent_width=true
-	editor_font=Source Code Pro 16
-	indent_type=1
-	msgwin_font=Source Code Pro 12
-	msgwindow_visible=false
-	pref_editor_ensure_convert_line_endings=true
-	pref_editor_tab_width=2
-	pref_editor_trail_space=true
-	pref_main_load_session=false
-	pref_main_save_wingeom=false
-	pref_main_save_winpos=false
-	pref_template_developer=
-	pref_template_initial=
-	pref_template_mail=
-	pref_toolbar_icon_size=3
-	pref_toolbar_icon_style=0
-	pref_toolbar_use_gtk_default_icon=false
-	pref_toolbar_use_gtk_default_style=false
-	scribble_pos=13
-	scribble_text=Auf zum Atem!
-	show_white_space=true
-	sidebar_visible=false
-	tab_pos_msgwin=3
-	tagbar_font=Source Sans 3 10
-
-	[project]
-	project_file_path=/home/fd/Workspace
-
-	[tools]
-	grep_cmd=/usr/bin/grep
-	terminal_cmd=/usr/bin/alacritty -e "/bin/sh %c"
-
-	[plugins]
-	load_plugins=false
-
-	[VTE]
-	load_vte=false
-EOF
-sudo tee /etc/skel/.config/geany/ui_toolbar.xml <<- EOF
-	<ui>
-	  <toolbar name='GeanyToolbar'>
-	    <toolitem action='New' />
-	    <toolitem action='Open' />
-	    <toolitem action='Save' />
-	    <separator/>
-	    <toolitem action='Reload' />
-	    <toolitem action='Close' />
-	    <separator/>
-	    <toolitem action='NavBack' />
-	    <toolitem action='NavFor' />
-	    <separator/>
-	    <toolitem action='SearchEntry' />
-	    <toolitem action='Search' />
-	    <separator/>
-	    <toolitem action='Quit' />
-	  </toolbar>
-	</ui>
-EOF
-
-gimp_version="$(pacman --query gimp | awk '{ print $2 }' | awk --field-separator "." '{ print $1 "." $2 }')"; readonly gimp_version
-sudo mkdir --parents "/etc/skel/.config/GIMP/${gimp_version}/"
-sudo tee "/etc/skel/.config/GIMP/${gimp_version}/gimprc" <<- EOF
-	(theme "System")
-	(theme-color-scheme system)
-	(show-welcome-dialog no)
 EOF
 
 if systemd-detect-virt --vm --quiet; then
